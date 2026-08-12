@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgenteFácil · Plataforma</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#14171A;--ink2:#1E293B;--muted:#64748B;--light:#94A3B8;
+  --border:#E2E8F0;--bg:#F8FAFC;--card:#FFFFFF;
+  --accent:#1D3557;--accent-l:#E8EEF5;--accent-d:#122238;
+  --gold:#B08D57;--gold-l:#F7F1E8;
+  --green:#10B981;--green-l:#ECFDF5;
+  --amber:#F59E0B;--amber-l:#FFFBEB;
+  --red:#EF4444;--red-l:#FEF2F2;
+  --sw:240px;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink2);display:flex;height:100vh;height:100dvh;overflow:hidden;font-size:14px}
+#app-shell{display:flex;min-width:0;width:100%}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sw);flex-shrink:0;background:var(--ink);display:flex;flex-direction:column;height:100vh;height:100dvh}
+.sb-logo{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sb-brand{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#fff;letter-spacing:-.3px}
+.sb-brand span{color:var(--accent)}
+.sb-tagline{font-size:11px;color:rgba(255,255,255,.35);margin-top:3px}
+.sb-brand-mini{display:none}
+.sb-nav{flex:1;padding:16px 12px;overflow-y:auto}
+.nav-section{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.25);padding:0 8px;margin:18px 0 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,.55);font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px;position:relative}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav-item.active{background:var(--accent);color:#fff}
+.nav-ic{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px}
+.nav-badge.green{background:var(--green)}
+.sb-foot{padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)}
+.plan-card{background:rgba(176,141,87,.15);border:1px solid rgba(176,141,87,.35);border-radius:10px;padding:12px 14px}
+.plan-name{font-size:12px;font-weight:600;color:#fff;margin-bottom:2px}
+.plan-sub{font-size:11px;color:rgba(255,255,255,.4)}
+.plan-bar{height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:8px}
+.plan-fill{height:4px;background:var(--accent);border-radius:2px;width:34%}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;gap:16px;flex-shrink:0}
+.topbar-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--ink);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:auto}
+.agent-pill{display:flex;align-items:center;gap:6px;background:var(--green-l);color:var(--green);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600}
+.agent-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.icon-btn{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;position:relative;transition:background .15s}
+.icon-btn:hover{background:var(--bg)}
+.notif-dot{position:absolute;top:7px;right:7px;width:6px;height:6px;border-radius:50%;background:var(--red);border:1.5px solid var(--card)}
+
+.content{flex:1;overflow-y:auto;padding:28px}
+.content::-webkit-scrollbar{width:4px}
+.content::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+/* ── VIEWS ── */
+.view{display:none}.view.active{display:block}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:4px;margin-bottom:24px;flex-wrap:wrap}
+.tab{padding:7px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:500;background:transparent;color:var(--muted);transition:all .15s;font-family:inherit}
+.tab.active{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.tab:hover:not(.active){color:var(--ink)}
+
+/* ── CARD ── */
+.card{background:var(--card);border-radius:14px;box-shadow:0 1px 3px rgba(20,23,26,.07)}
+.card-head{padding:18px 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.card-title{font-size:14px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+.card-desc{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ── KPI ── */
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.kpi{background:var(--card);border-radius:16px;padding:22px 24px;box-shadow:0 1px 3px rgba(20,23,26,.07)}
+.kpi-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.kpi-val{font-size:34px;font-weight:700;letter-spacing:-.8px;line-height:1;color:var(--ink)}
+.kpi-sub{font-size:12px;color:var(--muted);margin-top:8px}
+.tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px}
+.tag-green{background:var(--green-l);color:var(--green)}
+.tag-amber{background:var(--amber-l);color:#92400E}
+.tag-accent{background:var(--accent-l);color:var(--accent)}
+
+/* ── KNOWLEDGE BASE ── */
+.kb-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.overview-layout{grid-template-columns:1.4fr 1fr}
+.prof-layout{grid-template-columns:1fr 380px}
+.upload-zone{border:2px dashed var(--border);border-radius:12px;padding:40px 24px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);position:relative}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-l)}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:40px;margin-bottom:12px}
+.upload-title{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.upload-sub{font-size:13px;color:var(--muted);line-height:1.5}
+.upload-types{display:flex;gap:6px;justify-content:center;margin-top:14px}
+.type-pill{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--muted)}
+
+.doc-list{display:flex;flex-direction:column;gap:8px}
+.doc-item{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--bg);border-radius:10px;border:1px solid var(--border)}
+.doc-icon{font-size:22px;flex-shrink:0}
+.doc-info{flex:1;min-width:0}
+.doc-name{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.doc-status{font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px}
+.status-active{background:var(--green-l);color:var(--green)}
+.status-processing{background:var(--amber-l);color:#92400E}
+.doc-remove{background:none;border:none;cursor:pointer;color:var(--light);font-size:18px;padding:2px 6px;border-radius:4px;transition:color .15s}
+.doc-remove:hover{color:var(--red);background:var(--red-l)}
+
+.kb-preview{background:var(--bg);border-radius:10px;padding:16px;font-size:12px;color:var(--muted);line-height:1.7;max-height:200px;overflow-y:auto;border:1px solid var(--border);white-space:pre-wrap;font-family:monospace}
+
+/* ── CONFIG ── */
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.cfg-section{padding:20px 22px;border-bottom:1px solid var(--border)}
+.cfg-section:last-child{border-bottom:none}
+.cfg-title{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.field-group{margin-bottom:14px}
+.field-group:last-child{margin-bottom:0}
+.field-label{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px}
+.field-hint{font-size:11px;color:var(--light);margin-top:4px}
+.field{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 13px;font-size:13px;font-family:inherit;outline:none;color:var(--ink);background:#fff;transition:border-color .15s}
+
+/* ── LOGIN ── */
+.login-screen{position:fixed;inset:0;background:var(--ink);display:flex;align-items:center;justify-content:center;padding:20px;z-index:1000}
+.login-card{background:#fff;border-radius:16px;padding:32px 28px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-logo{width:48px;height:48px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 16px}
+.login-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--ink);text-align:center;margin-bottom:4px}
+.login-title span{color:var(--accent)}
+.login-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:24px}
+.login-error{font-size:12px;color:var(--red);min-height:16px;margin:8px 0 0;text-align:center}
+.field:focus{border-color:var(--accent)}
+textarea.field{resize:vertical;min-height:80px}
+.toggle-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.toggle-row:last-child{margin-bottom:0}
+.toggle-label{font-size:13px;color:var(--ink);font-weight:500}
+.toggle-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.toggle{width:40px;height:22px;border-radius:11px;background:var(--border);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;margin-top:2px}
+.toggle.on{background:var(--green)}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle.on::after{left:21px}
+
+/* ── TEST CHAT ── */
+.test-layout{display:grid;grid-template-columns:1fr 380px;gap:20px;height:calc(100vh - 190px);height:calc(100dvh - 190px)}
+.test-info{display:flex;flex-direction:column;gap:16px}
+.info-card{background:var(--card);border-radius:14px;border:1px solid var(--border);padding:20px 22px}
+.info-title{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.info-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;font-size:13px;color:var(--muted);line-height:1.45}
+.info-item:last-child{margin-bottom:0}
+.info-ic{flex-shrink:0;width:20px;text-align:center;margin-top:1px}
+.knowledge-preview{background:var(--bg);border-radius:8px;padding:12px;font-size:12px;color:var(--muted);line-height:1.6;border:1px solid var(--border);max-height:160px;overflow-y:auto;white-space:pre-wrap;font-family:monospace}
+
+/* ── PHONE MOCKUP ── */
+.phone-wrap{display:flex;flex-direction:column}
+.phone{background:var(--ink);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;height:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.phone-header{background:#075E54;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.ph-av{width:36px;height:36px;border-radius:50%;background:#128C7E;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ph-name{color:#fff;font-size:13px;font-weight:600}
+.ph-status{color:rgba(255,255,255,.6);font-size:11px}
+.ph-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:700;border-radius:8px;padding:2px 7px}
+.phone-chat{flex:1;background:#ECE5DD;overflow-y:auto;padding:10px 8px;display:flex;flex-direction:column;gap:4px;scroll-behavior:smooth}
+.phone-chat::-webkit-scrollbar{width:2px}
+.phone-chat::-webkit-scrollbar-thumb{background:rgba(0,0,0,.1);border-radius:2px}
+.p-msg{display:flex;flex-direction:column;max-width:85%}
+.p-msg.in{align-self:flex-start}
+.p-msg.out{align-self:flex-end}
+.p-bubble{padding:7px 10px 5px;border-radius:10px;font-size:12.5px;line-height:1.45;color:#111B21;word-break:break-word;white-space:pre-wrap}
+.p-msg.in .p-bubble{background:#fff;border-top-left-radius:2px}
+.p-msg.out .p-bubble{background:#DCF8C6;border-top-right-radius:2px}
+.p-meta{font-size:9.5px;color:#667781;margin-top:2px}
+.p-meta.right{text-align:right}
+.p-sep{align-self:center;background:rgba(255,255,255,.7);color:#667781;font-size:10px;border-radius:6px;padding:2px 9px;margin:4px 0}
+.p-typing{display:flex;align-items:center;gap:3px;padding:8px 11px;background:#fff;border-radius:10px;border-top-left-radius:2px;align-self:flex-start}
+.p-dot{width:6px;height:6px;border-radius:50%;background:#667781;animation:bounce 1.2s infinite}
+.p-dot:nth-child(2){animation-delay:.2s}
+.p-dot:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+.p-quick{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;align-self:flex-start;max-width:90%}
+.p-qbtn{background:#fff;border:1.5px solid #25D366;color:#075E54;border-radius:14px;padding:5px 11px;font-size:11.5px;font-weight:500;cursor:pointer;transition:background .15s;font-family:inherit}
+.p-qbtn:hover{background:#e8faf0}
+.phone-input{background:#F0F2F5;padding:7px 9px;display:flex;align-items:flex-end;gap:7px;flex-shrink:0}
+.ph-input-box{flex:1;background:#fff;border:none;border-radius:18px;padding:8px 12px;font-size:12.5px;font-family:inherit;resize:none;outline:none;max-height:80px;line-height:1.4;color:#111B21}
+.ph-send{width:36px;height:36px;border-radius:50%;background:#128C7E;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ph-send svg{width:17px;height:17px;fill:#fff}
+
+/* ── BTNs ── */
+.btn{border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-accent{background:var(--accent);color:#fff}.btn-accent:hover{background:var(--accent-d)}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#059669}
+.btn-ghost{background:var(--bg);color:var(--muted);border:1px solid var(--border)}.btn-ghost:hover{color:var(--ink)}
+.btn-sm{padding:6px 13px;font-size:12px}
+
+/* ── TEMPLATE DOWNLOAD ── */
+.template-card{background:linear-gradient(135deg,var(--accent-l),var(--green-l));border:1px solid var(--border);border-radius:14px;padding:24px;display:flex;align-items:center;gap:20px;margin-bottom:20px}
+.template-icon{font-size:44px;flex-shrink:0}
+.template-info{flex:1}
+.template-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:4px}
+.template-desc{font-size:13px;color:var(--muted);line-height:1.5}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:9999}
+.toast.show{opacity:1;transform:translateY(0)}
+
+@media(max-width:900px){
+  .grid-4{grid-template-columns:repeat(2,1fr)}
+  .kb-layout,.cfg-grid,.overview-layout,.prof-layout{grid-template-columns:1fr}
+  .test-layout{grid-template-columns:1fr;height:auto}
+  .phone-wrap{height:560px}
+  .sidebar{width:60px}
+  .sb-logo{padding:20px 0;text-align:center}
+  .sb-brand-full{display:none}
+  .sb-brand-mini{display:inline-flex;width:36px;height:36px;align-items:center;justify-content:center;background:var(--accent);color:#fff;border-radius:9px;font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:18px;line-height:1;border:1px solid rgba(255,255,255,.15)}
+  .sb-logo .sb-tagline,.nav-item span:not(.nav-ic),.nav-badge,.nav-section,.sb-foot .plan-name,.sb-foot .plan-sub,.sb-foot .plan-bar,.sb-foot .user-label,.sb-foot .user-text{display:none}
+  .nav-item{justify-content:center}
+  .topbar{padding:0 16px;gap:8px}
+  .topbar-title{font-size:14px}
+  .agent-pill-text{display:none}
+  .agent-pill{padding:7px}
+  .template-card{flex-wrap:wrap}
+  .template-card .btn{width:100%}
+}
+@media(max-width:480px){
+  .grid-4{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- TELA DE LOGIN -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🎧</div>
+    <div class="login-title">Agente<span>Fácil</span></div>
+    <div class="login-sub">Entre com seu e-mail e senha</div>
+    <div class="field-group">
+      <div class="field-label">E-mail</div>
+      <input class="field" type="email" id="login-email" placeholder="voce@exemplo.com" autocomplete="username">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Senha</div>
+      <input class="field" type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <button class="btn btn-accent" id="login-btn" style="width:100%;padding:11px;margin-top:6px" onclick="doLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- APP (escondido até o login confirmar) -->
+<div id="app-shell" style="display:none">
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-brand">
+      <span class="sb-brand-full">Agente<span>Fácil</span></span>
+      <span class="sb-brand-mini">🎧</span>
+    </div>
+    <div class="sb-tagline">Plataforma de atendimento IA</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="nav-section">Painel</div>
+    <div class="nav-item active" onclick="setTab('visao',this)"><span class="nav-ic">📊</span><span>Visão Geral</span></div>
+    <div class="nav-item" onclick="setTab('conversas',this)"><span class="nav-ic">💬</span><span>Conversas</span><span class="nav-badge">5</span></div>
+    <div class="nav-section">Agente</div>
+    <div class="nav-item" onclick="setTab('conhecimento',this)"><span class="nav-ic">🧠</span><span>Base de Conhecimento</span></div>
+    <div class="nav-item" onclick="setTab('profissionais',this)"><span class="nav-ic">👥</span><span>Profissionais</span></div>
+    <div class="nav-item" onclick="setTab('config',this)"><span class="nav-ic">⚙️</span><span>Configurações</span></div>
+    <div class="nav-item" onclick="setTab('testar',this)"><span class="nav-ic">🧪</span><span>Testar Agente</span><span class="nav-badge green">NOVO</span></div>
+    <div class="nav-item" onclick="setTab('agendamentos',this)"><span class="nav-ic">📅</span><span>Agendamentos</span></div>
+    <div class="nav-section platform-admin-only" style="display:none">Plataforma</div>
+    <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('clientes',this)"><span class="nav-ic">🏢</span><span>Clientes da Plataforma</span></div>
+  </nav>
+  <div class="sb-foot">
+    <div class="user-label" style="font-size:10px;color:rgba(255,255,255,.3);margin-bottom:6px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Logado como</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <div id="current-user-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">—</div>
+        <div class="user-text" style="min-width:0">
+          <div id="current-user-name" style="font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
+          <div id="current-user-role" style="font-size:11px;color:rgba(255,255,255,.45)">—</div>
+        </div>
+      </div>
+      <button onclick="doLogout()" title="Sair"
+        style="flex-shrink:0;background:rgba(255,255,255,.08);border:none;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);cursor:pointer">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">Visão Geral</div>
+    <div class="topbar-right">
+      <div class="agent-pill"><div class="agent-dot"></div><span class="agent-pill-text">Agente ativo</span></div>
+      <div class="icon-btn" title="Notificações">🔔<div class="notif-dot"></div></div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="tabs">
+      <button class="tab active" onclick="setTab('visao',null,this)">Visão Geral</button>
+      <button class="tab" onclick="setTab('conversas',null,this)">Conversas</button>
+      <button class="tab" onclick="setTab('conhecimento',null,this)">🧠 Base de Conhecimento</button>
+      <button class="tab" onclick="setTab('profissionais',null,this)">👥 Profissionais</button>
+      <button class="tab" onclick="setTab('config',null,this)">Configurações</button>
+      <button class="tab" onclick="setTab('testar',null,this)">🧪 Testar Agente</button>
+      <button class="tab" onclick="setTab('agendamentos',null,this)">📅 Agendamentos</button>
+      <button class="tab platform-admin-only" style="display:none" onclick="setTab('clientes',null,this)">🏢 Clientes da Plataforma</button>
+    </div>
+
+    <!-- ══ VISÃO GERAL ══ -->
+    <div class="view active" id="view-visao">
+      <div class="grid-4">
+        <div class="kpi"><div class="kpi-label">Mensagens hoje <span class="tag tag-green">+18%</span></div><div class="kpi-val">47</div><div class="kpi-sub">100% respondidas</div></div>
+        <div class="kpi"><div class="kpi-label">Agendamentos <span class="tag tag-green">↑ 3</span></div><div class="kpi-val">12</div><div class="kpi-sub">Via agente hoje</div></div>
+        <div class="kpi"><div class="kpi-label">Taxa conversão <span class="tag tag-accent">↑ 8%</span></div><div class="kpi-val">76%</div><div class="kpi-sub">Leads agendados</div></div>
+        <div class="kpi"><div class="kpi-label">Transferências <span class="tag tag-amber">2 hoje</span></div><div class="kpi-val">2</div><div class="kpi-sub">Assumidas pela equipe</div></div>
+      </div>
+      <div class="overview-layout" style="display:grid;gap:16px">
+        <div class="card">
+          <div class="card-head"><span class="card-title">🧠 Base de conhecimento ativa</span><button class="btn btn-ghost btn-sm" onclick="setTab('conhecimento')">Gerenciar →</button></div>
+          <div style="padding:16px 22px" id="kb-summary">
+            <div style="color:var(--muted);font-size:13px">Nenhum documento carregado ainda.<br>Vá em <strong>Base de Conhecimento</strong> para adicionar.</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-title">⚡ Status do agente</span></div>
+          <div style="padding:16px 22px;display:flex;flex-direction:column;gap:12px" id="status-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ CONVERSAS ══ -->
+    <div class="view" id="view-conversas">
+      <div class="card">
+        <div class="card-head"><span class="card-title">💬 Histórico de conversas</span><span style="font-size:12px;color:var(--muted)">Últimas 24h</span></div>
+        <div style="padding:8px 0" id="conv-list"></div>
+      </div>
+    </div>
+
+    <!-- ══ BASE DE CONHECIMENTO ══ -->
+    <div class="view" id="view-conhecimento">
+      <div class="template-card">
+        <div class="template-icon">📄</div>
+        <div class="template-info">
+          <div class="template-title">Modelo de documento de conhecimento</div>
+          <div class="template-desc">Baixe o modelo, preencha com as informações do seu negócio e faça o upload abaixo. Você pode carregar múltiplos documentos — o agente usa todos como fonte de conhecimento.</div>
+        </div>
+        <button class="btn btn-accent" onclick="downloadTemplate()">⬇ Baixar modelo</button>
+      </div>
+
+      <div class="kb-layout">
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-head">
+              <div>
+                <div class="card-title">📤 Carregar documentos</div>
+                <div class="card-desc">Formatos aceitos: .txt, .pdf — limite total de 1.000 palavras</div>
+              </div>
+            </div>
+            <div style="padding:20px 22px">
+              <!-- Word counter bar -->
+              <div style="margin-bottom:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <span style="font-size:12px;font-weight:600;color:var(--muted)">Palavras utilizadas</span>
+                  <span style="font-size:12px;font-weight:700" id="word-count-label">0 / 1.000 palavras</span>
+                </div>
+                <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+                  <div id="word-count-bar" style="height:100%;background:var(--green);border-radius:3px;width:0%;transition:width .3s,background .3s"></div>
+                </div>
+                <div style="font-size:11px;color:var(--muted);margin-top:5px" id="word-count-hint">
+                  Documentos objetivos funcionam melhor — foque em serviços, horários, preços e FAQ.
+                </div>
+              </div>
+
+              <div class="upload-zone" id="drop-zone"
+                ondragover="event.preventDefault();this.classList.add('drag')"
+                ondragleave="this.classList.remove('drag')"
+                ondrop="handleDrop(event)">
+                <input type="file" accept=".txt,.pdf" multiple onchange="handleFiles(this.files)">
+                <div class="upload-icon">📂</div>
+                <div class="upload-title">Arraste os arquivos aqui ou clique para selecionar</div>
+                <div class="upload-sub">Você pode carregar múltiplos arquivos — o limite total é de 1.000 palavras combinadas</div>
+                <div class="upload-types">
+                  <span class="type-pill">.TXT</span>
+                  <span class="type-pill">.PDF</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">📚 Documentos carregados</div>
+                <div class="card-desc" id="doc-count-desc">O agente usa todos os documentos ativos como fonte de conhecimento</div>
+              </div>
+            </div>
+            <div style="padding:16px 22px">
+              <div class="doc-list" id="doc-list">
+                <div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">
+                  Nenhum documento carregado ainda.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">👁 Prévia do conteúdo</div>
+                <div class="card-desc" id="preview-label">Clique em um documento para visualizar</div>
+              </div>
+            </div>
+            <div style="padding:16px 22px">
+              <div class="kb-preview" id="kb-preview">Selecione um documento na lista ao lado para ver o conteúdo que o agente está lendo.</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-head"><div class="card-title">💡 Dicas de preenchimento</div></div>
+            <div style="padding:16px 22px;display:flex;flex-direction:column;gap:10px">
+              <div class="info-item"><span class="info-ic">✅</span><span>Seja objetivo — 300 a 500 palavras são suficientes para um atendimento eficiente</span></div>
+              <div class="info-item"><span class="info-ic">✅</span><span>Inclua: nome do negócio, serviços, preços, horário de funcionamento e FAQ</span></div>
+              <div class="info-item"><span class="info-ic">✅</span><span>Para preços e tabelas, escreva no próprio .txt — ex: "Consulta: R$ 350"</span></div>
+              <div class="info-item"><span class="info-ic">✅</span><span>Indique o que o agente NÃO deve falar ou prometer</span></div>
+              <div class="info-item"><span class="info-ic">✅</span><span>Atualize o documento quando algo mudar — suba a nova versão e o agente usa imediatamente</span></div>
+              <div class="info-item"><span class="info-ic">⚠</span><span>Limite total: 1.000 palavras combinadas entre todos os documentos ativos</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PROFISSIONAIS ══ -->
+    <div class="view" id="view-profissionais">
+      <!-- Admin banner -->
+      <div id="prof-admin-banner" style="background:var(--green-l);border:1px solid #A7F3D0;border-radius:10px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:13px;color:#065F46;font-weight:500">👑 Você está no perfil <strong>Administrador</strong> — pode adicionar, editar e configurar permissões de todos os profissionais.</span>
+      </div>
+      <div id="prof-user-banner" style="background:var(--amber-l);border:1px solid #FCD34D;border-radius:10px;padding:12px 18px;margin-bottom:20px;display:none;align-items:center;justify-content:space-between">
+        <span style="font-size:13px;color:#92400E;font-weight:500">👤 Você está no perfil <strong>Profissional</strong> — visualizando apenas suas próprias informações e agenda.</span>
+      </div>
+
+      <div class="prof-layout" style="display:grid;gap:20px">
+        <!-- Lista de profissionais -->
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-head">
+              <div>
+                <div class="card-title">👥 Profissionais cadastrados</div>
+                <div class="card-desc">Cada profissional tem agenda e permissões independentes</div>
+              </div>
+              <button id="btn-add-prof" class="btn btn-accent btn-sm" onclick="openAddProfModal()">+ Adicionar profissional</button>
+            </div>
+            <div id="prof-list" style="padding:8px 0"></div>
+          </div>
+
+          <!-- Upgrade notice for additional professionals -->
+          <div id="upgrade-notice" style="display:none;background:linear-gradient(135deg,var(--accent-l),var(--green-l));border:1px solid var(--border);border-radius:12px;padding:20px 22px">
+            <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:6px">🔒 Adicionar mais profissionais</div>
+            <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5">Profissionais adicionais têm custo conforme seu plano: <strong>+R$ 250/mês</strong> no plano Start (1 profissional incluído) ou <strong>+R$ 200/mês</strong> no plano Pro (até 5 profissionais incluídos). Fale com o suporte para adicionar.</div>
+            <button class="btn btn-accent btn-sm" onclick="showToast('Em breve: upgrade direto pelo painel!')">Adicionar profissional adicional</button>
+          </div>
+        </div>
+
+        <!-- Detalhes do profissional selecionado -->
+        <div>
+          <div class="card" id="prof-detail-card">
+            <div class="card-head"><div class="card-title" id="prof-detail-title">Selecione um profissional</div></div>
+            <div id="prof-detail-body" style="padding:20px 22px;color:var(--muted);font-size:13px">
+              Clique em um profissional para ver e editar seus dados, agenda e permissões.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ CONFIGURAÇÕES ══ -->
+    <div class="view" id="view-config">
+      <div class="cfg-grid">
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="cfg-section">
+              <div class="cfg-title">🤖 Identidade do agente</div>
+              <div class="field-group">
+                <div class="field-label">Nome do agente</div>
+                <input class="field" id="cfg-agent-name" type="text" value="Bia" placeholder="Ex: Bia, Max, Ana...">
+                <div class="field-hint">Este é o nome que aparecerá nas conversas com seus clientes</div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">Tom de comunicação</div>
+                <select class="field" id="cfg-tone">
+                  <option value="amigavel" selected>Amigável e informal</option>
+                  <option value="formal">Formal e profissional</option>
+                  <option value="neutro">Neutro e objetivo</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <div class="field-label">Mensagem de boas-vindas</div>
+                <textarea class="field" id="cfg-welcome">Olá! 😊 Seja bem-vindo! Como posso te ajudar hoje?</textarea>
+                <div class="field-hint">Primeira mensagem que o agente envia ao cliente</div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">Mensagem ao transferir para humano</div>
+                <textarea class="field" id="cfg-transfer" style="min-height:55px">Entendido! Vou transferir você para um de nossos atendentes. Um momento! 👋</textarea>
+                <div class="field-hint">Enviada quando o agente detecta pedido de atendimento humano</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="cfg-section">
+              <div class="cfg-title">⚡ Funcionalidades</div>
+              <div id="feat-list"></div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <button class="btn btn-accent" onclick="saveSettingsToServer()">Salvar configurações</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TESTAR AGENTE ══ -->
+    <div class="view" id="view-testar">
+      <div class="test-layout">
+        <div class="test-info">
+          <div class="info-card">
+            <div class="info-title">🧪 Como funciona o teste</div>
+            <div class="info-item"><span class="info-ic">1️⃣</span><span>Carregue um documento na <strong>Base de Conhecimento</strong></span></div>
+            <div class="info-item"><span class="info-ic">2️⃣</span><span>O agente usa esse documento para responder — sem precisar configurar mais nada</span></div>
+            <div class="info-item"><span class="info-ic">3️⃣</span><span>Converse como se fosse um cliente real do seu negócio</span></div>
+            <div class="info-item"><span class="info-ic">4️⃣</span><span>Se algo não soar certo, ajuste o documento e teste novamente</span></div>
+          </div>
+
+          <div class="info-card" style="flex:1">
+            <div class="info-title">📄 Conhecimento ativo do agente</div>
+            <div class="knowledge-preview" id="test-kb-preview">Nenhum documento carregado ainda.\n\nVá em "Base de Conhecimento" para adicionar o documento do seu negócio.</div>
+            <div style="margin-top:12px;display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" onclick="setTab('conhecimento')">📤 Carregar documento</button>
+              <button class="btn btn-ghost btn-sm" onclick="resetTestChat()">↺ Reiniciar conversa</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="phone-wrap">
+          <div class="phone">
+            <div class="phone-header">
+              <div class="ph-av">🤖</div>
+              <div>
+                <div class="ph-name" id="agent-name-display">Bia</div>
+                <div class="ph-status" id="test-status">online agora</div>
+              </div>
+              <div class="ph-badge">TESTE</div>
+            </div>
+            <div class="phone-chat" id="test-chat"></div>
+            <div class="phone-input">
+              <textarea class="ph-input-box" id="test-input" rows="1"
+                placeholder="Simule uma mensagem de cliente..."
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();testSend()}"
+                oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"></textarea>
+              <button class="ph-send" onclick="testSend()">
+                <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ AGENDAMENTOS ══ -->
+    <div class="view" id="view-agendamentos">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">📅 Agendamentos</div>
+            <div class="card-desc" id="appt-count-desc">Agendamentos criados pelo agente via conversa</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="loadAppointmentsFromServer()">↺ Atualizar</button>
+        </div>
+        <div style="padding:8px 0" id="appt-list"></div>
+      </div>
+    </div>
+
+    <!-- ══ CLIENTES DA PLATAFORMA (admin only) ══ -->
+    <div class="view" id="view-clientes">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">🏢 Clientes cadastrados na plataforma</div>
+            <div class="card-desc">Cada cliente é uma instalação independente do AgenteFácil</div>
+          </div>
+          <button class="btn btn-accent btn-sm" onclick="openAddClientModal()">+ Novo cliente</button>
+        </div>
+        <div style="padding:8px 0" id="clients-list"></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── BACKEND ──
+// URL do backend Node.js (protege a chave da API — ver /agentefacil-backend).
+const BACKEND_URL = 'https://agentefacil-backend.onrender.com';
+
+// URL e chave "anon" (pública, segura de expor) do Supabase — usadas SÓ
+// pra fazer login. A chave anon não dá acesso a nada sozinha; ela só
+// permite tentar logar, e o Supabase confere e-mail/senha do lado dele.
+const SUPABASE_URL = 'https://rgkjmcdkzmtryqjrjaut.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJna2ptY2Rrem10cnlxanJqYXV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMDEyNDgsImV4cCI6MjA5OTg3NzI0OH0.fwccRcbdYofmZUE-Aj_vB7T0hpzY162zS8yZmkDIaXk';
+
+let authToken = localStorage.getItem('agentefacil_token') || null;
+let currentUser = null; // { id, name, role, permissao } — preenchido após login
+let isPlatformAdmin = false; // true se o usuário logado também é admin da plataforma (tabela platform_admins)
+
+// Checa se o usuário logado é admin da plataforma (independente de ser admin de um cliente).
+// Falha silenciosamente (403/401) para qualquer usuário comum — isso é esperado, não é erro.
+async function checkPlatformAdmin(){
+  try{
+    const res = await apiFetch('/api/admin/me');
+    isPlatformAdmin = res.ok;
+  }catch(e){
+    isPlatformAdmin = false;
+  }
+  document.querySelectorAll('.platform-admin-only').forEach(el => el.style.display = isPlatformAdmin ? '' : 'none');
+}
+
+// Helper: toda chamada ao backend passa por aqui, garantindo que o token
+// de sessão nunca seja esquecido em algum fetch novo.
+function apiFetch(path, options = {}) {
+  return fetch(`${BACKEND_URL}${path}`, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      'Authorization': `Bearer ${authToken}`,
+    },
+  });
+}
+
+// ── LOGIN / LOGOUT ──
+async function doLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  errEl.textContent = '';
+
+  if(!email || !password){
+    errEl.textContent = 'Preencha e-mail e senha.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Entrando...';
+  try{
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if(!res.ok || !data.access_token){
+      errEl.textContent = 'E-mail ou senha incorretos.';
+      return;
+    }
+    authToken = data.access_token;
+    localStorage.setItem('agentefacil_token', authToken);
+    await loadCurrentUser();
+    if(!currentUser){
+      errEl.textContent = 'Login ok, mas este usuário não está vinculado a nenhuma instalação. Fale com o administrador.';
+      doLogout();
+      return;
+    }
+    showApp();
+  }catch(e){
+    console.error('[doLogin] erro:', e);
+    errEl.textContent = 'Não foi possível conectar. Verifique sua internet.';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  }
+}
+
+function doLogout(){
+  authToken = null;
+  currentUser = null;
+  localStorage.removeItem('agentefacil_token');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+}
+
+async function loadCurrentUser(){
+  try{
+    const res = await apiFetch('/api/professionals/me');
+    if(!res.ok) { currentUser = null; return; }
+    const data = await res.json();
+    currentUser = data.professional;
+  }catch(e){
+    console.error('[loadCurrentUser] erro:', e);
+    currentUser = null;
+  }
+}
+
+function showApp(){
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'flex';
+  applyCurrentUserToUI();
+  checkPlatformAdmin();
+  initTestChat();
+  loadKnowledgeFromServer();
+  loadSettingsFromServer();
+  if(currentUser?.role === 'admin') renderProfList();
+}
+
+function applyCurrentUserToUI(){
+  if(!currentUser) return;
+  const isAdmin = currentUser.role === 'admin';
+  document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin ? '' : 'none');
+  const nameEl = document.getElementById('current-user-name');
+  const roleEl = document.getElementById('current-user-role');
+  const avatarEl = document.getElementById('current-user-avatar');
+  if(nameEl) nameEl.textContent = currentUser.name;
+  if(roleEl) roleEl.textContent = isAdmin ? '👑 Administrador' : '👤 Profissional';
+  if(avatarEl) avatarEl.textContent = (currentUser.name||'').split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase();
+}
+
+// Ao abrir a página: se já tem token salvo, tenta usar direto sem pedir login de novo
+async function checkExistingSession(){
+  if(!authToken){
+    document.getElementById('login-screen').style.display = 'flex';
+    return;
+  }
+  await loadCurrentUser();
+  if(currentUser){
+    showApp();
+  }else{
+    doLogout();
+  }
+}
+
+// ── NAVIGATION ──
+const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',testar:'Testar Agente',agendamentos:'Agendamentos',clientes:'Clientes da Plataforma'};
+function setTab(id, navEl, tabEl){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(navEl) navEl.classList.add('active');
+  else document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')?.includes("'"+id+"'"))n.classList.add('active');});
+  if(tabEl) tabEl.classList.add('active');
+  else document.querySelectorAll('.tab').forEach(t=>{if(t.getAttribute('onclick')?.includes("'"+id+"'"))t.classList.add('active');});
+  document.getElementById('page-title').textContent = titles[id]||'';
+  if(id==='testar') syncKbToTest();
+  if(id==='conhecimento') loadKnowledgeFromServer();
+  if(id==='profissionais') loadProfessionalsFromServer();
+  if(id==='agendamentos') loadAppointmentsFromServer();
+  if(id==='clientes') loadPlatformClientsFromServer();
+}
+
+// ── KNOWLEDGE BASE ── (agora persistida no Supabase via backend)
+let knowledgeText = ''; // combined text of all active docs — preenchido a partir da API
+let kbDocs = []; // espelho local do que está no banco: [{id, name, ext, content, word_count, active}]
+
+const ICONS = {txt:'📄', pdf:'📕', xlsx:'📊', csv:'📊'};
+
+function getExt(name){ return name.split('.').pop().toLowerCase(); }
+
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+}
+
+function handleFiles(files){
+  Array.from(files).forEach(f => processFile(f));
+}
+
+const MAX_WORDS = 1000;
+
+function countWords(text){
+  return text.trim().split(/\s+/).filter(w=>w.length>0).length;
+}
+
+function getTotalWords(){
+  return kbDocs.filter(d=>d.active).reduce((sum,d)=>sum+(d.word_count ?? countWords(d.content)),0);
+}
+
+function updateWordCounter(){
+  const total = getTotalWords();
+  const pct = Math.min((total/MAX_WORDS)*100, 100);
+  const label = document.getElementById('word-count-label');
+  const bar   = document.getElementById('word-count-bar');
+  const hint  = document.getElementById('word-count-hint');
+  if(!label) return;
+  label.textContent = `${total.toLocaleString('pt-BR')} / ${MAX_WORDS.toLocaleString('pt-BR')} palavras`;
+  label.style.color = total > MAX_WORDS ? 'var(--red)' : total > 800 ? 'var(--amber)' : 'var(--ink)';
+  bar.style.width = pct+'%';
+  bar.style.background = total > MAX_WORDS ? 'var(--red)' : total > 800 ? 'var(--amber)' : 'var(--green)';
+  if(total > MAX_WORDS){
+    hint.textContent = '⚠ Limite excedido — desative ou remova documentos para continuar.';
+    hint.style.color = 'var(--red)';
+  } else if(total > 800){
+    hint.textContent = `⚠ Próximo do limite — ${MAX_WORDS-total} palavras restantes.`;
+    hint.style.color = 'var(--amber)';
+  } else {
+    hint.textContent = `Documentos objetivos funcionam melhor — foque em serviços, horários, preços e FAQ. ${MAX_WORDS-total} palavras disponíveis.`;
+    hint.style.color = 'var(--muted)';
+  }
+}
+
+// ── Carrega a base de conhecimento do backend (fonte da verdade) ──
+async function loadKnowledgeFromServer(){
+  try{
+    const res = await apiFetch('/api/knowledge');
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    const data = await res.json();
+    kbDocs = data.documents.map(d=>({...d, size:new Blob([d.content]).size}));
+    rebuildKnowledge();
+    renderDocList();
+  }catch(e){
+    console.error('[loadKnowledgeFromServer] erro:', e);
+    const list = document.getElementById('doc-list');
+    if(list) list.innerHTML = `<div style="color:var(--red);font-size:13px;text-align:center;padding:20px">
+      ⚠ Não foi possível conectar ao backend em ${BACKEND_URL}.<br>Verifique se ele está rodando e se o Supabase está configurado.
+    </div>`;
+  }
+}
+
+function processFile(file){
+  if(!file) return;
+  const ext = getExt(file.name);
+  const allowed = ['txt','pdf'];
+  if(!allowed.includes(ext)){
+    showToast('⚠ Formato não suportado. Use apenas .txt ou .pdf');
+    return;
+  }
+  if(ext === 'txt'){
+    const reader = new FileReader();
+    reader.onload = e => finishAdd(file, e.target.result, 'txt');
+    reader.readAsText(file);
+  } else if(ext === 'pdf'){
+    // Extração de texto real de PDF ainda não implementada (ver backlog) —
+    // por ora só o placeholder é enviado, então o conteúdo não chega ao agente.
+    finishAdd(file, `[Documento PDF: ${file.name}]\nExtração de texto de PDF ainda não implementada — o agente não está lendo este conteúdo de verdade.`, 'pdf');
+  }
+}
+
+async function finishAdd(file, content, ext){
+  try{
+    const res = await apiFetch('/api/knowledge', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name:file.name, ext, content })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      showToast(`⚠ ${data.error || 'Não foi possível salvar o documento.'}`);
+      return;
+    }
+    showToast(`✓ ${file.name} salvo! (${data.document.word_count} palavras)`);
+    await loadKnowledgeFromServer();
+    syncKbToTest();
+  }catch(e){
+    console.error('[finishAdd] erro:', e);
+    showToast(`⚠ Não foi possível conectar ao backend em ${BACKEND_URL}.`);
+  }
+}
+
+function rebuildKnowledge(){
+  knowledgeText = kbDocs
+    .filter(d => d.active)
+    .map(d => `=== ${d.name} ===\n${d.content}`)
+    .join('\n\n');
+  updateKbSummary();
+  updateWordCounter();
+}
+
+function renderDocList(){
+  const list = document.getElementById('doc-list');
+  const activeCount = kbDocs.filter(d=>d.active).length;
+  const desc = document.getElementById('doc-count-desc');
+  if(desc) desc.textContent = kbDocs.length === 0
+    ? 'O agente usa todos os documentos ativos como fonte de conhecimento'
+    : `${activeCount} de ${kbDocs.length} documento${kbDocs.length>1?'s':''} ativo${activeCount>1?'s':''}`;
+
+  if(kbDocs.length === 0){
+    list.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhum documento carregado ainda.</div>';
+    return;
+  }
+  list.innerHTML = kbDocs.map(d=>{
+    const sizeStr = d.size > 1024*1024 ? (d.size/1024/1024).toFixed(1)+'MB' : Math.round(d.size/1024||1)+'KB';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s"
+      onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''"
+      onclick="previewDoc('${d.id}')">
+      <div style="font-size:22px;flex-shrink:0">${ICONS[d.ext]||'📄'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.name}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${sizeStr} · ${d.ext.toUpperCase()} · ${d.word_count} palavras</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="toggle ${d.active?'on':''}" title="${d.active?'Ativo — clique para desativar':'Inativo — clique para ativar'}"
+          onclick="event.stopPropagation();toggleDoc('${d.id}',this)"></div>
+        <button onclick="event.stopPropagation();removeDoc('${d.id}')"
+          style="background:none;border:none;cursor:pointer;color:var(--light);font-size:18px;padding:2px 6px;border-radius:4px;transition:color .15s"
+          onmouseover="this.style.color='var(--red)';this.style.background='var(--red-l)'"
+          onmouseout="this.style.color='var(--light)';this.style.background='none'">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function previewDoc(id){
+  const d = kbDocs.find(x=>x.id===id);
+  if(!d) return;
+  const preview = document.getElementById('kb-preview');
+  const label = document.getElementById('preview-label');
+  if(preview) preview.textContent = d.content.substring(0,1000) + (d.content.length>1000?'\n\n... (documento continua)':'');
+  if(label) label.textContent = `Visualizando: ${d.name} ${d.active?'(ativo)':'(inativo)'}`;
+}
+
+async function toggleDoc(id, toggleEl){
+  const d = kbDocs.find(x=>x.id===id);
+  if(!d) return;
+  const nextActive = !d.active;
+  try{
+    const res = await apiFetch(`/api/knowledge/${id}`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ active: nextActive })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      showToast(`⚠ ${data.error || 'Não foi possível atualizar o documento.'}`);
+      return;
+    }
+    showToast(nextActive ? `✓ ${d.name} ativado` : `⚠ ${d.name} desativado`);
+    await loadKnowledgeFromServer();
+    syncKbToTest();
+  }catch(e){
+    console.error('[toggleDoc] erro:', e);
+    showToast(`⚠ Não foi possível conectar ao backend em ${BACKEND_URL}.`);
+  }
+}
+
+async function removeDoc(id){
+  const d = kbDocs.find(x=>x.id===id);
+  if(!d) return;
+  try{
+    const res = await apiFetch(`/api/knowledge/${id}`, { method:'DELETE' });
+    if(!res.ok && res.status !== 204){
+      const data = await res.json().catch(()=>({}));
+      showToast(`⚠ ${data.error || 'Não foi possível remover o documento.'}`);
+      return;
+    }
+    showToast(`${d.name} removido`);
+    await loadKnowledgeFromServer();
+    syncKbToTest();
+    document.getElementById('kb-preview').textContent = 'Selecione um documento na lista ao lado para ver o conteúdo que o agente está lendo.';
+    document.getElementById('preview-label').textContent = 'Clique em um documento para visualizar';
+  }catch(e){
+    console.error('[removeDoc] erro:', e);
+    showToast(`⚠ Não foi possível conectar ao backend em ${BACKEND_URL}.`);
+  }
+}
+
+function updateKbSummary(){
+  const s = document.getElementById('kb-summary');
+  if(!s) return;
+  if(kbDocs.length === 0){
+    s.innerHTML='<div style="color:var(--muted);font-size:13px">Nenhum documento carregado ainda.<br>Vá em <strong>Base de Conhecimento</strong> para adicionar.</div>';
+    return;
+  }
+  const active = kbDocs.filter(d=>d.active);
+  s.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${kbDocs.map(d=>`
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:18px">${ICONS[d.ext]||'📄'}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.name}</div>
+          </div>
+          <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:${d.active?'var(--green-l)':'var(--bg)'};color:${d.active?'var(--green)':'var(--muted)'};flex-shrink:0">${d.active?'Ativo':'Inativo'}</span>
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--muted)">${active.length} documento${active.length!==1?'s':''} ativo${active.length!==1?'s':''} · Agente usando conhecimento combinado</div>`;
+}
+
+function syncKbToTest(){
+  const el = document.getElementById('test-kb-preview');
+  if(!el) return;
+  el.textContent = knowledgeText || 'Nenhum documento carregado ainda.\n\nVá em "Base de Conhecimento" para adicionar.';
+}
+
+const TEMPLATE = `DOCUMENTO DE CONHECIMENTO DO AGENTE
+====================================
+Preencha cada seção com as informações do seu negócio.
+O agente usará este documento para responder aos seus clientes.
+
+NOME DO NEGÓCIO:
+[Ex: Clínica Bem Viver / Salão da Maria / Advocacia Silva & Associados]
+
+TIPO DE NEGÓCIO:
+[Descreva brevemente o que faz]
+
+ENDEREÇO E COMO CHEGAR:
+[Endereço completo, ponto de referência, estacionamento]
+
+HORÁRIO DE FUNCIONAMENTO:
+[Segunda a Sexta: 08h às 18h]
+[Sábado: 08h às 12h]
+[Domingo: Fechado]
+
+SERVIÇOS / PRODUTOS OFERECIDOS:
+[Liste cada serviço com uma descrição curta e o preço se houver]
+- Serviço 1: descrição — R$ valor
+- Serviço 2: descrição — R$ valor
+
+FORMAS DE PAGAMENTO:
+[Dinheiro, cartão, PIX, parcelamento]
+
+CONTATO PARA URGÊNCIAS:
+[Telefone ou WhatsApp direto]
+
+PERGUNTAS FREQUENTES:
+P: [Pergunta comum do cliente]
+R: [Resposta que o agente deve dar]
+
+P: [Outra pergunta]
+R: [Resposta]
+
+O QUE O AGENTE NÃO DEVE FAZER:
+[Ex: Não dar diagnósticos / Não prometer prazos / Não falar de concorrentes]
+
+TOM DE VOZ:
+[Como você quer que o agente converse: formal, informal, amigável]
+
+INFORMAÇÕES ADICIONAIS:
+[Qualquer outra informação relevante que o agente deva saber]`;
+
+function downloadTemplate(){
+  const blob = new Blob([TEMPLATE], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'modelo-conhecimento-agente.txt';
+  a.click();
+  showToast('✓ Modelo baixado! Preencha e faça o upload.');
+}
+
+// ── STATUS LIST ──
+const statusItems = [
+  {icon:'🟢', label:'Agente respondendo', val:'Ativo'},
+  {icon:'📄', label:'Base de conhecimento', val:'—', id:'kb-status'},
+  {icon:'📅', label:'Agendamento automático', val:'Ativado'},
+  {icon:'🔔', label:'Lembrete automático', val:'Ativado'},
+  {icon:'⚠️', label:'Detecção de urgência', val:'Ativado'},
+];
+const sl = document.getElementById('status-list');
+statusItems.forEach(s=>{
+  const row = document.createElement('div');
+  row.style.cssText='display:flex;justify-content:space-between;align-items:center;font-size:13px';
+  row.innerHTML=`<span>${s.icon} ${s.label}</span><span style="font-weight:600;color:var(--muted)" ${s.id?`id="${s.id}"`:''}>${s.val}</span>`;
+  sl.appendChild(row);
+});
+
+// ── CONVERSAS ──
+const convs = [
+  {init:'JR',cor:'#6366F1',nome:'João Rocha',hora:'10:42',msg:'Quero agendar para amanhã manhã',status:'ia'},
+  {init:'MS',cor:'#EC4899',nome:'Maria Santos',hora:'09:58',msg:'✓ Agendamento confirmado',status:'done'},
+  {init:'PT',cor:'#F59E0B',nome:'Pedro Torres',hora:'09:15',msg:'Tem dúvida sobre retorno',status:'ia'},
+  {init:'RN',cor:'#EF4444',nome:'Roberto Nunes',hora:'08:50',msg:'🚨 Transferido para humano',status:'transfer'},
+  {init:'LC',cor:'#10B981',nome:'Lúcia Costa',hora:'08:10',msg:'Obrigada pelo atendimento!',status:'done'},
+];
+const cl = document.getElementById('conv-list');
+convs.forEach(c=>{
+  const badge = c.status==='transfer'?`<span class="tag" style="background:var(--red-l);color:var(--red)">⚠ Humano</span>`:
+                c.status==='done'?`<span class="tag tag-green">✓ Concluído</span>`:
+                `<span class="tag tag-accent">🤖 IA</span>`;
+  cl.innerHTML+=`<div style="display:flex;gap:12px;padding:12px 22px;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+    <div style="width:38px;height:38px;border-radius:50%;background:${c.cor};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:14px;flex-shrink:0">${c.init}</div>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px">${c.nome}${badge}</span>
+        <span style="font-size:11px;color:var(--light)">${c.hora}</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.msg}</div>
+    </div>
+  </div>`;
+});
+
+// ── FEATURES ──
+const feats=[
+  {key:'agendamento_automatico', l:'Agendamento automático',s:'IA agenda sem intervenção',on:true},
+  {key:'lembrete_1h', l:'Lembrete 1h antes',s:'Mensagem automática ao cliente',on:true},
+  {key:'triagem_urgencia', l:'Triagem por urgência',s:'Detecta emergências e notifica',on:true},
+  {key:'transferencia_automatica', l:'Transferência automática',s:'Passa para humano quando solicitado',on:true},
+  {key:'pesquisa_satisfacao', l:'Pesquisa de satisfação',s:'Mensagem automática pós-atendimento',on:false},
+];
+const fl=document.getElementById('feat-list');
+feats.forEach(f=>{
+  fl.innerHTML+=`<div class="toggle-row"><div><div class="toggle-label">${f.l}</div><div class="toggle-sub">${f.s}</div></div><div class="toggle ${f.on?'on':''}" data-feature-key="${f.key}" onclick="this.classList.toggle('on')"></div></div>`;
+});
+
+// ── CONFIGURAÇÕES: carregar e salvar via backend (Supabase) ──
+async function loadSettingsFromServer(){
+  try{
+    const res = await apiFetch('/api/settings');
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    const { settings } = await res.json();
+    document.getElementById('cfg-agent-name').value = settings.agent_name;
+    document.getElementById('cfg-tone').value = settings.tone;
+    document.getElementById('cfg-welcome').value = settings.welcome_message;
+    document.getElementById('cfg-transfer').value = settings.transfer_message;
+    document.querySelectorAll('[data-feature-key]').forEach(el=>{
+      const key = el.getAttribute('data-feature-key');
+      const on = !!settings.features?.[key];
+      el.classList.toggle('on', on);
+    });
+    const nameDisplay = document.getElementById('agent-name-display');
+    if(nameDisplay) nameDisplay.textContent = settings.agent_name;
+  }catch(e){
+    console.error('[loadSettingsFromServer] erro:', e);
+    // Silencioso: os valores padrão do HTML continuam visíveis se o backend estiver fora do ar.
+  }
+}
+
+async function saveSettingsToServer(){
+  const features = {};
+  document.querySelectorAll('[data-feature-key]').forEach(el=>{
+    features[el.getAttribute('data-feature-key')] = el.classList.contains('on');
+  });
+  const payload = {
+    agent_name: document.getElementById('cfg-agent-name').value,
+    tone: document.getElementById('cfg-tone').value,
+    welcome_message: document.getElementById('cfg-welcome').value,
+    transfer_message: document.getElementById('cfg-transfer').value,
+    features,
+  };
+  try{
+    const res = await apiFetch('/api/settings', {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    showToast('✓ Configurações salvas com sucesso!');
+    const nameDisplay = document.getElementById('agent-name-display');
+    if(nameDisplay) nameDisplay.textContent = payload.agent_name;
+  }catch(e){
+    console.error('[saveSettingsToServer] erro:', e);
+    showToast(`⚠ Não foi possível conectar ao backend em ${BACKEND_URL}.`);
+  }
+}
+
+// ── TEST CHAT ──
+let testHistory=[], testTyping=false;
+
+function getTime(){return new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+
+function testAddBubble(text,dir,quick=[]){
+  const chat=document.getElementById('test-chat');
+  const wrap=document.createElement('div');
+  wrap.className=`p-msg ${dir}`;
+  const b=document.createElement('div');
+  b.className='p-bubble';
+  b.textContent=text;
+  wrap.appendChild(b);
+  const m=document.createElement('div');
+  m.className=`p-meta${dir==='out'?' right':''}`;
+  m.textContent=getTime();
+  wrap.appendChild(m);
+  chat.appendChild(wrap);
+  if(quick.length){
+    const qw=document.createElement('div');
+    qw.className='p-quick';
+    quick.forEach(q=>{
+      const btn=document.createElement('button');
+      btn.className='p-qbtn';
+      btn.textContent=q;
+      btn.onclick=()=>{
+        document.getElementById('test-input').value=q;
+        qw.remove();
+        testSend();
+      };
+      qw.appendChild(btn);
+    });
+    chat.appendChild(qw);
+  }
+  chat.scrollTop=chat.scrollHeight;
+}
+
+function testShowTyping(){
+  const chat=document.getElementById('test-chat');
+  const t=document.createElement('div');
+  t.id='test-typing';
+  t.innerHTML='<div class="p-typing"><div class="p-dot"></div><div class="p-dot"></div><div class="p-dot"></div></div>';
+  chat.appendChild(t);
+  chat.scrollTop=chat.scrollHeight;
+  document.getElementById('test-status').textContent='digitando…';
+}
+
+function testRemoveTyping(){
+  const t=document.getElementById('test-typing');
+  if(t)t.remove();
+  document.getElementById('test-status').textContent='online agora';
+}
+
+async function testSend(){
+  const inp=document.getElementById('test-input');
+  const text=inp.value.trim();
+  if(!text||testTyping)return;
+  testTyping=true;
+  inp.value='';
+  inp.style.height='auto';
+  document.querySelectorAll('.p-quick').forEach(q=>q.remove());
+  testAddBubble(text,'out');
+  testHistory.push({role:'user',content:text});
+  testShowTyping();
+
+  try{
+    // A chave da API NUNCA fica no frontend. O backend busca sozinho, no
+    // Supabase, a base de conhecimento ativa e as configurações do agente —
+    // por isso só precisamos mandar o histórico da conversa.
+    const res=await apiFetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        messages:testHistory
+      })
+    });
+    if(!res.ok){
+      const errData = await res.json().catch(()=>({}));
+      throw new Error(errData.error || `Erro ${res.status}`);
+    }
+    const data=await res.json();
+    const reply=data.reply||'Desculpe, tive um problema. Pode repetir?';
+    testRemoveTyping();
+    testHistory.push({role:'assistant',content:reply});
+    let quick=[];
+    if(testHistory.length<=2) quick=['Quero fazer um agendamento','Qual o horário de funcionamento?','Quais serviços oferecem?'];
+    testAddBubble(reply,'in',quick);
+  }catch(e){
+    testRemoveTyping();
+    testAddBubble('Ops, não consegui falar com o backend. Verifique se ele está rodando em '+BACKEND_URL+' e tente novamente.','in');
+    console.error('[testSend] erro ao chamar backend:', e);
+  }
+  testTyping=false;
+}
+
+function resetTestChat(){
+  testHistory=[];
+  testTyping=false;
+  const chat=document.getElementById('test-chat');
+  chat.innerHTML='';
+  initTestChat();
+}
+
+function initTestChat(){
+  const chat=document.getElementById('test-chat');
+  // Evita duplicar a mensagem de boas-vindas caso initTestChat() seja
+  // chamado mais de uma vez sem o chat ter sido limpo antes.
+  if(chat.children.length>0) return;
+  const sep=document.createElement('div');
+  sep.className='p-sep';
+  sep.textContent='Hoje';
+  chat.appendChild(sep);
+  setTimeout(()=>{
+    const agentName=document.getElementById('cfg-agent-name')?.value||'Bia';
+    const welcome=document.getElementById('cfg-welcome')?.value||'Olá! 😊 Seja bem-vindo! Como posso te ajudar hoje?';
+    document.getElementById('agent-name-display').textContent=agentName;
+    testAddBubble(welcome,'in',
+      ['Quero fazer um agendamento','Qual o horário de funcionamento?','Quais serviços oferecem?']);
+  },600);
+}
+
+// ── PROFISSIONAIS (dados reais do Supabase, via backend) ──
+let profissionais = [];
+
+const diasLabels = {seg:'Seg',ter:'Ter',qua:'Qua',qui:'Qui',sex:'Sex',sab:'Sáb',dom:'Dom'};
+const diasOrdem = ['seg','ter','qua','qui','sex','sab','dom'];
+const permLabels = {
+  proprias:'Vê só as próprias conversas',
+  todas_ver:'Vê todas, assume só as suas',
+  todas_assumir:'Vê e assume qualquer conversa'
+};
+
+async function loadProfessionalsFromServer(){
+  try{
+    const res = await apiFetch('/api/professionals');
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    const data = await res.json();
+    profissionais = data.professionals;
+    renderProfList();
+  }catch(e){
+    console.error('[loadProfessionalsFromServer] erro:', e);
+    const list = document.getElementById('prof-list');
+    if(list) list.innerHTML = `<div style="padding:20px 22px;color:var(--red);font-size:13px;text-align:center">⚠ Não foi possível carregar os profissionais.</div>`;
+  }
+}
+
+function renderProfList(){
+  const list = document.getElementById('prof-list');
+  if(!list || !currentUser) return;
+  const isAdmin = currentUser.role === 'admin';
+
+  const adminBanner = document.getElementById('prof-admin-banner');
+  const userBanner  = document.getElementById('prof-user-banner');
+  if(adminBanner) adminBanner.style.display = isAdmin ? 'flex' : 'none';
+  if(userBanner)  userBanner.style.display  = !isAdmin ? 'flex' : 'none';
+  const addBtn = document.getElementById('btn-add-prof');
+  if(addBtn) addBtn.style.display = isAdmin ? '' : 'none';
+
+  if(profissionais.length===0){
+    list.innerHTML='<div style="padding:20px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhum profissional cadastrado ainda.</div>';
+    return;
+  }
+
+  list.innerHTML = profissionais.map(p=>`
+    <div onclick="selectProf('${p.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 22px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s"
+      onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+      <div style="width:40px;height:40px;border-radius:50%;background:${p.role==='admin'?'var(--accent)':'#10B981'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex-shrink:0">
+        ${p.name.split(' ').slice(0,2).map(n=>n[0]).join('')}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--ink)">${p.name}${p.role==='admin'?' 👑':''}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${p.especialidade||'—'} · ${(p.dias_atendimento||[]).map(d=>diasLabels[d]).join(', ')}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${p.active?'var(--green-l)':'var(--bg)'};color:${p.active?'var(--green)':'var(--muted)'}">${p.active?'Ativo':'Inativo'}</span>
+        ${isAdmin?`<span style="font-size:11px;color:var(--light)">→</span>`:''}
+      </div>
+    </div>`).join('');
+
+  const notice = document.getElementById('upgrade-notice');
+  if(notice) notice.style.display = isAdmin && profissionais.length>=1 ? 'block' : 'none';
+}
+
+function selectProf(id){
+  const p = profissionais.find(x=>x.id===id);
+  if(!p) return;
+  const isAdmin = currentUser.role === 'admin';
+  const canEditThis = isAdmin || p.id === currentUser.id; // admin edita qualquer um; profissional só a si mesmo
+  const dias = p.dias_atendimento || [];
+  const diasHtml = diasOrdem.map(d=>{
+    const v = dias.includes(d);
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;font-size:12px;font-weight:600;background:${v?'var(--accent-l)':'var(--bg)'};color:${v?'var(--accent)':'var(--light)'};border:1px solid ${v?'var(--accent-l)':'var(--border)'};cursor:${canEditThis?'pointer':'default'}"
+      ${canEditThis?`onclick="toggleDia('${id}','${d}',this)"`:''}>${diasLabels[d]}</span>`;
+  }).join('');
+
+  document.getElementById('prof-detail-title').textContent = p.name;
+  document.getElementById('prof-detail-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Especialidade</div>
+        ${canEditThis
+          ? `<input id="prof-esp-${id}" style="border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;width:100%;outline:none" value="${p.especialidade||''}">`
+          : `<div style="font-size:13px;color:var(--ink);font-weight:500">${p.especialidade||'—'}</div>`
+        }
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Horário de atendimento</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="time" id="prof-inicio-${id}" value="${(p.horario_inicio||'08:00').slice(0,5)}" style="border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;outline:none" ${!canEditThis?'disabled':''}>
+          <span style="font-size:12px;color:var(--muted)">até</span>
+          <input type="time" id="prof-fim-${id}" value="${(p.horario_fim||'18:00').slice(0,5)}" style="border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;outline:none" ${!canEditThis?'disabled':''}>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Dias de atendimento</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${diasHtml}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Duração do atendimento</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="number" min="10" max="240" step="5" id="prof-duracao-${id}" value="${p.appointment_duration_minutes||60}" style="width:90px;border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;outline:none" ${!canEditThis?'disabled':''}>
+          <span style="font-size:12px;color:var(--muted)">minutos por atendimento</span>
+        </div>
+      </div>
+      ${isAdmin ? `
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Permissão de acesso ao painel</div>
+        <select id="perm-${id}" onchange="updatePerm('${id}',this.value)" style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;width:100%;outline:none;color:var(--ink)" ${p.role==='admin'?'disabled':''}>
+          <option value="proprias" ${p.permissao==='proprias'?'selected':''}>Vê só as próprias conversas</option>
+          <option value="todas_ver" ${p.permissao==='todas_ver'?'selected':''}>Vê todas, assume só as suas</option>
+          <option value="todas_assumir" ${p.permissao==='todas_assumir'?'selected':''}>Vê e assume qualquer conversa</option>
+        </select>
+        ${p.role==='admin'?'<div style="font-size:11px;color:var(--muted);margin-top:6px">Administrador sempre vê e assume qualquer conversa</div>':''}
+      </div>
+      <div style="display:flex;gap:8px;padding-top:4px">
+        <button class="btn btn-accent btn-sm" onclick="saveProf('${id}')">Salvar alterações</button>
+        ${p.role!=='admin'?`<button class="btn btn-ghost btn-sm" onclick="toggleAtivo('${id}')">${p.active?'Desativar':'Ativar'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="removeProf('${id}')" style="color:var(--red)">Remover</button>`:''}
+      </div>` : canEditThis ? `
+      <div style="display:flex;gap:8px;padding-top:4px">
+        <button class="btn btn-accent btn-sm" onclick="saveProf('${id}')">Salvar minha agenda</button>
+      </div>` : `
+      <div style="background:var(--bg);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.5">
+        🔒 Permissão: <strong style="color:var(--ink)">${permLabels[p.permissao]}</strong><br>
+        Para alterar as permissões, um administrador deve fazer isso.
+      </div>`}
+    </div>`;
+}
+
+function toggleDia(id, dia, el){
+  const p = profissionais.find(x=>x.id===id);
+  if(!p) return;
+  const dias = new Set(p.dias_atendimento || []);
+  if(dias.has(dia)) dias.delete(dia); else dias.add(dia);
+  p.dias_atendimento = diasOrdem.filter(d=>dias.has(d));
+  const on = dias.has(dia);
+  el.style.background = on ? 'var(--accent-l)' : 'var(--bg)';
+  el.style.color       = on ? 'var(--accent)' : 'var(--light)';
+  el.style.borderColor = on ? 'var(--accent-l)' : 'var(--border)';
+}
+
+function updatePerm(id, val){
+  const p = profissionais.find(x=>x.id===id);
+  if(p) p.permissao = val;
+}
+
+async function saveProf(id){
+  const p = profissionais.find(x=>x.id===id);
+  if(!p) return;
+  const espEl = document.getElementById(`prof-esp-${id}`);
+  const inicioEl = document.getElementById(`prof-inicio-${id}`);
+  const fimEl = document.getElementById(`prof-fim-${id}`);
+  const duracaoEl = document.getElementById(`prof-duracao-${id}`);
+  const payload = {
+    especialidade: espEl ? espEl.value : p.especialidade,
+    dias_atendimento: p.dias_atendimento,
+    horario_inicio: inicioEl ? inicioEl.value : p.horario_inicio,
+    horario_fim: fimEl ? fimEl.value : p.horario_fim,
+    appointment_duration_minutes: duracaoEl ? parseInt(duracaoEl.value, 10) : p.appointment_duration_minutes,
+  };
+  if(currentUser.role === 'admin') payload.permissao = p.permissao;
+
+  try{
+    const res = await apiFetch(`/api/professionals/${id}`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(!res.ok){ showToast(`⚠ ${data.error||'Não foi possível salvar.'}`); return; }
+    await loadProfessionalsFromServer();
+    showToast(`✓ ${p.name} atualizado com sucesso!`);
+  }catch(e){
+    console.error('[saveProf] erro:', e);
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }
+}
+
+async function toggleAtivo(id){
+  const p = profissionais.find(x=>x.id===id);
+  if(!p) return;
+  try{
+    const res = await apiFetch(`/api/professionals/${id}`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ active: !p.active })
+    });
+    if(!res.ok){ const d = await res.json(); showToast(`⚠ ${d.error||'Erro ao atualizar.'}`); return; }
+    await loadProfessionalsFromServer();
+    selectProf(id);
+    showToast(`${!p.active?'✓ Profissional ativado':'⚠ Profissional desativado'}`);
+  }catch(e){
+    console.error('[toggleAtivo] erro:', e);
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }
+}
+
+async function removeProf(id){
+  const p = profissionais.find(x=>x.id===id);
+  if(!p) return;
+  if(!confirm(`Remover ${p.name}? Isso também apaga o login dele. Não dá pra desfazer.`)) return;
+  try{
+    const res = await apiFetch(`/api/professionals/${id}`, { method:'DELETE' });
+    if(!res.ok && res.status!==204){ const d = await res.json().catch(()=>({})); showToast(`⚠ ${d.error||'Erro ao remover.'}`); return; }
+    await loadProfessionalsFromServer();
+    document.getElementById('prof-detail-title').textContent = 'Selecione um profissional';
+    document.getElementById('prof-detail-body').innerHTML = 'Clique em um profissional para ver e editar seus dados, agenda e permissões.';
+    showToast(`${p.name} removido`);
+  }catch(e){
+    console.error('[removeProf] erro:', e);
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }
+}
+
+async function openAddProfModal(){
+  if(currentUser.role !== 'admin'){ showToast('⚠ Apenas administradores podem adicionar profissionais'); return; }
+  const name = prompt('Nome completo do profissional:');
+  if(!name) return;
+  const especialidade = prompt('Especialidade:') || '';
+  const email = prompt('E-mail de login do profissional:');
+  if(!email) return;
+  const password = prompt('Senha inicial (mínimo 8 caracteres) — combine com o profissional pra ele trocar depois:');
+  if(!password || password.length < 8){ showToast('⚠ Senha precisa ter pelo menos 8 caracteres. Cadastro cancelado.'); return; }
+
+  try{
+    const res = await apiFetch('/api/professionals', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name, especialidade, email, password, role:'profissional' })
+    });
+    const data = await res.json();
+    if(!res.ok){ showToast(`⚠ ${data.error||'Não foi possível criar o profissional.'}`); return; }
+    await loadProfessionalsFromServer();
+    showToast(`✓ ${name} adicionado! Peça pra ele entrar com o e-mail e a senha combinada.`);
+  }catch(e){
+    console.error('[openAddProfModal] erro:', e);
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }
+}
+
+// ── AGENDAMENTOS (dados reais do Supabase, via backend) ──
+let appointments = [];
+
+const apptStatusLabel = { confirmado:'Confirmado', cancelado:'Cancelado', concluido:'Concluído', no_show:'Não compareceu' };
+const apptStatusColor = { confirmado:'var(--green)', cancelado:'var(--red)', concluido:'var(--muted)', no_show:'var(--amber)' };
+
+function formatApptDate(iso){
+  try{
+    return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  }catch(e){ return iso; }
+}
+
+async function loadAppointmentsFromServer(){
+  try{
+    const res = await apiFetch('/api/appointments');
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    const data = await res.json();
+    appointments = (data.appointments || []).sort((a,b)=> new Date(a.start_time) - new Date(b.start_time));
+    renderAppointmentsList();
+  }catch(e){
+    console.error('[loadAppointmentsFromServer] erro:', e);
+    const list = document.getElementById('appt-list');
+    if(list) list.innerHTML = `<div style="padding:20px 22px;color:var(--red);font-size:13px;text-align:center">⚠ Não foi possível carregar os agendamentos.</div>`;
+  }
+}
+
+function renderAppointmentsList(){
+  const list = document.getElementById('appt-list');
+  if(!list) return;
+  const desc = document.getElementById('appt-count-desc');
+  if(desc) desc.textContent = `${appointments.length} agendamento${appointments.length!==1?'s':''} no total`;
+
+  if(appointments.length===0){
+    list.innerHTML='<div style="padding:20px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhum agendamento ainda.</div>';
+    return;
+  }
+
+  list.innerHTML = appointments.map(a=>`
+    <div style="display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--ink)">${a.customer_name || 'Cliente'} <span style="color:var(--muted);font-weight:400">· ${a.customer_phone||''}</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${formatApptDate(a.start_time)} – ${formatApptDate(a.end_time)}</div>
+      </div>
+      <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${apptStatusColor[a.status]||'var(--muted)'}22;color:${apptStatusColor[a.status]||'var(--muted)'}">${apptStatusLabel[a.status]||a.status}</span>
+      ${a.status==='confirmado' ? `<button class="btn btn-ghost btn-sm" onclick="cancelAppointmentFromPanel('${a.id}')">Cancelar</button>` : ''}
+    </div>`).join('');
+}
+
+async function cancelAppointmentFromPanel(id){
+  if(!confirm('Cancelar este agendamento?')) return;
+  try{
+    const res = await apiFetch(`/api/appointments/${id}`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status:'cancelado' })
+    });
+    if(!res.ok){ const d = await res.json().catch(()=>({})); showToast(`⚠ ${d.error||'Não foi possível cancelar.'}`); return; }
+    showToast('✓ Agendamento cancelado');
+    await loadAppointmentsFromServer();
+  }catch(e){
+    console.error('[cancelAppointmentFromPanel] erro:', e);
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }
+}
+
+// ── CLIENTES DA PLATAFORMA (admin da plataforma, via /api/admin) ──
+let platformClients = [];
+
+async function loadPlatformClientsFromServer(){
+  try{
+    const res = await apiFetch('/api/admin/clients');
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    const data = await res.json();
+    platformClients = data.clients || [];
+    renderClientsList();
+  }catch(e){
+    console.error('[loadPlatformClientsFromServer] erro:', e);
+    const list = document.getElementById('clients-list');
+    if(list) list.innerHTML = `<div style="padding:20px 22px;color:var(--red);font-size:13px;text-align:center">⚠ Não foi possível carregar os clientes.</div>`;
+  }
+}
+
+function renderClientsList(){
+  const list = document.getElementById('clients-list');
+  if(!list) return;
+  if(platformClients.length===0){
+    list.innerHTML='<div style="padding:20px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhum cliente cadastrado ainda.</div>';
+    return;
+  }
+  list.innerHTML = platformClients.map(c=>`
+    <div style="display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--ink)">${c.name}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Cadastrado em ${c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'}</div>
+      </div>
+      <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${c.active?'var(--green-l)':'var(--bg)'};color:${c.active?'var(--green)':'var(--muted)'}">${c.active?'Ativo':'Inativo'}</span>
+    </div>`).join('');
+}
+
+async function openAddClientModal(){
+  const name = prompt('Nome do negócio (novo cliente):');
+  if(!name) return;
+  const adminName = prompt('Nome do primeiro admin desse cliente:');
+  if(!adminName) return;
+  const adminEmail = prompt('E-mail de login desse admin:');
+  if(!adminEmail) return;
+  const adminPassword = prompt('Senha inicial (mínimo 8 caracteres):');
+  if(!adminPassword || adminPassword.length < 8){ showToast('⚠ Senha precisa ter pelo menos 8 caracteres. Cadastro cancelado.'); return; }
+
+  try{
+    const res = await apiFetch('/api/admin/clients', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name, adminName, adminEmail, adminPassword })
+    });
+    const data = await res.json();
+    if(!res.ok){ showToast(`⚠ ${data.error||'Não foi possível criar o cliente.'}`); return; }
+    await loadPlatformClientsFromServer();
+    showToast(`✓ ${name} cadastrado! Peça pro admin entrar com o e-mail e a senha combinada.`);
+  }catch(e){
+    console.error('[openAddClientModal] erro:', e);
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }
+}
+
+// ── TOAST ──
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── INIT ──
+checkExistingSession();
+</script>
+</body>
+</html>
