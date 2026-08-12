@@ -86,7 +86,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 
 /* ── KNOWLEDGE BASE ── */
 .kb-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.kb-layout>div{min-width:0}
 .overview-layout{grid-template-columns:1.4fr 1fr}
+.overview-layout>div{min-width:0}
 .prof-layout{grid-template-columns:1fr 380px}
 .upload-zone{border:2px dashed var(--border);border-radius:12px;padding:40px 24px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);position:relative}
 .upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-l)}
