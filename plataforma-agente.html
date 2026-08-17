@@ -244,17 +244,18 @@ textarea.field{resize:vertical;min-height:80px}
     <div class="login-logo">🎧</div>
     <div class="login-title">Agente<span>Fácil</span></div>
     <div class="login-sub">Entre com seu e-mail e senha</div>
-    <div class="field-group">
-      <div class="field-label">E-mail</div>
-      <input class="field" type="email" id="login-email" placeholder="voce@exemplo.com" autocomplete="username">
-    </div>
-    <div class="field-group">
-      <div class="field-label">Senha</div>
-      <input class="field" type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"
-        onkeydown="if(event.key==='Enter'&&event.isTrusted)doLogin()">
-    </div>
-    <div class="login-error" id="login-error"></div>
-    <button class="btn btn-accent" id="login-btn" style="width:100%;padding:11px;margin-top:6px" onclick="if(event.isTrusted)doLogin()">Entrar</button>
+    <form id="login-form" onsubmit="event.preventDefault();doLogin();">
+      <div class="field-group">
+        <div class="field-label">E-mail</div>
+        <input class="field" type="email" id="login-email" placeholder="voce@exemplo.com" autocomplete="username">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Senha</div>
+        <input class="field" type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="login-error" id="login-error"></div>
+      <button class="btn btn-accent" id="login-btn" type="submit" style="width:100%;padding:11px;margin-top:6px">Entrar</button>
+    </form>
   </div>
 </div>
 
@@ -714,8 +715,16 @@ function doLogout(){
   localStorage.removeItem('agentefacil_token');
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app-shell').style.display = 'none';
-  document.getElementById('login-email').value = '';
-  document.getElementById('login-password').value = '';
+
+  // Recria os campos do zero: limpar .value não basta, o navegador mantém
+  // seu próprio preview/estado de autofill associado ao nó antigo depois
+  // de um login bem-sucedido nele.
+  ['login-email','login-password'].forEach(id=>{
+    const oldEl = document.getElementById(id);
+    const freshEl = oldEl.cloneNode(false);
+    freshEl.value = '';
+    oldEl.replaceWith(freshEl);
+  });
 }
 
 async function loadCurrentUser(){
