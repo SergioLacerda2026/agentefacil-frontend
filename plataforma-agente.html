@@ -1536,9 +1536,9 @@ function selectProf(id){
       <div>
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Horário de atendimento</div>
         <div style="display:flex;gap:8px;align-items:center">
-          <input type="time" id="prof-inicio-${id}" value="${(p.horario_inicio||'08:00').slice(0,5)}" style="border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;outline:none" ${!canEditThis?'disabled':''}>
-          <span style="font-size:12px;color:var(--muted)">até</span>
-          <input type="time" id="prof-fim-${id}" value="${(p.horario_fim||'18:00').slice(0,5)}" style="border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;outline:none" ${!canEditThis?'disabled':''}>
+          <input type="time" id="prof-inicio-${id}" value="${(p.horario_inicio||'08:00').slice(0,5)}" style="border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;outline:none;width:105px;flex-shrink:0" ${!canEditThis?'disabled':''}>
+          <span style="font-size:12px;color:var(--muted);flex-shrink:0">até</span>
+          <input type="time" id="prof-fim-${id}" value="${(p.horario_fim||'18:00').slice(0,5)}" style="border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;outline:none;width:105px;flex-shrink:0" ${!canEditThis?'disabled':''}>
         </div>
       </div>
       <div>
@@ -1972,7 +1972,7 @@ async function submitAddClient(e){
     const res = await apiFetch('/api/admin/clients', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ name, adminName, adminEmail, adminPassword })
+      body: JSON.stringify({ clientName: name, adminName, email: adminEmail, password: adminPassword })
     });
     const data = await res.json();
     if(!res.ok){
