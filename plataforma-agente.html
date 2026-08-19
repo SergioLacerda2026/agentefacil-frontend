@@ -127,6 +127,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .field-label{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px}
 .field-hint{font-size:11px;color:var(--light);margin-top:4px}
 .field{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 13px;font-size:13px;font-family:inherit;outline:none;color:var(--ink);background:#fff;transition:border-color .15s}
+.field.invalid{border-color:var(--red)}
+.field-error{font-size:11px;color:var(--red);margin-top:4px;min-height:14px}
+.password-wrap{position:relative}
+.password-wrap .field{padding-right:40px}
+.password-toggle{position:absolute;right:4px;top:4px;bottom:4px;width:32px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:inherit}
+.password-toggle:hover{background:var(--bg);color:var(--ink)}
+.form-alert{font-size:12px;border-radius:8px;padding:10px 12px;margin-bottom:14px}
+.form-alert.error{background:var(--red-l);color:#991B1B}
+.form-alert.success{background:var(--green-l);color:#065F46}
 
 /* ── LOGIN ── */
 .login-screen{position:fixed;inset:0;background:var(--ink);display:flex;align-items:center;justify-content:center;padding:20px;z-index:1000}
@@ -282,6 +291,7 @@ textarea.field{resize:vertical;min-height:80px}
     <div class="nav-item" onclick="setTab('agendamentos',this)"><span class="nav-ic">📅</span><span>Agendamentos</span></div>
     <div class="nav-section platform-admin-only" style="display:none">Plataforma</div>
     <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('clientes',this)"><span class="nav-ic">🏢</span><span>Clientes da Plataforma</span></div>
+    <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('precos',this)"><span class="nav-ic">💰</span><span>Preços</span></div>
   </nav>
   <div class="sb-foot">
     <div class="user-label" style="font-size:10px;color:rgba(255,255,255,.3);margin-bottom:6px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Logado como</div>
@@ -320,6 +330,7 @@ textarea.field{resize:vertical;min-height:80px}
       <button class="tab" onclick="setTab('testar',null,this)">🧪 Testar Agente</button>
       <button class="tab" onclick="setTab('agendamentos',null,this)">📅 Agendamentos</button>
       <button class="tab platform-admin-only" style="display:none" onclick="setTab('clientes',null,this)">🏢 Clientes da Plataforma</button>
+      <button class="tab platform-admin-only" style="display:none" onclick="setTab('precos',null,this)">💰 Preços</button>
     </div>
 
     <!-- ══ VISÃO GERAL ══ -->
@@ -467,15 +478,51 @@ textarea.field{resize:vertical;min-height:80px}
                 <div class="card-title">👥 Profissionais cadastrados</div>
                 <div class="card-desc">Cada profissional tem agenda e permissões independentes</div>
               </div>
-              <button id="btn-add-prof" class="btn btn-accent btn-sm" onclick="openAddProfModal()">+ Adicionar profissional</button>
+              <button id="btn-add-prof" class="btn btn-accent btn-sm" onclick="showAddProfForm()">+ Adicionar profissional</button>
             </div>
             <div id="prof-list" style="padding:8px 0"></div>
           </div>
 
-          <!-- Upgrade notice for additional professionals -->
+          <!-- Formulário de cadastro de profissional (substitui os prompt() antigos) -->
+          <div id="add-prof-card" class="card" style="margin-bottom:16px;display:none">
+            <div class="card-head">
+              <div class="card-title">➕ Adicionar profissional</div>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="hideAddProfForm()">Cancelar</button>
+            </div>
+            <form id="add-prof-form" style="padding:20px 22px" onsubmit="submitAddProf(event)" novalidate>
+              <div id="add-prof-alert" class="form-alert" style="display:none"></div>
+              <div class="field-group">
+                <div class="field-label">Nome completo</div>
+                <input class="field" id="prof-name" type="text" autocomplete="off" oninput="validateProfForm()">
+                <div class="field-error" id="err-prof-name"></div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">Especialidade</div>
+                <input class="field" id="prof-especialidade" type="text" autocomplete="off" oninput="validateProfForm()">
+                <div class="field-error" id="err-prof-especialidade"></div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">E-mail de login</div>
+                <input class="field" id="prof-email" type="email" autocomplete="off" oninput="validateProfForm()">
+                <div class="field-error" id="err-prof-email"></div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">Senha inicial</div>
+                <div class="password-wrap">
+                  <input class="field" id="prof-password" type="password" autocomplete="new-password" oninput="validateProfForm()">
+                  <button type="button" class="password-toggle" id="prof-password-toggle" onclick="togglePwd('prof-password', this)" aria-label="Mostrar/ocultar senha">👁</button>
+                </div>
+                <div class="field-error" id="err-prof-password"></div>
+                <div class="field-hint">Combine com o profissional pra ele trocar depois.</div>
+              </div>
+              <button type="submit" class="btn btn-accent" id="btn-prof-submit" disabled style="width:100%">Cadastrar profissional</button>
+            </form>
+          </div>
+
+          <!-- Custo por profissional adicional -->
           <div id="upgrade-notice" style="display:none;background:linear-gradient(135deg,var(--accent-l),var(--green-l));border:1px solid var(--border);border-radius:12px;padding:20px 22px">
             <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:6px">🔒 Adicionar mais profissionais</div>
-            <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5">Profissionais adicionais têm custo conforme seu plano: <strong>+R$ 250/mês</strong> no plano Start (1 profissional incluído) ou <strong>+R$ 200/mês</strong> no plano Pro (até 5 profissionais incluídos). Fale com o suporte para adicionar.</div>
+            <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5" id="upgrade-notice-text">Carregando informações de custo...</div>
             <button class="btn btn-accent btn-sm" onclick="showToast('Em breve: upgrade direto pelo painel!')">Adicionar profissional adicional</button>
           </div>
         </div>
@@ -609,9 +656,99 @@ textarea.field{resize:vertical;min-height:80px}
             <div class="card-title">🏢 Clientes cadastrados na plataforma</div>
             <div class="card-desc">Cada cliente é uma instalação independente do AgenteFácil</div>
           </div>
-          <button class="btn btn-accent btn-sm" onclick="openAddClientModal()">+ Novo cliente</button>
+          <button class="btn btn-accent btn-sm" onclick="showAddClientForm()">+ Novo cliente</button>
         </div>
         <div style="padding:8px 0" id="clients-list"></div>
+      </div>
+
+      <!-- Formulário de cadastro de cliente (substitui os prompt() antigos) -->
+      <div id="add-client-card" class="card" style="margin-top:16px;display:none">
+        <div class="card-head">
+          <div class="card-title">➕ Novo cliente</div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="hideAddClientForm()">Cancelar</button>
+        </div>
+        <form id="add-client-form" style="padding:20px 22px" onsubmit="submitAddClient(event)" novalidate>
+          <div id="add-client-alert" class="form-alert" style="display:none"></div>
+          <div class="field-group">
+            <div class="field-label">Nome do negócio</div>
+            <input class="field" id="client-name" type="text" autocomplete="off" oninput="validateClientForm()">
+            <div class="field-error" id="err-client-name"></div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Nome do primeiro admin</div>
+            <input class="field" id="client-adminName" type="text" autocomplete="off" oninput="validateClientForm()">
+            <div class="field-error" id="err-client-adminName"></div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">E-mail de login do admin</div>
+            <input class="field" id="client-adminEmail" type="email" autocomplete="off" oninput="validateClientForm()">
+            <div class="field-error" id="err-client-adminEmail"></div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Senha inicial</div>
+            <div class="password-wrap">
+              <input class="field" id="client-adminPassword" type="password" autocomplete="new-password" oninput="validateClientForm()">
+              <button type="button" class="password-toggle" id="client-adminPassword-toggle" onclick="togglePwd('client-adminPassword', this)" aria-label="Mostrar/ocultar senha">👁</button>
+            </div>
+            <div class="field-error" id="err-client-adminPassword"></div>
+            <div class="field-hint">Combine com o admin pra ele trocar depois.</div>
+          </div>
+          <button type="submit" class="btn btn-accent" id="btn-client-submit" disabled style="width:100%">Cadastrar cliente</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ══ CONFIGURAÇÃO DE PREÇOS (platform admin only) ══ -->
+    <div class="view" id="view-precos">
+      <div class="card" style="max-width:520px">
+        <div class="card-head">
+          <div>
+            <div class="card-title">💰 Configuração de preços da plataforma</div>
+            <div class="card-desc">Valores usados no cálculo de cobrança de todos os clientes</div>
+          </div>
+        </div>
+        <form id="pricing-form" style="padding:20px 22px" onsubmit="submitPricingConfig(event)" novalidate>
+          <div id="pricing-alert" class="form-alert" style="display:none"></div>
+          <div id="pricing-loading" style="color:var(--muted);font-size:13px">Carregando valores atuais...</div>
+          <div id="pricing-fields" style="display:none">
+            <div class="field-group">
+              <div class="field-label">Preço do plano base (R$)</div>
+              <input class="field" id="price-base_plan_price" type="number" step="0.01" min="0" oninput="validatePricingForm()">
+              <div class="field-error" id="err-price-base_plan_price"></div>
+            </div>
+            <div class="field-group">
+              <div class="field-label">Mensagens incluídas no plano base</div>
+              <input class="field" id="price-base_plan_messages_included" type="number" step="1" min="0" oninput="validatePricingForm()">
+              <div class="field-error" id="err-price-base_plan_messages_included"></div>
+            </div>
+            <div class="field-group">
+              <div class="field-label">Preço por profissional adicional (R$)</div>
+              <input class="field" id="price-additional_professional_price" type="number" step="0.01" min="0" oninput="validatePricingForm()">
+              <div class="field-error" id="err-price-additional_professional_price"></div>
+            </div>
+            <div class="field-group">
+              <div class="field-label">Mensagens por profissional adicional</div>
+              <input class="field" id="price-additional_professional_messages" type="number" step="1" min="0" oninput="validatePricingForm()">
+              <div class="field-error" id="err-price-additional_professional_messages"></div>
+            </div>
+            <div class="field-group">
+              <div class="field-label">Preço de mensagem excedente (R$)</div>
+              <input class="field" id="price-overage_message_price" type="number" step="0.0001" min="0" oninput="validatePricingForm()">
+              <div class="field-error" id="err-price-overage_message_price"></div>
+            </div>
+            <div class="field-group">
+              <div class="field-label">Taxa de implantação padrão (R$)</div>
+              <input class="field" id="price-setup_fee" type="number" step="0.01" min="0" oninput="validatePricingForm()">
+              <div class="field-error" id="err-price-setup_fee"></div>
+            </div>
+            <div class="field-group">
+              <div class="field-label">Custo interno por mensagem (R$) <span style="color:var(--light);font-weight:400">— uso interno, cálculo de margem</span></div>
+              <input class="field" id="price-message_cost_internal" type="number" step="0.0001" min="0" oninput="validatePricingForm()">
+              <div class="field-error" id="err-price-message_cost_internal"></div>
+            </div>
+            <button type="submit" class="btn btn-accent" id="btn-pricing-submit" disabled style="width:100%">Salvar preços</button>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -777,7 +914,7 @@ async function checkExistingSession(){
 }
 
 // ── NAVIGATION ──
-const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',testar:'Testar Agente',agendamentos:'Agendamentos',clientes:'Clientes da Plataforma'};
+const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',testar:'Testar Agente',agendamentos:'Agendamentos',clientes:'Clientes da Plataforma',precos:'Configuração de Preços'};
 function setTab(id, navEl, tabEl){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+id).classList.add('active');
@@ -793,6 +930,7 @@ function setTab(id, navEl, tabEl){
   if(id==='profissionais') loadProfessionalsFromServer();
   if(id==='agendamentos') loadAppointmentsFromServer();
   if(id==='clientes') loadPlatformClientsFromServer();
+  if(id==='precos') loadPricingConfig();
 }
 
 // ── KNOWLEDGE BASE ── (agora persistida no Supabase via backend)
@@ -1370,6 +1508,7 @@ function renderProfList(){
 
   const notice = document.getElementById('upgrade-notice');
   if(notice) notice.style.display = isAdmin && profissionais.length>=1 ? 'block' : 'none';
+  if(isAdmin && profissionais.length>=1) loadAdditionalProfPricing();
 }
 
 function selectProf(id){
@@ -1523,16 +1662,97 @@ async function removeProf(id){
   }
 }
 
-async function openAddProfModal(){
-  if(currentUser.role !== 'admin'){ showToast('⚠ Apenas administradores podem adicionar profissionais'); return; }
-  const name = prompt('Nome completo do profissional:');
-  if(!name) return;
-  const especialidade = prompt('Especialidade:') || '';
-  const email = prompt('E-mail de login do profissional:');
-  if(!email) return;
-  const password = prompt('Senha inicial (mínimo 8 caracteres) — combine com o profissional pra ele trocar depois:');
-  if(!password || password.length < 8){ showToast('⚠ Senha precisa ter pelo menos 8 caracteres. Cadastro cancelado.'); return; }
+// ── HELPERS DE FORMULÁRIO (validação em tempo real, mostrar/ocultar senha) ──
+function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 
+function togglePwd(inputId, btnEl){
+  const el = document.getElementById(inputId);
+  if(!el) return;
+  const show = el.type === 'password';
+  el.type = show ? 'text' : 'password';
+  btnEl.textContent = show ? '🙈' : '👁';
+}
+
+function setFormAlert(elId, message, kind){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  if(!message){ el.style.display = 'none'; el.textContent = ''; el.className = 'form-alert'; return; }
+  el.textContent = message;
+  el.className = `form-alert ${kind}`;
+  el.style.display = 'block';
+}
+
+// ── CADASTRO DE PROFISSIONAL ──
+function showAddProfForm(){
+  if(currentUser.role !== 'admin'){ showToast('⚠ Apenas administradores podem adicionar profissionais'); return; }
+  const card = document.getElementById('add-prof-card');
+  if(card) card.style.display = 'block';
+  document.getElementById('prof-name')?.focus();
+}
+
+function hideAddProfForm(){
+  const card = document.getElementById('add-prof-card');
+  if(card) card.style.display = 'none';
+  resetAddProfForm();
+}
+
+function resetAddProfForm(){
+  ['name','especialidade','email','password'].forEach(f=>{
+    const el = document.getElementById('prof-'+f);
+    if(el) el.value = '';
+    const err = document.getElementById('err-prof-'+f);
+    if(err) err.textContent = '';
+    if(el) el.classList.remove('invalid');
+  });
+  const pwd = document.getElementById('prof-password');
+  if(pwd) pwd.type = 'password';
+  const toggleBtn = document.getElementById('prof-password-toggle');
+  if(toggleBtn) toggleBtn.textContent = '👁';
+  setFormAlert('add-prof-alert', '', '');
+  validateProfForm();
+}
+
+function validateProfField(field, minLen){
+  const inputEl = document.getElementById('prof-'+field);
+  if(!inputEl) return true;
+  const raw = inputEl.value;
+  const val = field === 'password' ? raw : raw.trim();
+  let msg = '';
+  if(field === 'email'){
+    if(!isValidEmail(val)) msg = 'Informe um e-mail válido.';
+  } else if(field === 'password'){
+    if(val.length < 8) msg = 'A senha precisa ter pelo menos 8 caracteres.';
+  } else if(val.length < minLen){
+    msg = `Preencha este campo (mín. ${minLen} caracteres).`;
+  }
+  const errEl = document.getElementById('err-prof-'+field);
+  if(errEl) errEl.textContent = val.length > 0 ? msg : '';
+  inputEl.classList.toggle('invalid', val.length > 0 && !!msg);
+  return !msg;
+}
+
+function validateProfForm(){
+  const okName = validateProfField('name', 3);
+  const okEsp = validateProfField('especialidade', 3);
+  const okEmail = validateProfField('email');
+  const okPwd = validateProfField('password');
+  const allOk = okName && okEsp && okEmail && okPwd;
+  const btn = document.getElementById('btn-prof-submit');
+  if(btn) btn.disabled = !allOk;
+  return allOk;
+}
+
+async function submitAddProf(e){
+  e.preventDefault();
+  if(!validateProfForm()) return;
+  const name = document.getElementById('prof-name').value.trim();
+  const especialidade = document.getElementById('prof-especialidade').value.trim();
+  const email = document.getElementById('prof-email').value.trim();
+  const password = document.getElementById('prof-password').value;
+  const btn = document.getElementById('btn-prof-submit');
+  setFormAlert('add-prof-alert', '', '');
+  btn.disabled = true;
+  btn.textContent = 'Cadastrando...';
   try{
     const res = await apiFetch('/api/professionals', {
       method:'POST',
@@ -1540,12 +1760,43 @@ async function openAddProfModal(){
       body: JSON.stringify({ name, especialidade, email, password, role:'profissional' })
     });
     const data = await res.json();
-    if(!res.ok){ showToast(`⚠ ${data.error||'Não foi possível criar o profissional.'}`); return; }
+    if(!res.ok){
+      setFormAlert('add-prof-alert', data.error || 'Não foi possível criar o profissional.', 'error');
+      return;
+    }
     await loadProfessionalsFromServer();
     showToast(`✓ ${name} adicionado! Peça pra ele entrar com o e-mail e a senha combinada.`);
+    hideAddProfForm();
+  }catch(err){
+    console.error('[submitAddProf] erro:', err);
+    setFormAlert('add-prof-alert', 'Não foi possível conectar ao backend.', 'error');
+  }finally{
+    btn.textContent = 'Cadastrar profissional';
+    validateProfForm();
+  }
+}
+
+// ── CUSTO POR PROFISSIONAL ADICIONAL (GET /api/settings/pricing, só admin de cliente) ──
+async function loadAdditionalProfPricing(){
+  const textEl = document.getElementById('upgrade-notice-text');
+  if(!textEl) return;
+  try{
+    const res = await apiFetch('/api/settings/pricing');
+    if(!res.ok){
+      textEl.textContent = 'Fale com o suporte para adicionar profissionais adicionais.';
+      return;
+    }
+    const data = await res.json();
+    const price = data.additional_professional_price;
+    if(typeof price === 'number'){
+      const formatted = price.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+      textEl.textContent = `Profissionais adicionais têm custo de ${formatted}/mês. Fale com o suporte para adicionar.`;
+    }else{
+      textEl.textContent = 'Fale com o suporte para adicionar profissionais adicionais.';
+    }
   }catch(e){
-    console.error('[openAddProfModal] erro:', e);
-    showToast('⚠ Não foi possível conectar ao backend.');
+    console.error('[loadAdditionalProfPricing] erro:', e);
+    textEl.textContent = 'Fale com o suporte para adicionar profissionais adicionais.';
   }
 }
 
@@ -1648,16 +1899,75 @@ function renderClientsList(){
     </div>`).join('');
 }
 
-async function openAddClientModal(){
-  const name = prompt('Nome do negócio (novo cliente):');
-  if(!name) return;
-  const adminName = prompt('Nome do primeiro admin desse cliente:');
-  if(!adminName) return;
-  const adminEmail = prompt('E-mail de login desse admin:');
-  if(!adminEmail) return;
-  const adminPassword = prompt('Senha inicial (mínimo 8 caracteres):');
-  if(!adminPassword || adminPassword.length < 8){ showToast('⚠ Senha precisa ter pelo menos 8 caracteres. Cadastro cancelado.'); return; }
+function showAddClientForm(){
+  const card = document.getElementById('add-client-card');
+  if(card) card.style.display = 'block';
+  document.getElementById('client-name')?.focus();
+}
 
+function hideAddClientForm(){
+  const card = document.getElementById('add-client-card');
+  if(card) card.style.display = 'none';
+  resetAddClientForm();
+}
+
+function resetAddClientForm(){
+  ['name','adminName','adminEmail','adminPassword'].forEach(f=>{
+    const el = document.getElementById('client-'+f);
+    if(el) el.value = '';
+    const err = document.getElementById('err-client-'+f);
+    if(err) err.textContent = '';
+    if(el) el.classList.remove('invalid');
+  });
+  const pwd = document.getElementById('client-adminPassword');
+  if(pwd) pwd.type = 'password';
+  const toggleBtn = document.getElementById('client-adminPassword-toggle');
+  if(toggleBtn) toggleBtn.textContent = '👁';
+  setFormAlert('add-client-alert', '', '');
+  validateClientForm();
+}
+
+function validateClientField(field, minLen){
+  const inputEl = document.getElementById('client-'+field);
+  if(!inputEl) return true;
+  const raw = inputEl.value;
+  const val = field === 'adminPassword' ? raw : raw.trim();
+  let msg = '';
+  if(field === 'adminEmail'){
+    if(!isValidEmail(val)) msg = 'Informe um e-mail válido.';
+  } else if(field === 'adminPassword'){
+    if(val.length < 8) msg = 'A senha precisa ter pelo menos 8 caracteres.';
+  } else if(val.length < minLen){
+    msg = `Preencha este campo (mín. ${minLen} caracteres).`;
+  }
+  const errEl = document.getElementById('err-client-'+field);
+  if(errEl) errEl.textContent = val.length > 0 ? msg : '';
+  inputEl.classList.toggle('invalid', val.length > 0 && !!msg);
+  return !msg;
+}
+
+function validateClientForm(){
+  const okName = validateClientField('name', 3);
+  const okAdminName = validateClientField('adminName', 3);
+  const okEmail = validateClientField('adminEmail');
+  const okPwd = validateClientField('adminPassword');
+  const allOk = okName && okAdminName && okEmail && okPwd;
+  const btn = document.getElementById('btn-client-submit');
+  if(btn) btn.disabled = !allOk;
+  return allOk;
+}
+
+async function submitAddClient(e){
+  e.preventDefault();
+  if(!validateClientForm()) return;
+  const name = document.getElementById('client-name').value.trim();
+  const adminName = document.getElementById('client-adminName').value.trim();
+  const adminEmail = document.getElementById('client-adminEmail').value.trim();
+  const adminPassword = document.getElementById('client-adminPassword').value;
+  const btn = document.getElementById('btn-client-submit');
+  setFormAlert('add-client-alert', '', '');
+  btn.disabled = true;
+  btn.textContent = 'Cadastrando...';
   try{
     const res = await apiFetch('/api/admin/clients', {
       method:'POST',
@@ -1665,12 +1975,106 @@ async function openAddClientModal(){
       body: JSON.stringify({ name, adminName, adminEmail, adminPassword })
     });
     const data = await res.json();
-    if(!res.ok){ showToast(`⚠ ${data.error||'Não foi possível criar o cliente.'}`); return; }
+    if(!res.ok){
+      setFormAlert('add-client-alert', data.error || 'Não foi possível criar o cliente.', 'error');
+      return;
+    }
     await loadPlatformClientsFromServer();
     showToast(`✓ ${name} cadastrado! Peça pro admin entrar com o e-mail e a senha combinada.`);
+    hideAddClientForm();
+  }catch(err){
+    console.error('[submitAddClient] erro:', err);
+    setFormAlert('add-client-alert', 'Não foi possível conectar ao backend.', 'error');
+  }finally{
+    btn.textContent = 'Cadastrar cliente';
+    validateClientForm();
+  }
+}
+
+// ── CONFIGURAÇÃO DE PREÇOS (platform admin only, GET/PATCH /api/admin/pricing) ──
+const PRICING_FIELDS = ['base_plan_price','base_plan_messages_included','additional_professional_price','additional_professional_messages','overage_message_price','message_cost_internal','setup_fee'];
+const PRICING_INT_FIELDS = ['base_plan_messages_included','additional_professional_messages'];
+
+async function loadPricingConfig(){
+  const loadingEl = document.getElementById('pricing-loading');
+  const fieldsEl = document.getElementById('pricing-fields');
+  setFormAlert('pricing-alert', '', '');
+  if(loadingEl) loadingEl.style.display = 'block';
+  if(fieldsEl) fieldsEl.style.display = 'none';
+  try{
+    const res = await apiFetch('/api/admin/pricing');
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    const data = await res.json();
+    PRICING_FIELDS.forEach(f=>{
+      const el = document.getElementById('price-'+f);
+      if(el && data[f] !== undefined && data[f] !== null) el.value = data[f];
+    });
+    if(loadingEl) loadingEl.style.display = 'none';
+    if(fieldsEl) fieldsEl.style.display = 'block';
+    validatePricingForm();
   }catch(e){
-    console.error('[openAddClientModal] erro:', e);
-    showToast('⚠ Não foi possível conectar ao backend.');
+    console.error('[loadPricingConfig] erro:', e);
+    if(loadingEl) loadingEl.textContent = 'Não foi possível carregar os valores atuais.';
+  }
+}
+
+function validatePricingField(field){
+  const inputEl = document.getElementById('price-'+field);
+  if(!inputEl) return true;
+  const raw = inputEl.value.trim();
+  let msg = '';
+  if(raw === ''){
+    msg = 'Preencha este campo.';
+  }else{
+    const num = Number(raw);
+    if(Number.isNaN(num)) msg = 'Informe um número válido.';
+    else if(num < 0) msg = 'O valor não pode ser negativo.';
+    else if(PRICING_INT_FIELDS.includes(field) && !Number.isInteger(num)) msg = 'Informe um número inteiro.';
+  }
+  const errEl = document.getElementById('err-price-'+field);
+  if(errEl) errEl.textContent = msg;
+  inputEl.classList.toggle('invalid', !!msg);
+  return !msg;
+}
+
+function validatePricingForm(){
+  const allOk = PRICING_FIELDS.map(f=>validatePricingField(f)).every(Boolean);
+  const btn = document.getElementById('btn-pricing-submit');
+  if(btn) btn.disabled = !allOk;
+  return allOk;
+}
+
+async function submitPricingConfig(e){
+  e.preventDefault();
+  if(!validatePricingForm()) return;
+  const btn = document.getElementById('btn-pricing-submit');
+  setFormAlert('pricing-alert', '', '');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  const payload = {};
+  PRICING_FIELDS.forEach(f=>{
+    const raw = document.getElementById('price-'+f).value.trim();
+    payload[f] = PRICING_INT_FIELDS.includes(f) ? parseInt(raw, 10) : parseFloat(raw);
+  });
+  try{
+    const res = await apiFetch('/api/admin/pricing', {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){
+      setFormAlert('pricing-alert', data.error || 'Não foi possível salvar os preços.', 'error');
+      return;
+    }
+    setFormAlert('pricing-alert', '✓ Preços atualizados com sucesso.', 'success');
+    showToast('✓ Preços da plataforma atualizados');
+  }catch(err){
+    console.error('[submitPricingConfig] erro:', err);
+    setFormAlert('pricing-alert', 'Não foi possível conectar ao backend.', 'error');
+  }finally{
+    btn.textContent = 'Salvar preços';
+    validatePricingForm();
   }
 }
 
