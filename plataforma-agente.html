@@ -650,51 +650,66 @@ textarea.field{resize:vertical;min-height:80px}
 
     <!-- ══ CLIENTES DA PLATAFORMA (admin only) ══ -->
     <div class="view" id="view-clientes">
-      <div class="card">
-        <div class="card-head">
-          <div>
-            <div class="card-title">🏢 Clientes cadastrados na plataforma</div>
-            <div class="card-desc">Cada cliente é uma instalação independente do AgenteFácil</div>
-          </div>
-          <button class="btn btn-accent btn-sm" onclick="showAddClientForm()">+ Novo cliente</button>
-        </div>
-        <div style="padding:8px 0" id="clients-list"></div>
-      </div>
-
-      <!-- Formulário de cadastro de cliente (substitui os prompt() antigos) -->
-      <div id="add-client-card" class="card" style="margin-top:16px;display:none">
-        <div class="card-head">
-          <div class="card-title">➕ Novo cliente</div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="hideAddClientForm()">Cancelar</button>
-        </div>
-        <form id="add-client-form" style="padding:20px 22px" onsubmit="submitAddClient(event)" novalidate>
-          <div id="add-client-alert" class="form-alert" style="display:none"></div>
-          <div class="field-group">
-            <div class="field-label">Nome do negócio</div>
-            <input class="field" id="client-name" type="text" autocomplete="off" oninput="validateClientForm()">
-            <div class="field-error" id="err-client-name"></div>
-          </div>
-          <div class="field-group">
-            <div class="field-label">Nome do primeiro admin</div>
-            <input class="field" id="client-adminName" type="text" autocomplete="off" oninput="validateClientForm()">
-            <div class="field-error" id="err-client-adminName"></div>
-          </div>
-          <div class="field-group">
-            <div class="field-label">E-mail de login do admin</div>
-            <input class="field" id="client-adminEmail" type="email" autocomplete="off" oninput="validateClientForm()">
-            <div class="field-error" id="err-client-adminEmail"></div>
-          </div>
-          <div class="field-group">
-            <div class="field-label">Senha inicial</div>
-            <div class="password-wrap">
-              <input class="field" id="client-adminPassword" type="password" autocomplete="new-password" oninput="validateClientForm()">
-              <button type="button" class="password-toggle" id="client-adminPassword-toggle" onclick="togglePwd('client-adminPassword', this)" aria-label="Mostrar/ocultar senha">👁</button>
+      <div class="prof-layout" style="display:grid;gap:20px">
+        <!-- Lista de clientes -->
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-head">
+              <div>
+                <div class="card-title">🏢 Clientes cadastrados na plataforma</div>
+                <div class="card-desc">Cada cliente é uma instalação independente do AgenteFácil</div>
+              </div>
+              <button class="btn btn-accent btn-sm" onclick="showAddClientForm()">+ Novo cliente</button>
             </div>
-            <div class="field-error" id="err-client-adminPassword"></div>
-            <div class="field-hint">Combine com o admin pra ele trocar depois.</div>
+            <div style="padding:8px 0" id="clients-list"></div>
           </div>
-          <button type="submit" class="btn btn-accent" id="btn-client-submit" disabled style="width:100%">Cadastrar cliente</button>
-        </form>
+
+          <!-- Formulário de cadastro de cliente (substitui os prompt() antigos) -->
+          <div id="add-client-card" class="card" style="margin-bottom:16px;display:none">
+            <div class="card-head">
+              <div class="card-title">➕ Novo cliente</div>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="hideAddClientForm()">Cancelar</button>
+            </div>
+            <form id="add-client-form" style="padding:20px 22px" onsubmit="submitAddClient(event)" novalidate>
+              <div id="add-client-alert" class="form-alert" style="display:none"></div>
+              <div class="field-group">
+                <div class="field-label">Nome do negócio</div>
+                <input class="field" id="client-name" type="text" autocomplete="off" oninput="validateClientForm()">
+                <div class="field-error" id="err-client-name"></div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">Nome do primeiro admin</div>
+                <input class="field" id="client-adminName" type="text" autocomplete="off" oninput="validateClientForm()">
+                <div class="field-error" id="err-client-adminName"></div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">E-mail de login do admin</div>
+                <input class="field" id="client-adminEmail" type="email" autocomplete="off" oninput="validateClientForm()">
+                <div class="field-error" id="err-client-adminEmail"></div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">Senha inicial</div>
+                <div class="password-wrap">
+                  <input class="field" id="client-adminPassword" type="password" autocomplete="new-password" oninput="validateClientForm()">
+                  <button type="button" class="password-toggle" id="client-adminPassword-toggle" onclick="togglePwd('client-adminPassword', this)" aria-label="Mostrar/ocultar senha">👁</button>
+                </div>
+                <div class="field-error" id="err-client-adminPassword"></div>
+                <div class="field-hint">Combine com o admin pra ele trocar depois.</div>
+              </div>
+              <button type="submit" class="btn btn-accent" id="btn-client-submit" disabled style="width:100%">Cadastrar cliente</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Detalhes do cliente selecionado -->
+        <div>
+          <div class="card" id="client-detail-card">
+            <div class="card-head"><div class="card-title" id="client-detail-title">Selecione um cliente</div></div>
+            <div id="client-detail-body" style="padding:20px 22px;color:var(--muted);font-size:13px">
+              Clique em um cliente para ver e editar seus dados.
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1890,13 +1905,95 @@ function renderClientsList(){
     return;
   }
   list.innerHTML = platformClients.map(c=>`
-    <div style="display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--border)">
+    <div onclick="selectClient('${c.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 22px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s"
+      onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--ink)">${c.name}</div>
         <div style="font-size:12px;color:var(--muted);margin-top:2px">Cadastrado em ${c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'}</div>
       </div>
-      <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${c.active?'var(--green-l)':'var(--bg)'};color:${c.active?'var(--green)':'var(--muted)'}">${c.active?'Ativo':'Inativo'}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${c.active?'var(--green-l)':'var(--bg)'};color:${c.active?'var(--green)':'var(--muted)'}">${c.active?'Ativo':'Inativo'}</span>
+        <span style="font-size:11px;color:var(--light)">→</span>
+      </div>
     </div>`).join('');
+}
+
+function selectClient(id){
+  const c = platformClients.find(x=>x.id===id);
+  if(!c) return;
+
+  document.getElementById('client-detail-title').textContent = c.name;
+  document.getElementById('client-detail-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div id="client-detail-alert-${id}" class="form-alert" style="display:none"></div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Nome do negócio</div>
+        <input id="client-detail-name-${id}" style="border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;width:100%;outline:none" value="${c.name||''}">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Nome do cliente/admin</div>
+        <input id="client-detail-adminName-${id}" style="border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;width:100%;outline:none" value="${c.adminName||''}">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Status</div>
+        <select id="client-detail-active-${id}" style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;width:100%;outline:none;color:var(--ink)">
+          <option value="true" ${c.active?'selected':''}>Ativo</option>
+          <option value="false" ${!c.active?'selected':''}>Inativo</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;padding-top:4px">
+        <button class="btn btn-accent btn-sm" id="btn-client-detail-save-${id}" onclick="saveClient('${id}')">Salvar alterações</button>
+      </div>
+    </div>`;
+}
+
+async function saveClient(id){
+  const c = platformClients.find(x=>x.id===id);
+  if(!c) return;
+  const nameEl = document.getElementById(`client-detail-name-${id}`);
+  const adminNameEl = document.getElementById(`client-detail-adminName-${id}`);
+  const activeEl = document.getElementById(`client-detail-active-${id}`);
+  const name = nameEl ? nameEl.value.trim() : c.name;
+  const adminName = adminNameEl ? adminNameEl.value.trim() : c.adminName;
+  const active = activeEl ? activeEl.value === 'true' : c.active;
+
+  if(name.length < 3){ setFormAlert(`client-detail-alert-${id}`, 'Informe o nome do negócio (mín. 3 caracteres).', 'error'); return; }
+  if(adminName.length < 3){ setFormAlert(`client-detail-alert-${id}`, 'Informe o nome do cliente/admin (mín. 3 caracteres).', 'error'); return; }
+
+  setFormAlert(`client-detail-alert-${id}`, '', '');
+  const btn = document.getElementById(`btn-client-detail-save-${id}`);
+  if(btn){ btn.disabled = true; btn.textContent = 'Salvando...'; }
+
+  const [clientResult, adminNameResult] = await Promise.allSettled([
+    apiFetch(`/api/admin/clients/${id}`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name, active })
+    }).then(async res=>({ ok: res.ok, data: await res.json().catch(()=>({})) })),
+    apiFetch(`/api/admin/clients/${id}/admin-name`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ adminName })
+    }).then(async res=>({ ok: res.ok, data: await res.json().catch(()=>({})) }))
+  ]);
+
+  const clientOk = clientResult.status==='fulfilled' && clientResult.value.ok;
+  const adminOk  = adminNameResult.status==='fulfilled' && adminNameResult.value.ok;
+  const clientErr = clientResult.status==='fulfilled' ? (clientResult.value.data.error||'Erro ao salvar negócio/status.') : 'Não foi possível conectar ao backend.';
+  const adminErr  = adminNameResult.status==='fulfilled' ? (adminNameResult.value.data.error||'Erro ao salvar nome do admin.') : 'Não foi possível conectar ao backend.';
+
+  await loadPlatformClientsFromServer();
+  if(platformClients.find(x=>x.id===id)) selectClient(id);
+
+  if(clientOk && adminOk){
+    showToast(`✓ ${name} atualizado com sucesso!`);
+  } else if(clientOk && !adminOk){
+    setFormAlert(`client-detail-alert-${id}`, `✓ Nome do negócio e status salvos. ⚠ Erro ao salvar nome do admin: ${adminErr}`, 'error');
+  } else if(!clientOk && adminOk){
+    setFormAlert(`client-detail-alert-${id}`, `✓ Nome do admin salvo. ⚠ Erro ao salvar nome do negócio/status: ${clientErr}`, 'error');
+  } else {
+    setFormAlert(`client-detail-alert-${id}`, `⚠ Erro ao salvar nome do negócio/status: ${clientErr} ⚠ Erro ao salvar nome do admin: ${adminErr}`, 'error');
+  }
 }
 
 function showAddClientForm(){
