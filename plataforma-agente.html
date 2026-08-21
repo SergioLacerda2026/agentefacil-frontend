@@ -129,6 +129,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .field{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 13px;font-size:13px;font-family:inherit;outline:none;color:var(--ink);background:#fff;transition:border-color .15s}
 .field.invalid{border-color:var(--red)}
 .field-error{font-size:11px;color:var(--red);margin-top:4px;min-height:14px}
+#pricing-fields input[type=number]{-moz-appearance:textfield;appearance:textfield}
+#pricing-fields input[type=number]::-webkit-outer-spin-button,
+#pricing-fields input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .password-wrap{position:relative}
 .password-wrap .field{padding-right:40px}
 .password-toggle{position:absolute;right:4px;top:4px;bottom:4px;width:32px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-family:inherit}
@@ -2102,9 +2105,10 @@ async function loadPricingConfig(){
     const res = await apiFetch('/api/admin/pricing');
     if(!res.ok) throw new Error(`Erro ${res.status}`);
     const data = await res.json();
+    const pricing = data.pricing || {};
     PRICING_FIELDS.forEach(f=>{
       const el = document.getElementById('price-'+f);
-      if(el && data[f] !== undefined && data[f] !== null) el.value = data[f];
+      if(el && pricing[f] !== undefined && pricing[f] !== null) el.value = pricing[f];
     });
     if(loadingEl) loadingEl.style.display = 'none';
     if(fieldsEl) fieldsEl.style.display = 'block';
