@@ -1430,7 +1430,6 @@ async function testSend(){
     testRemoveTyping();
     testHistory.push({role:'assistant',content:reply});
     let quick=[];
-    if(testHistory.length<=2) quick=['Quero fazer um agendamento','Qual o horário de funcionamento?','Quais serviços oferecem?'];
     testAddBubble(reply,'in',quick);
   }catch(e){
     testRemoveTyping();
