@@ -1859,6 +1859,7 @@ function renderAppointmentsList(){
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--ink)">${a.customer_name || 'Cliente'} <span style="color:var(--muted);font-weight:400">· ${a.customer_phone||''}</span></div>
         <div style="font-size:12px;color:var(--muted);margin-top:2px">${formatApptDate(a.start_time)} – ${formatApptDate(a.end_time)}</div>
+        ${a.professional_name ? `<div style="font-size:12px;color:var(--muted);margin-top:2px">${a.professional_name}${a.professional_specialty ? ` (${a.professional_specialty})` : ''}</div>` : ''}
       </div>
       <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${apptStatusColor[a.status]||'var(--muted)'}22;color:${apptStatusColor[a.status]||'var(--muted)'}">${apptStatusLabel[a.status]||a.status}</span>
       ${a.status==='confirmado' ? `<button class="btn btn-ghost btn-sm" onclick="cancelAppointmentFromPanel('${a.id}')">Cancelar</button>` : ''}
