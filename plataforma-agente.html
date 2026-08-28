@@ -699,6 +699,12 @@ textarea.field{resize:vertical;min-height:80px}
                 <div class="field-error" id="err-client-adminPassword"></div>
                 <div class="field-hint">Combine com o admin pra ele trocar depois.</div>
               </div>
+              <div class="field-group">
+                <div class="field-label">Profissionais contratados <span style="font-weight:400;color:var(--muted)">(opcional)</span></div>
+                <input class="field" id="client-professionalsCount" type="number" min="1" step="1" placeholder="1" autocomplete="off" oninput="validateClientForm()">
+                <div class="field-error" id="err-client-professionalsCount"></div>
+                <div class="field-hint">Deixe em branco para usar o padrão (1).</div>
+              </div>
               <button type="submit" class="btn btn-accent" id="btn-client-submit" disabled style="width:100%">Cadastrar cliente</button>
             </form>
           </div>
@@ -2045,7 +2051,7 @@ function hideAddClientForm(){
 }
 
 function resetAddClientForm(){
-  ['name','adminName','adminEmail','adminPassword'].forEach(f=>{
+  ['name','adminName','adminEmail','adminPassword','professionalsCount'].forEach(f=>{
     const el = document.getElementById('client-'+f);
     if(el) el.value = '';
     const err = document.getElementById('err-client-'+f);
@@ -2070,6 +2076,11 @@ function validateClientField(field, minLen){
     if(!isValidEmail(val)) msg = 'Informe um e-mail válido.';
   } else if(field === 'adminPassword'){
     if(val.length < 8) msg = 'A senha precisa ter pelo menos 8 caracteres.';
+  } else if(field === 'professionalsCount'){
+    if(val.length > 0){
+      const n = Number(val);
+      if(!Number.isInteger(n) || n < 1) msg = 'Informe um número inteiro maior ou igual a 1 (ou deixe em branco).';
+    }
   } else if(val.length < minLen){
     msg = `Preencha este campo (mín. ${minLen} caracteres).`;
   }
@@ -2084,7 +2095,8 @@ function validateClientForm(){
   const okAdminName = validateClientField('adminName', 3);
   const okEmail = validateClientField('adminEmail');
   const okPwd = validateClientField('adminPassword');
-  const allOk = okName && okAdminName && okEmail && okPwd;
+  const okProfessionalsCount = validateClientField('professionalsCount');
+  const allOk = okName && okAdminName && okEmail && okPwd && okProfessionalsCount;
   const btn = document.getElementById('btn-client-submit');
   if(btn) btn.disabled = !allOk;
   return allOk;
@@ -2097,6 +2109,8 @@ async function submitAddClient(e){
   const adminName = document.getElementById('client-adminName').value.trim();
   const adminEmail = document.getElementById('client-adminEmail').value.trim();
   const adminPassword = document.getElementById('client-adminPassword').value;
+  const professionalsCountRaw = document.getElementById('client-professionalsCount').value.trim();
+  const contractedProfessionals = professionalsCountRaw ? parseInt(professionalsCountRaw, 10) : 1;
   const btn = document.getElementById('btn-client-submit');
   setFormAlert('add-client-alert', '', '');
   btn.disabled = true;
@@ -2105,7 +2119,7 @@ async function submitAddClient(e){
     const res = await apiFetch('/api/admin/clients', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ clientName: name, adminName, email: adminEmail, password: adminPassword })
+      body: JSON.stringify({ clientName: name, adminName, email: adminEmail, password: adminPassword, contracted_professionals: contractedProfessionals })
     });
     const data = await res.json();
     if(!res.ok){
