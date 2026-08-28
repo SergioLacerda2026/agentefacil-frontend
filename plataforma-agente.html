@@ -1860,15 +1860,17 @@ function renderAppointmentsList(){
   }
 
   list.innerHTML = appointments.map(a=>`
-    <div style="display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--border)">
+    <div style="display:flex;flex-direction:column;gap:10px;padding:14px 22px;border-bottom:1px solid var(--border)">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
         <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Cliente:</span> ${a.customer_name || 'Cliente'} <span style="color:var(--muted)">· ${formatApptPhone(a.customer_phone)}</span></div>
         <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Data:</span> ${formatApptDateOnly(a.start_time)}</div>
         <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Hora:</span> ${formatApptTimeOnly(a.start_time)} – ${formatApptTimeOnly(a.end_time)}</div>
         ${a.professional_name ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Profissional:</span> ${a.professional_name}${a.professional_specialty ? ` (${a.professional_specialty})` : ''}</div>` : ''}
       </div>
-      <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${apptStatusColor[a.status]||'var(--muted)'}22;color:${apptStatusColor[a.status]||'var(--muted)'}">${apptStatusLabel[a.status]||a.status}</span>
-      ${a.status==='confirmado' ? `<button class="btn btn-ghost btn-sm" onclick="cancelAppointmentFromPanel('${a.id}')">Cancelar</button>` : ''}
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${apptStatusColor[a.status]||'var(--muted)'}22;color:${apptStatusColor[a.status]||'var(--muted)'}">${apptStatusLabel[a.status]||a.status}</span>
+        ${a.status==='confirmado' ? `<button class="btn btn-ghost btn-sm" onclick="cancelAppointmentFromPanel('${a.id}')">Cancelar</button>` : ''}
+      </div>
     </div>`).join('');
 }
 
