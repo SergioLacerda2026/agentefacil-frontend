@@ -1824,10 +1824,14 @@ const apptStatusLabel = { confirmado:'Confirmado', cancelado:'Cancelado', conclu
 const apptStatusColor = { confirmado:'var(--green)', cancelado:'var(--red)', concluido:'var(--muted)', no_show:'var(--amber)' };
 
 function formatApptDateOnly(iso){
-  try{ return new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }catch(e){ return iso; }
+  try{ return new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}); }catch(e){ return iso; }
 }
 function formatApptTimeOnly(iso){
   try{ return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return iso; }
+}
+function formatApptPhone(phone){
+  if(!phone) return '';
+  return phone.startsWith('teste-painel-') ? '(teste)' : phone;
 }
 
 async function loadAppointmentsFromServer(){
@@ -1858,7 +1862,7 @@ function renderAppointmentsList(){
   list.innerHTML = appointments.map(a=>`
     <div style="display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--border)">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
-        <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Paciente:</span> ${a.customer_name || 'Cliente'} <span style="color:var(--muted)">· ${a.customer_phone||''}</span></div>
+        <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Cliente:</span> ${a.customer_name || 'Cliente'} <span style="color:var(--muted)">· ${formatApptPhone(a.customer_phone)}</span></div>
         <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Data:</span> ${formatApptDateOnly(a.start_time)}</div>
         <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Hora:</span> ${formatApptTimeOnly(a.start_time)} – ${formatApptTimeOnly(a.end_time)}</div>
         ${a.professional_name ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Profissional:</span> ${a.professional_name}${a.professional_specialty ? ` (${a.professional_specialty})` : ''}</div>` : ''}
