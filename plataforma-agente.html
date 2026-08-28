@@ -868,6 +868,7 @@ function doLogout(){
   authToken = null;
   currentUser = null;
   localStorage.removeItem('agentefacil_token');
+  resetTenantState();
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app-shell').style.display = 'none';
 
@@ -880,6 +881,30 @@ function doLogout(){
     freshEl.value = '';
     oldEl.replaceWith(freshEl);
   });
+}
+
+// Zera todo o estado em memória (listas e chat de teste) que pertence ao
+// login anterior. Sem isso, um novo login na mesma sessão do navegador
+// continuava mostrando dado do tenant anterior até o usuário clicar em
+// cada aba de novo (elas só recarregam do backend ao trocar de aba).
+function resetTenantState(){
+  appointments = [];
+  profissionais = [];
+  platformClients = [];
+  testHistory = [];
+  testTyping = false;
+
+  ['appt-list','prof-list','clients-list','test-chat'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = '';
+  });
+  const apptDesc = document.getElementById('appt-count-desc');
+  if(apptDesc) apptDesc.textContent = 'Agendamentos criados pelo agente via conversa';
+
+  // Volta pra aba inicial em vez de deixar a aba que estava ativa no login
+  // anterior — assim o próximo login nunca reabre direto numa tela cujo
+  // dado ainda não foi buscado de novo.
+  setTab('visao');
 }
 
 async function loadCurrentUser(){
@@ -902,7 +927,7 @@ function showApp(){
   initTestChat();
   loadKnowledgeFromServer();
   loadSettingsFromServer();
-  if(currentUser?.role === 'admin') renderProfList();
+  if(currentUser?.role === 'admin') loadProfessionalsFromServer();
 }
 
 function applyCurrentUserToUI(){
