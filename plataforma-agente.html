@@ -1823,10 +1823,11 @@ let appointments = [];
 const apptStatusLabel = { confirmado:'Confirmado', cancelado:'Cancelado', concluido:'Concluído', no_show:'Não compareceu' };
 const apptStatusColor = { confirmado:'var(--green)', cancelado:'var(--red)', concluido:'var(--muted)', no_show:'var(--amber)' };
 
-function formatApptDate(iso){
-  try{
-    return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-  }catch(e){ return iso; }
+function formatApptDateOnly(iso){
+  try{ return new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }catch(e){ return iso; }
+}
+function formatApptTimeOnly(iso){
+  try{ return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return iso; }
 }
 
 async function loadAppointmentsFromServer(){
@@ -1856,10 +1857,11 @@ function renderAppointmentsList(){
 
   list.innerHTML = appointments.map(a=>`
     <div style="display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--border)">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;color:var(--ink)">${a.customer_name || 'Cliente'} <span style="color:var(--muted);font-weight:400">· ${a.customer_phone||''}</span></div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">${formatApptDate(a.start_time)} – ${formatApptDate(a.end_time)}</div>
-        ${a.professional_name ? `<div style="font-size:12px;color:var(--muted);margin-top:2px">${a.professional_name}${a.professional_specialty ? ` (${a.professional_specialty})` : ''}</div>` : ''}
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+        <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Paciente:</span> ${a.customer_name || 'Cliente'} <span style="color:var(--muted)">· ${a.customer_phone||''}</span></div>
+        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Data:</span> ${formatApptDateOnly(a.start_time)}</div>
+        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Hora:</span> ${formatApptTimeOnly(a.start_time)} – ${formatApptTimeOnly(a.end_time)}</div>
+        ${a.professional_name ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Profissional:</span> ${a.professional_name}${a.professional_specialty ? ` (${a.professional_specialty})` : ''}</div>` : ''}
       </div>
       <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${apptStatusColor[a.status]||'var(--muted)'}22;color:${apptStatusColor[a.status]||'var(--muted)'}">${apptStatusLabel[a.status]||a.status}</span>
       ${a.status==='confirmado' ? `<button class="btn btn-ghost btn-sm" onclick="cancelAppointmentFromPanel('${a.id}')">Cancelar</button>` : ''}
