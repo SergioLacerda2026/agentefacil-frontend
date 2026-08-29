@@ -910,6 +910,17 @@ function resetTenantState(){
   const apptDesc = document.getElementById('appt-count-desc');
   if(apptDesc) apptDesc.textContent = 'Agendamentos criados pelo agente via conversa';
 
+  // Fecha e limpa o formulário de "Adicionar profissional" caso tenha
+  // ficado aberto (com dado digitado, ex: nome) no momento do logout —
+  // senão ele reaparece assim pro próximo login, de outro tenant.
+  const addProfCard = document.getElementById('add-prof-card');
+  if(addProfCard) addProfCard.style.display = 'none';
+  resetAddProfForm();
+  const addProfForm = document.getElementById('add-prof-form');
+  if(addProfForm) addProfForm.style.display = '';
+  const addProfLimitAlert = document.getElementById('add-prof-limit-alert');
+  if(addProfLimitAlert){ addProfLimitAlert.style.display = 'none'; addProfLimitAlert.textContent = ''; }
+
   // Volta pra aba inicial em vez de deixar a aba que estava ativa no login
   // anterior — assim o próximo login nunca reabre direto numa tela cujo
   // dado ainda não foi buscado de novo.
