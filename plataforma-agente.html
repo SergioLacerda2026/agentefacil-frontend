@@ -492,6 +492,7 @@ textarea.field{resize:vertical;min-height:80px}
               <div class="card-title">➕ Adicionar profissional</div>
               <button type="button" class="btn btn-ghost btn-sm" onclick="hideAddProfForm()">Cancelar</button>
             </div>
+            <div id="add-prof-limit-alert" style="display:none;padding:20px 22px;color:var(--red);font-size:13px"></div>
             <form id="add-prof-form" style="padding:20px 22px" onsubmit="submitAddProf(event)" novalidate>
               <div id="add-prof-alert" class="form-alert" style="display:none"></div>
               <div class="field-group">
@@ -896,6 +897,8 @@ function doLogout(){
 function resetTenantState(){
   appointments = [];
   profissionais = [];
+  profContractedLimit = null;
+  profActiveCount = null;
   platformClients = [];
   testHistory = [];
   testTyping = false;
@@ -1498,6 +1501,8 @@ function initTestChat(){
 
 // ── PROFISSIONAIS (dados reais do Supabase, via backend) ──
 let profissionais = [];
+let profContractedLimit = null;
+let profActiveCount = null;
 
 const diasLabels = {seg:'Seg',ter:'Ter',qua:'Qua',qui:'Qui',sex:'Sex',sab:'Sáb',dom:'Dom'};
 const diasOrdem = ['seg','ter','qua','qui','sex','sab','dom'];
@@ -1513,6 +1518,8 @@ async function loadProfessionalsFromServer(){
     if(!res.ok) throw new Error(`Erro ${res.status}`);
     const data = await res.json();
     profissionais = data.professionals;
+    profContractedLimit = typeof data.contracted_professionals === 'number' ? data.contracted_professionals : null;
+    profActiveCount = typeof data.active_count === 'number' ? data.active_count : null;
     renderProfList();
   }catch(e){
     console.error('[loadProfessionalsFromServer] erro:', e);
@@ -1734,8 +1741,21 @@ function setFormAlert(elId, message, kind){
 function showAddProfForm(){
   if(currentUser.role !== 'admin'){ showToast('⚠ Apenas administradores podem adicionar profissionais'); return; }
   const card = document.getElementById('add-prof-card');
+  const form = document.getElementById('add-prof-form');
+  const limitAlert = document.getElementById('add-prof-limit-alert');
+  const limitReached = profContractedLimit != null && profActiveCount != null && profActiveCount >= profContractedLimit;
+  if(limitReached){
+    if(form) form.style.display = 'none';
+    if(limitAlert){
+      limitAlert.textContent = `Limite de profissionais contratados atingido (${profActiveCount} de ${profContractedLimit}). Aumente sua franquia antes de adicionar outro.`;
+      limitAlert.style.display = 'block';
+    }
+  } else {
+    if(form) form.style.display = '';
+    if(limitAlert) limitAlert.style.display = 'none';
+  }
   if(card) card.style.display = 'block';
-  document.getElementById('prof-name')?.focus();
+  if(!limitReached) document.getElementById('prof-name')?.focus();
 }
 
 function hideAddProfForm(){
