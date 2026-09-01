@@ -57,6 +57,28 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .icon-btn{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;position:relative;transition:background .15s}
 .icon-btn:hover{background:var(--bg)}
 .notif-dot{position:absolute;top:7px;right:7px;width:6px;height:6px;border-radius:50%;background:var(--red);border:1.5px solid var(--card)}
+.notif-wrap{position:relative}
+.notif-count{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:var(--red);border:1.5px solid var(--card);color:#fff;font-size:10px;font-weight:700;line-height:13px;text-align:center}
+.notif-panel{position:absolute;top:46px;right:0;width:360px;max-height:min(70vh,520px);display:flex;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 28px rgba(20,23,26,.16);z-index:9998}
+.notif-panel[hidden]{display:none}
+.notif-panel-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--ink);flex-shrink:0}
+.notif-markall{background:none;border:none;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;color:var(--accent);padding:2px 4px}
+.notif-markall:hover{text-decoration:underline}
+.notif-markall[hidden]{display:none}
+.notif-panel-body{overflow-y:auto;flex:1}
+.notif-panel-body::-webkit-scrollbar{width:4px}
+.notif-panel-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.notif-section-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 14px 4px}
+.notif-row{display:flex;flex-direction:column;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)}
+.notif-row:last-child{border-bottom:none}
+.notif-row-text{font-size:12px;color:var(--ink);line-height:1.45}
+.notif-row-text .muted{color:var(--muted)}
+.notif-row-time{font-size:11px;color:var(--muted)}
+.notif-row-actions{display:flex;align-items:center;gap:8px}
+.notif-dismiss{background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;font-weight:600;padding:2px 4px;font-family:inherit;margin-left:auto}
+.notif-dismiss:hover{color:var(--ink)}
+.notif-panel-empty{padding:26px 14px;text-align:center;font-size:12px;color:var(--muted)}
+.notif-panel-empty[hidden]{display:none}
 
 .content{flex:1;overflow-y:auto;padding:28px}
 .content::-webkit-scrollbar{width:4px}
@@ -242,6 +264,7 @@ textarea.field{resize:vertical;min-height:80px}
   .agent-pill{padding:7px}
   .template-card{flex-wrap:wrap}
   .template-card .btn{width:100%}
+  .notif-panel{position:fixed;top:52px;left:8px;right:8px;width:auto;max-height:min(72vh,520px)}
 }
 @media(max-width:480px){
   .grid-4{grid-template-columns:1fr}
@@ -319,7 +342,17 @@ textarea.field{resize:vertical;min-height:80px}
     <div class="topbar-title" id="page-title">Visão Geral</div>
     <div class="topbar-right">
       <div class="agent-pill"><div class="agent-dot"></div><span class="agent-pill-text">Agente ativo</span></div>
-      <div class="icon-btn" title="Notificações">🔔<div class="notif-dot"></div></div>
+      <div class="notif-wrap" id="notif-wrap">
+        <button class="icon-btn" id="notif-btn" title="Notificações" aria-haspopup="true" aria-expanded="false" onclick="toggleNotifPanel()">🔔<span class="notif-count" id="notif-count" style="display:none">0</span></button>
+        <div class="notif-panel" id="notif-panel" hidden>
+          <div class="notif-panel-head">
+            <span>Notificações</span>
+            <button class="notif-markall" id="notif-markall" onclick="notifMarkAllVisible()" hidden>Marcar tudo como visto</button>
+          </div>
+          <div class="notif-panel-body" id="notif-panel-body"></div>
+          <div class="notif-panel-empty" id="notif-panel-empty">Nada novo por aqui.</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -808,6 +841,9 @@ async function checkPlatformAdmin(){
     isPlatformAdmin = false;
   }
   document.querySelectorAll('.platform-admin-only').forEach(el => el.style.display = isPlatformAdmin ? '' : 'none');
+  // isPlatformAdmin só é conhecido aqui (checagem assíncrona) — re-busca as
+  // notificações pra a fila de pedidos de franquia aparecer assim que resolve.
+  if(notifPollTimer) refreshNotifications();
 }
 
 // Helper: toda chamada ao backend passa por aqui, garantindo que o token
@@ -895,6 +931,7 @@ function doLogout(){
 // continuava mostrando dado do tenant anterior até o usuário clicar em
 // cada aba de novo (elas só recarregam do backend ao trocar de aba).
 function resetTenantState(){
+  stopNotifications();
   appointments = [];
   profissionais = [];
   profContractedLimit = null;
@@ -948,6 +985,7 @@ function showApp(){
   loadKnowledgeFromServer();
   loadSettingsFromServer();
   if(currentUser?.role === 'admin') loadProfessionalsFromServer();
+  startNotifications();
 }
 
 function applyCurrentUserToUI(){
@@ -2254,6 +2292,266 @@ async function submitPricingConfig(e){
   }finally{
     btn.textContent = 'Salvar preços';
     validatePricingForm();
+  }
+}
+
+// ── NOTIFICAÇÕES (sino da topbar) ──
+// Registro de "fontes": cada nível de login tem exatamente uma fonte aplicável
+// (mutuamente exclusivas via applies()). O código do sino é genérico — itera as
+// fontes aplicáveis, soma as contagens pro badge e renderiza cada seção conforme
+// o `kind` ('decision' = aprovar/rejeitar na hora; 'seen' = marcar como visto).
+let notifPollTimer = null;
+let notifOpen = false;
+let notifBusy = false;            // trava anti-duplo-clique nas ações
+let notifCache = {};              // { [sourceId]: item[] }
+let notifOutsideHandler = null;
+
+const notifAsArray = (d, key) => Array.isArray(d) ? d : (d && Array.isArray(d[key]) ? d[key] : []);
+
+const NOTIF_SOURCES = [
+  {
+    id: 'platformFranchise',
+    kind: 'decision',
+    title: 'Pedidos de franquia',
+    applies: () => isPlatformAdmin,
+    load: () => apiFetch('/api/admin/franchise-requests'),
+    pick: d => notifAsArray(d, 'requests'),
+  },
+  {
+    id: 'clientFranchise',
+    kind: 'seen',
+    title: 'Seus pedidos de franquia',
+    applies: () => currentUser?.role === 'admin' && !isPlatformAdmin,
+    load: () => apiFetch('/api/franchise/requests'),
+    pick: d => notifAsArray(d, 'requests').filter(x => x.status !== 'pendente' && !x.client_seen_at),
+    markAll: () => apiFetch('/api/franchise/requests/seen', { method:'PATCH' }),
+    markOne: id => apiFetch(`/api/franchise/requests/${id}/seen`, { method:'PATCH' }),
+  },
+  {
+    id: 'proCancellations',
+    kind: 'seen',
+    title: 'Cancelamentos de clientes',
+    applies: () => !!currentUser && currentUser.role !== 'admin',
+    load: () => apiFetch('/api/appointments/cancellations'),
+    pick: d => notifAsArray(d, 'cancellations'),
+    markAll: () => apiFetch('/api/appointments/cancellations/seen', { method:'PATCH' }),
+    markOne: id => apiFetch(`/api/appointments/${id}/cancel-seen`, { method:'PATCH' }),
+  },
+];
+
+function activeNotifSources(){ return NOTIF_SOURCES.filter(s => s.applies()); }
+
+function startNotifications(){
+  if(notifPollTimer) return;
+  refreshNotifications();
+  notifPollTimer = setInterval(refreshNotifications, 120000);
+}
+
+function stopNotifications(){
+  if(notifPollTimer){ clearInterval(notifPollTimer); notifPollTimer = null; }
+  closeNotifPanel();
+  notifCache = {};
+  notifBusy = false;
+  renderNotifBadge();
+}
+
+async function refreshNotifications(){
+  const sources = activeNotifSources();
+  await Promise.all(sources.map(async s => {
+    try{
+      const res = await s.load();
+      if(!res || !res.ok) return;   // 401/403 pra quem não tem acesso é esperado — silencioso
+      const data = await res.json().catch(() => null);
+      notifCache[s.id] = s.pick(data) || [];
+    }catch(e){
+      // rede fora / fonte indisponível: mantém o cache anterior, não quebra as outras
+    }
+  }));
+  // descarta cache de fontes que não se aplicam mais (troca de usuário na mesma aba)
+  Object.keys(notifCache).forEach(id => { if(!sources.some(s => s.id === id)) delete notifCache[id]; });
+  renderNotifBadge();
+  if(notifOpen) renderNotifPanel();
+}
+
+function notifTotalCount(){
+  return activeNotifSources().reduce((n, s) => n + ((notifCache[s.id] || []).length), 0);
+}
+
+function renderNotifBadge(){
+  const el = document.getElementById('notif-count');
+  if(!el) return;
+  const total = notifTotalCount();
+  if(total > 0){ el.textContent = total > 99 ? '99+' : String(total); el.style.display = ''; }
+  else { el.style.display = 'none'; }
+}
+
+function notifFmtDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d)) return '';
+  return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+function fmtFranchiseChange(r){
+  const a = r.contracted_before, b = r.requested_contracted;
+  if(r.request_type === 'aumento') return `aumentar de ${a} para ${b} profissionais`;
+  if(r.request_type === 'reducao') return `reduzir de ${a} para ${b} profissionais`;
+  return `mudar a franquia de ${a} para ${b}`;
+}
+
+function notifRowHtml(source, it){
+  if(source.kind === 'decision'){
+    const alvo = it.request_type === 'reducao' && it.professional_name
+      ? ` <span class="muted">· desativar ${it.professional_name}</span>` : '';
+    return `<div class="notif-row">
+      <div class="notif-row-text"><span class="muted">${it.client_name || 'Cliente'}</span> pediu para ${fmtFranchiseChange(it)}${alvo}</div>
+      <div class="notif-row-time">${notifFmtDate(it.requested_at)}</div>
+      <div class="notif-row-actions">
+        <button class="btn btn-green btn-sm" onclick="decideFranchise('${it.id}','aprovar')">Aprovar</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="decideFranchise('${it.id}','rejeitar')">Rejeitar</button>
+      </div>
+    </div>`;
+  }
+  if(source.id === 'clientFranchise'){
+    const ok = it.status === 'aprovado';
+    return `<div class="notif-row">
+      <div class="notif-row-text">Seu pedido para ${fmtFranchiseChange(it)} foi <strong style="color:${ok?'var(--green)':'var(--red)'}">${ok?'aprovado':'rejeitado'}</strong>.</div>
+      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.resolved_at || it.requested_at)}</span><button class="notif-dismiss" onclick="markOneSeen('clientFranchise','${it.id}')">Marcar visto</button></div>
+    </div>`;
+  }
+  return `<div class="notif-row">
+    <div class="notif-row-text"><span class="muted">${it.customer_name || 'Cliente'}</span> cancelou o agendamento de ${notifFmtDate(it.start_time)}.</div>
+    <div class="notif-row-actions"><span class="notif-row-time">Cancelado ${notifFmtDate(it.cancelled_at)}</span><button class="notif-dismiss" onclick="markOneSeen('proCancellations','${it.id}')">Marcar visto</button></div>
+  </div>`;
+}
+
+function renderNotifPanel(){
+  const body = document.getElementById('notif-panel-body');
+  const empty = document.getElementById('notif-panel-empty');
+  const markAllBtn = document.getElementById('notif-markall');
+  if(!body) return;
+  const sources = activeNotifSources();
+  let html = '';
+  let hasSeenItems = false;
+  sources.forEach(s => {
+    const items = notifCache[s.id] || [];
+    if(!items.length) return;
+    if(s.kind === 'seen') hasSeenItems = true;
+    html += `<div class="notif-section-title">${s.title}</div>`;
+    html += items.map(it => notifRowHtml(s, it)).join('');
+  });
+  body.innerHTML = html;
+  if(empty) empty.hidden = notifTotalCount() > 0;
+  if(markAllBtn) markAllBtn.hidden = !hasSeenItems;
+}
+
+function setNotifActionsDisabled(v){
+  document.querySelectorAll('#notif-panel-body button, #notif-markall').forEach(b => { b.disabled = v; });
+}
+
+async function decideFranchise(id, decision){
+  if(notifBusy) return;
+  notifBusy = true;
+  setNotifActionsDisabled(true);
+  try{
+    const res = await apiFetch(`/api/admin/franchise-requests/${id}`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ decision })
+    });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ showToast(`⚠ ${data.error || 'Não foi possível resolver o pedido.'}`, 7000); return; }
+    if(notifCache.platformFranchise) notifCache.platformFranchise = notifCache.platformFranchise.filter(r => r.id !== id);
+    showToast(decision === 'aprovar' ? '✓ Pedido de franquia aprovado' : '✓ Pedido de franquia rejeitado');
+    renderNotifBadge();
+    renderNotifPanel();
+    refreshNotifications();
+  }catch(e){
+    console.error('[decideFranchise] erro:', e);
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }finally{
+    notifBusy = false;
+    setNotifActionsDisabled(false);
+  }
+}
+
+async function markOneSeen(sourceId, id){
+  if(notifBusy) return;
+  const source = NOTIF_SOURCES.find(s => s.id === sourceId);
+  if(!source || !source.markOne) return;
+  notifBusy = true;
+  setNotifActionsDisabled(true);
+  try{
+    const res = await source.markOne(id);
+    if(!res.ok){ const d = await res.json().catch(() => ({})); showToast(`⚠ ${d.error || 'Não foi possível marcar como visto.'}`, 7000); return; }
+    if(notifCache[sourceId]) notifCache[sourceId] = notifCache[sourceId].filter(x => x.id !== id);
+    renderNotifBadge();
+    renderNotifPanel();
+    refreshNotifications();
+  }catch(e){
+    console.error('[markOneSeen] erro:', e);
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }finally{
+    notifBusy = false;
+    setNotifActionsDisabled(false);
+  }
+}
+
+async function notifMarkAllVisible(){
+  if(notifBusy) return;
+  const sources = activeNotifSources().filter(s => s.kind === 'seen' && s.markAll && (notifCache[s.id] || []).length);
+  if(!sources.length) return;
+  notifBusy = true;
+  setNotifActionsDisabled(true);
+  try{
+    const results = await Promise.all(sources.map(s => s.markAll().catch(() => null)));
+    sources.forEach(s => { notifCache[s.id] = []; });
+    renderNotifBadge();
+    renderNotifPanel();
+    if(results.some(r => !r || !r.ok)) showToast('⚠ Algumas notificações podem não ter sido marcadas.', 5000);
+    refreshNotifications();
+  }catch(e){
+    console.error('[notifMarkAllVisible] erro:', e);
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }finally{
+    notifBusy = false;
+    setNotifActionsDisabled(false);
+  }
+}
+
+function toggleNotifPanel(){ notifOpen ? closeNotifPanel() : openNotifPanel(); }
+
+function openNotifPanel(){
+  notifOpen = true;
+  const panel = document.getElementById('notif-panel');
+  const btn = document.getElementById('notif-btn');
+  if(panel) panel.hidden = false;
+  if(btn) btn.setAttribute('aria-expanded', 'true');
+  renderNotifPanel();
+  refreshNotifications();
+  notifOutsideHandler = (e) => {
+    if(e.type === 'keydown'){ if(e.key === 'Escape') closeNotifPanel(); return; }
+    const wrap = document.getElementById('notif-wrap');
+    if(wrap && !wrap.contains(e.target)) closeNotifPanel();
+  };
+  // adia o registro pra não capturar o próprio clique que abriu o painel
+  setTimeout(() => {
+    if(!notifOutsideHandler) return;
+    document.addEventListener('mousedown', notifOutsideHandler);
+    document.addEventListener('keydown', notifOutsideHandler);
+  }, 0);
+}
+
+function closeNotifPanel(){
+  notifOpen = false;
+  const panel = document.getElementById('notif-panel');
+  const btn = document.getElementById('notif-btn');
+  if(panel) panel.hidden = true;
+  if(btn) btn.setAttribute('aria-expanded', 'false');
+  if(notifOutsideHandler){
+    document.removeEventListener('mousedown', notifOutsideHandler);
+    document.removeEventListener('keydown', notifOutsideHandler);
+    notifOutsideHandler = null;
   }
 }
 
