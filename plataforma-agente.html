@@ -241,8 +241,8 @@ textarea.field{resize:vertical;min-height:80px}
 .template-desc{font-size:13px;color:var(--muted);line-height:1.5}
 
 /* ── TOAST ── */
-.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:9999}
-.toast.show{opacity:1;transform:translateY(0)}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;line-height:1.45;max-width:min(420px,calc(100vw - 48px));opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:9999}
+.toast.show{opacity:1;transform:translateY(0);pointer-events:auto;cursor:pointer}
 
 @media(max-width:900px){
   .grid-4{grid-template-columns:repeat(2,1fr)}
@@ -265,6 +265,7 @@ textarea.field{resize:vertical;min-height:80px}
   .template-card{flex-wrap:wrap}
   .template-card .btn{width:100%}
   .notif-panel{position:fixed;top:52px;left:8px;right:8px;width:auto;max-height:min(72vh,520px)}
+  .toast{left:16px;right:16px;bottom:16px;max-width:none}
 }
 @media(max-width:480px){
   .grid-4{grid-template-columns:1fr}
@@ -2673,11 +2674,18 @@ function closeNotifPanel(){
 
 // ── TOAST ──
 let toastTimer=null;
-function showToast(msg, duration=3000){
+function showToast(msg, duration){
   const t=document.getElementById('toast');
   clearTimeout(toastTimer);
-  t.textContent=msg;t.classList.add('show');
-  toastTimer=setTimeout(()=>t.classList.remove('show'),duration);
+  t.textContent=msg;
+  t.classList.add('show');
+  // Duração automática ~ velocidade de leitura (50ms/caractere), entre 3s e 12s.
+  // `duration` explícito, quando passado, funciona como piso mínimo garantido.
+  const ms=Math.max(Math.min(12000,Math.max(3000,msg.length*50)),duration||0);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),ms);
+  t.onclick=()=>{ clearTimeout(toastTimer); t.classList.remove('show'); };
+  t.onmouseenter=()=>clearTimeout(toastTimer);
+  t.onmouseleave=()=>{ toastTimer=setTimeout(()=>t.classList.remove('show'),2500); };
 }
 
 // ── INIT ──
