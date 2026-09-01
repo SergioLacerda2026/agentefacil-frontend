@@ -936,6 +936,8 @@ function resetTenantState(){
   profissionais = [];
   profContractedLimit = null;
   profActiveCount = null;
+  franchiseRequestPending = false;
+  franchiseReqBusy = false;
   platformClients = [];
   testHistory = [];
   testTyping = false;
@@ -1575,6 +1577,23 @@ async function loadProfessionalsFromServer(){
     const list = document.getElementById('prof-list');
     if(list) list.innerHTML = `<div style="padding:20px 22px;color:var(--red);font-size:13px;text-align:center">⚠ Não foi possível carregar os profissionais.</div>`;
   }
+  reconcileFranchisePending();
+}
+
+// Reconcilia o flag de "pedido de franquia em análise" com o servidor: o backend
+// só permite 1 pedido pendente por cliente, então um único booleano basta. Roda
+// junto do load da lista — deixa o estado certo após reload/troca de aba e se
+// auto-limpa quando a plataforma decide (sem depender só do flag de sessão).
+async function reconcileFranchisePending(){
+  if(currentUser?.role !== 'admin') return;
+  try{
+    const res = await apiFetch('/api/franchise/requests');
+    if(!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    franchiseRequestPending = (data.requests || []).some(r => r.status === 'pendente');
+  }catch(e){
+    // rede fora: mantém o valor atual do flag, não quebra a lista
+  }
 }
 
 function renderProfList(){
@@ -1627,6 +1646,22 @@ function selectProf(id){
       ${canEditThis?`onclick="toggleDia('${id}','${d}',this)"`:''}>${diasLabels[d]}</span>`;
   }).join('');
 
+  // Ação de redução de franquia — só admin, só profissional ativo não-admin.
+  // `franchiseRequestPending` (reconciliado com o servidor) bloqueia enquanto
+  // houver pedido em análise. Backend recusa se o profissional tiver agenda
+  // futura; a mensagem cai no toast, sem checagem aqui.
+  let reduceFranchiseBlock = '';
+  if(isAdmin && p.role !== 'admin' && p.active){
+    if(franchiseRequestPending){
+      reduceFranchiseBlock = `<div style="padding-top:10px;margin-top:6px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.5">Já há um pedido de mudança de franquia em análise — você será avisado quando for decidido.</div>`;
+    }else if(profContractedLimit != null && profContractedLimit > 1){
+      reduceFranchiseBlock = `<div style="padding-top:10px;margin-top:6px;border-top:1px solid var(--border)">
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="requestFranchiseDecrease('${id}')">Desativar e reduzir franquia</button>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5">Abre um pedido de redução (${profContractedLimit} → ${profContractedLimit - 1}). Precisa de aprovação da plataforma; enquanto isso, ${p.name} para de receber novos agendamentos.</div>
+      </div>`;
+    }
+  }
+
   document.getElementById('prof-detail-title').textContent = p.name;
   document.getElementById('prof-detail-body').innerHTML = `
     <div style="display:flex;flex-direction:column;gap:16px">
@@ -1670,7 +1705,8 @@ function selectProf(id){
         <button class="btn btn-accent btn-sm" onclick="saveProf('${id}')">Salvar alterações</button>
         ${p.role!=='admin'?`<button class="btn btn-ghost btn-sm" onclick="toggleAtivo('${id}')">${p.active?'Desativar':'Ativar'}</button>
         <button class="btn btn-ghost btn-sm" onclick="removeProf('${id}')" style="color:var(--red)">Remover</button>`:''}
-      </div>` : canEditThis ? `
+      </div>
+      ${reduceFranchiseBlock}` : canEditThis ? `
       <div style="display:flex;gap:8px;padding-top:4px">
         <button class="btn btn-accent btn-sm" onclick="saveProf('${id}')">Salvar minha agenda</button>
       </div>` : `
@@ -1766,6 +1802,81 @@ async function removeProf(id){
   }
 }
 
+// ── PEDIDOS DE MUDANÇA DE FRANQUIA (cliente → plataforma) ──
+// Dois pontos de entrada: "Solicitar aumento" no alerta de limite atingido e
+// "Desativar e reduzir franquia" no card do profissional. Ambos só fazem o POST
+// e mostram o erro do backend — nenhuma regra (agenda futura, pedido pendente)
+// é replicada aqui. `franchiseRequestPending` bloqueia os dois enquanto houver
+// pedido em análise (o backend só aceita 1 pendente por cliente).
+let franchiseRequestPending = false;
+let franchiseReqBusy = false;
+
+async function submitFranchiseRequest(payload, successMsg){
+  try{
+    const res = await apiFetch('/api/franchise/requests', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ showToast(`⚠ ${data.error || 'Não foi possível registrar o pedido.'}`, 7000); return false; }
+    franchiseRequestPending = true;
+    showToast(successMsg, 6000);
+    await loadProfessionalsFromServer();
+    return true;
+  }catch(e){
+    console.error('[submitFranchiseRequest] erro:', e);
+    showToast('⚠ Não foi possível conectar ao backend.');
+    return false;
+  }
+}
+
+async function requestFranchiseIncrease(){
+  if(franchiseReqBusy) return;
+  if(profContractedLimit == null){
+    showToast('⚠ Não foi possível identificar seu limite atual. Recarregue a página.', 6000);
+    return;
+  }
+  const target = profContractedLimit + 1;
+  const btn = document.getElementById('btn-request-increase');
+  franchiseReqBusy = true;
+  if(btn){ btn.disabled = true; btn.textContent = 'Enviando...'; }
+  const ok = await submitFranchiseRequest(
+    { request_type:'aumento', requested_contracted: target },
+    `✓ Pedido de aumento enviado (${profContractedLimit} → ${target}). Você será avisado quando for decidido.`
+  );
+  franchiseReqBusy = false;
+  const btn2 = document.getElementById('btn-request-increase');
+  if(ok){
+    if(btn2){ btn2.disabled = true; btn2.textContent = '✓ Pedido enviado — aguardando análise'; }
+  }else if(btn2){
+    btn2.disabled = false;
+    btn2.textContent = `Solicitar aumento (${profContractedLimit} → ${target})`;
+  }
+}
+
+async function requestFranchiseDecrease(profId){
+  if(franchiseReqBusy) return;
+  const p = profissionais.find(x => x.id === profId);
+  if(!p) return;
+  if(profContractedLimit == null || profContractedLimit <= 1){
+    showToast('⚠ Não é possível reduzir abaixo de 1 profissional contratado.', 6000);
+    return;
+  }
+  const target = profContractedLimit - 1;
+  if(!confirm(
+    `Solicitar a desativação de ${p.name} e reduzir sua franquia de ${profContractedLimit} para ${target}?\n\n` +
+    `O pedido vai para análise da plataforma. Enquanto isso, ${p.name} para de receber novos agendamentos.`
+  )) return;
+  franchiseReqBusy = true;
+  const ok = await submitFranchiseRequest(
+    { request_type:'reducao', requested_contracted: target, professional_id_to_deactivate: profId },
+    `✓ Pedido de redução enviado. Você será avisado quando for decidido.`
+  );
+  franchiseReqBusy = false;
+  if(ok) selectProf(profId); // repinta o painel de detalhe já no estado "em análise"
+}
+
 // ── HELPERS DE FORMULÁRIO (validação em tempo real, mostrar/ocultar senha) ──
 function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 
@@ -1796,12 +1907,17 @@ function showAddProfForm(){
   if(limitReached){
     if(form) form.style.display = 'none';
     if(limitAlert){
-      limitAlert.textContent = `Limite de profissionais contratados atingido (${profActiveCount} de ${profContractedLimit}). Aumente sua franquia antes de adicionar outro.`;
+      const target = profContractedLimit + 1;
+      limitAlert.innerHTML = franchiseRequestPending
+        ? `<div>Limite de profissionais contratados atingido (${profActiveCount} de ${profContractedLimit}).</div>
+           <div style="margin-top:10px;color:var(--muted)">Já há um pedido de mudança de franquia em análise — você será avisado quando for decidido.</div>`
+        : `<div style="margin-bottom:12px">Limite de profissionais contratados atingido (${profActiveCount} de ${profContractedLimit}). Para adicionar outro, solicite o aumento da sua franquia.</div>
+           <button type="button" class="btn btn-accent btn-sm" id="btn-request-increase" onclick="requestFranchiseIncrease()">Solicitar aumento (${profContractedLimit} → ${target})</button>`;
       limitAlert.style.display = 'block';
     }
   } else {
     if(form) form.style.display = '';
-    if(limitAlert) limitAlert.style.display = 'none';
+    if(limitAlert){ limitAlert.style.display = 'none'; limitAlert.innerHTML = ''; }
   }
   if(card) card.style.display = 'block';
   if(!limitReached) document.getElementById('prof-name')?.focus();
