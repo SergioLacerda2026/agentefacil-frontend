@@ -1556,6 +1556,7 @@ function initTestChat(){
 let profissionais = [];
 let profContractedLimit = null;
 let profActiveCount = null;
+let selectedProfId = null; // qual profissional está aberto no painel de detalhe (pra re-render)
 
 const diasLabels = {seg:'Seg',ter:'Ter',qua:'Qua',qui:'Qui',sex:'Sex',sab:'Sáb',dom:'Dom'};
 const diasOrdem = ['seg','ter','qua','qui','sex','sab','dom'];
@@ -1579,7 +1580,9 @@ async function loadProfessionalsFromServer(){
     const list = document.getElementById('prof-list');
     if(list) list.innerHTML = `<div style="padding:20px 22px;color:var(--red);font-size:13px;text-align:center">⚠ Não foi possível carregar os profissionais.</div>`;
   }
-  reconcileFranchisePending();
+  // aguardado: quem chama loadProfessionalsFromServer() (ex: refreshProfessionalsView)
+  // precisa que franchiseRequestPending já esteja reconciliado antes de re-renderizar.
+  await reconcileFranchisePending();
 }
 
 // Reconcilia o flag de "pedido de franquia em análise" com o servidor: o backend
@@ -1640,15 +1643,32 @@ function renderProfList(){
 // Usado no logout (resetTenantState) e após remover um profissional — sem isso
 // o innerHTML/textContent renderizado por selectProf() sobrevive entre logins.
 function clearProfDetail(){
+  selectedProfId = null;
   const title = document.getElementById('prof-detail-title');
   const body  = document.getElementById('prof-detail-body');
   if(title) title.textContent = 'Selecione um profissional';
   if(body)  body.innerHTML = 'Clique em um profissional para ver e editar seus dados, agenda e permissões.';
 }
 
+// Re-renderiza o painel de detalhe aberto a partir do estado atual de `profissionais`
+// (renderProfList só re-renderiza a lista). Se o profissional saiu da lista, limpa.
+function rerenderProfDetail(){
+  if(selectedProfId && profissionais.some(p => p.id === selectedProfId)) selectProf(selectedProfId);
+  else clearProfDetail();
+}
+
+// Recarrega a aba Profissionais inteira: lista + flag de franquia + painel de detalhe.
+// Usado quando uma decisão de franquia acontece sem troca de aba (ver decideFranchise
+// e refreshNotifications).
+async function refreshProfessionalsView(){
+  await loadProfessionalsFromServer();
+  rerenderProfDetail();
+}
+
 function selectProf(id){
   const p = profissionais.find(x=>x.id===id);
   if(!p) return;
+  selectedProfId = id;
   const isAdmin = currentUser.role === 'admin';
   const canEditThis = isAdmin || p.id === currentUser.id; // admin edita qualquer um; profissional só a si mesmo
   const dias = p.dias_atendimento || [];
@@ -2498,6 +2518,15 @@ async function refreshNotifications(){
   Object.keys(notifCache).forEach(id => { if(!sources.some(s => s.id === id)) delete notifCache[id]; });
   renderNotifBadge();
   if(notifOpen) renderNotifPanel();
+
+  // Decisão de franquia do próprio cliente acabou de chegar pelo poll do sino:
+  // enquanto pendente, clientFranchise.pick filtra o pedido fora (não é 'pendente'
+  // só depois de decidido) — então cache vazio + flag ligado. Ao aparecer item
+  // decidido-não-visto com o flag ainda ligado = o pedido pendente foi resolvido.
+  if(franchiseRequestPending && (notifCache.clientFranchise || []).length){
+    franchiseRequestPending = false;
+    refreshProfessionalsView();
+  }
 }
 
 function notifTotalCount(){
@@ -2593,6 +2622,9 @@ async function decideFranchise(id, decision){
     renderNotifBadge();
     renderNotifPanel();
     refreshNotifications();
+    // Se quem decide também é admin de um cliente, a aba Profissionais pode estar
+    // aberta mostrando o estado antigo (prof "Ativo", texto "em análise") — atualiza.
+    if(currentUser?.role === 'admin') refreshProfessionalsView();
   }catch(e){
     console.error('[decideFranchise] erro:', e);
     showToast('⚠ Não foi possível conectar ao backend.');
