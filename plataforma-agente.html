@@ -947,6 +947,7 @@ function resetTenantState(){
     const el = document.getElementById(id);
     if(el) el.innerHTML = '';
   });
+  clearProfDetail();
   const apptDesc = document.getElementById('appt-count-desc');
   if(apptDesc) apptDesc.textContent = 'Agendamentos criados pelo agente via conversa';
 
@@ -1635,6 +1636,16 @@ function renderProfList(){
   if(isAdmin && profissionais.length>=1) loadAdditionalProfPricing();
 }
 
+// Volta o painel de detalhe ao estado inicial (nenhum profissional selecionado).
+// Usado no logout (resetTenantState) e após remover um profissional — sem isso
+// o innerHTML/textContent renderizado por selectProf() sobrevive entre logins.
+function clearProfDetail(){
+  const title = document.getElementById('prof-detail-title');
+  const body  = document.getElementById('prof-detail-body');
+  if(title) title.textContent = 'Selecione um profissional';
+  if(body)  body.innerHTML = 'Clique em um profissional para ver e editar seus dados, agenda e permissões.';
+}
+
 function selectProf(id){
   const p = profissionais.find(x=>x.id===id);
   if(!p) return;
@@ -1794,8 +1805,7 @@ async function removeProf(id){
     const res = await apiFetch(`/api/professionals/${id}`, { method:'DELETE' });
     if(!res.ok && res.status!==204){ const d = await res.json().catch(()=>({})); showToast(`⚠ ${d.error||'Erro ao remover.'}`, 7000); return; }
     await loadProfessionalsFromServer();
-    document.getElementById('prof-detail-title').textContent = 'Selecione um profissional';
-    document.getElementById('prof-detail-body').innerHTML = 'Clique em um profissional para ver e editar seus dados, agenda e permissões.';
+    clearProfDetail();
     showToast(`${p.name} removido`);
   }catch(e){
     console.error('[removeProf] erro:', e);
