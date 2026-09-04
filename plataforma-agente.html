@@ -300,6 +300,29 @@ textarea.field{resize:vertical;min-height:80px}
   </div>
 </div>
 
+<!-- Modal de primeiro login: aparece quando o profissional logado ainda não
+     preencheu especialidade/dias de atendimento (profile_completed=false).
+     Bloqueante — só some depois de salvar, pra garantir que o agente nunca
+     ofereça um profissional com cadastro incompleto. -->
+<div id="complete-profile-modal" class="login-screen" style="display:none">
+  <div class="login-card" style="max-width:420px">
+    <div class="login-title" style="text-align:left">Complete seu cadastro</div>
+    <div class="login-sub" style="text-align:left;margin-bottom:20px">Antes de começar a receber agendamentos, informe sua especialidade e os dias em que você atende.</div>
+    <div id="cp-form-alert" class="form-alert" style="display:none"></div>
+    <div class="field-group">
+      <div class="field-label">Especialidade</div>
+      <input class="field" id="cp-especialidade" type="text" autocomplete="off" oninput="validateCompleteProfileForm()">
+      <div class="field-error" id="err-cp-especialidade"></div>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Dias de atendimento</div>
+      <div id="cp-dias" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    </div>
+    <button class="btn btn-accent" id="cp-submit-btn" type="button" disabled style="width:100%;padding:11px;margin-top:6px" onclick="submitCompleteProfile()">Salvar e continuar</button>
+    <button class="btn btn-ghost btn-sm" type="button" style="width:100%;margin-top:10px" onclick="doLogout()">Sair</button>
+  </div>
+</div>
+
 <!-- APP (escondido até o login confirmar) -->
 <div id="app-shell" style="display:none">
 <!-- SIDEBAR -->
@@ -538,11 +561,6 @@ textarea.field{resize:vertical;min-height:80px}
                 <div class="field-label">Nome completo</div>
                 <input class="field" id="prof-name" type="text" autocomplete="off" oninput="validateProfForm()">
                 <div class="field-error" id="err-prof-name"></div>
-              </div>
-              <div class="field-group">
-                <div class="field-label">Especialidade</div>
-                <input class="field" id="prof-especialidade" type="text" autocomplete="off" oninput="validateProfForm()">
-                <div class="field-error" id="err-prof-especialidade"></div>
               </div>
               <div class="field-group">
                 <div class="field-label">E-mail de login</div>
@@ -902,7 +920,7 @@ async function doLogin(){
       doLogout();
       return;
     }
-    showApp();
+    afterLoginSuccess();
   }catch(e){
     console.error('[doLogin] erro:', e);
     errEl.textContent = 'Não foi possível conectar. Verifique sua internet.';
@@ -920,6 +938,7 @@ function doLogout(){
   resetTenantState();
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('complete-profile-modal').style.display = 'none';
 
   // Recria os campos do zero: limpar .value não basta, o navegador mantém
   // seu próprio preview/estado de autofill associado ao nó antigo depois
@@ -997,6 +1016,93 @@ function showApp(){
   startNotifications();
 }
 
+// Decide, logo após autenticar (login novo ou sessão restaurada), se o
+// profissional pode entrar direto no painel ou se precisa completar o
+// cadastro primeiro. profile_completed vem calculado pelo backend a partir
+// de especialidade + dias_atendimento — sem isso o agente de agendamento
+// nunca oferece esse profissional pros clientes.
+function afterLoginSuccess(){
+  if(currentUser.role === 'profissional' && !currentUser.profile_completed){
+    showCompleteProfileModal();
+  } else {
+    showApp();
+  }
+}
+
+let cpDiasSelected = new Set();
+
+function showCompleteProfileModal(){
+  cpDiasSelected = new Set(currentUser.dias_atendimento || []);
+  const espEl = document.getElementById('cp-especialidade');
+  if(espEl) espEl.value = currentUser.especialidade || '';
+  renderCpDias();
+  setFormAlert('cp-form-alert', '', '');
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('complete-profile-modal').style.display = 'flex';
+  validateCompleteProfileForm();
+}
+
+function renderCpDias(){
+  const box = document.getElementById('cp-dias');
+  if(!box) return;
+  box.innerHTML = diasOrdem.map(d=>{
+    const v = cpDiasSelected.has(d);
+    return `<span onclick="toggleCpDia('${d}')" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;font-size:12px;font-weight:600;background:${v?'var(--accent-l)':'var(--bg)'};color:${v?'var(--accent)':'var(--light)'};border:1px solid ${v?'var(--accent-l)':'var(--border)'};cursor:pointer">${diasLabels[d]}</span>`;
+  }).join('');
+}
+
+function toggleCpDia(dia){
+  if(cpDiasSelected.has(dia)) cpDiasSelected.delete(dia); else cpDiasSelected.add(dia);
+  renderCpDias();
+  validateCompleteProfileForm();
+}
+
+function validateCompleteProfileForm(){
+  const espEl = document.getElementById('cp-especialidade');
+  const esp = espEl ? espEl.value.trim() : '';
+  let msg = '';
+  if(esp.length > 0 && esp.length < 3) msg = 'Preencha este campo (mín. 3 caracteres).';
+  const errEl = document.getElementById('err-cp-especialidade');
+  if(errEl) errEl.textContent = msg;
+  if(espEl) espEl.classList.toggle('invalid', esp.length > 0 && !!msg);
+  const ok = esp.length >= 3 && cpDiasSelected.size > 0;
+  const btn = document.getElementById('cp-submit-btn');
+  if(btn) btn.disabled = !ok;
+  return ok;
+}
+
+async function submitCompleteProfile(){
+  if(!validateCompleteProfileForm()) return;
+  const especialidade = document.getElementById('cp-especialidade').value.trim();
+  const dias_atendimento = diasOrdem.filter(d=>cpDiasSelected.has(d));
+  const btn = document.getElementById('cp-submit-btn');
+  setFormAlert('cp-form-alert', '', '');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  try{
+    const res = await apiFetch(`/api/professionals/${currentUser.id}`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ especialidade, dias_atendimento })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      setFormAlert('cp-form-alert', data.error || 'Não foi possível salvar.', 'error');
+      return;
+    }
+    await loadCurrentUser();
+    document.getElementById('complete-profile-modal').style.display = 'none';
+    showApp();
+  }catch(e){
+    console.error('[submitCompleteProfile] erro:', e);
+    setFormAlert('cp-form-alert', 'Não foi possível conectar. Verifique sua internet.', 'error');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Salvar e continuar';
+  }
+}
+
 function applyCurrentUserToUI(){
   if(!currentUser) return;
   const isAdmin = currentUser.role === 'admin';
@@ -1017,7 +1123,7 @@ async function checkExistingSession(){
   }
   await loadCurrentUser();
   if(currentUser){
-    showApp();
+    afterLoginSuccess();
   }else{
     doLogout();
   }
@@ -1634,6 +1740,7 @@ function renderProfList(){
         <div style="font-size:12px;color:var(--muted);margin-top:2px">${p.especialidade||'—'} · ${(p.dias_atendimento||[]).map(d=>diasLabels[d]).join(', ')}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
+        ${p.role==='profissional' && !p.profile_completed ? `<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--amber-l);color:#92400E">⏳ Cadastro pendente</span>` : ''}
         <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${p.active?'var(--green-l)':'var(--bg)'};color:${p.active?'var(--green)':'var(--muted)'}">${p.active?'Ativo':'Inativo'}</span>
         ${isAdmin?`<span style="font-size:11px;color:var(--light)">→</span>`:''}
       </div>
@@ -1966,7 +2073,7 @@ function hideAddProfForm(){
 }
 
 function resetAddProfForm(){
-  ['name','especialidade','email','password'].forEach(f=>{
+  ['name','email','password'].forEach(f=>{
     const el = document.getElementById('prof-'+f);
     if(el) el.value = '';
     const err = document.getElementById('err-prof-'+f);
@@ -2002,10 +2109,9 @@ function validateProfField(field, minLen){
 
 function validateProfForm(){
   const okName = validateProfField('name', 3);
-  const okEsp = validateProfField('especialidade', 3);
   const okEmail = validateProfField('email');
   const okPwd = validateProfField('password');
-  const allOk = okName && okEsp && okEmail && okPwd;
+  const allOk = okName && okEmail && okPwd;
   const btn = document.getElementById('btn-prof-submit');
   if(btn) btn.disabled = !allOk;
   return allOk;
@@ -2015,7 +2121,6 @@ async function submitAddProf(e){
   e.preventDefault();
   if(!validateProfForm()) return;
   const name = document.getElementById('prof-name').value.trim();
-  const especialidade = document.getElementById('prof-especialidade').value.trim();
   const email = document.getElementById('prof-email').value.trim();
   const password = document.getElementById('prof-password').value;
   const btn = document.getElementById('btn-prof-submit');
@@ -2026,7 +2131,7 @@ async function submitAddProf(e){
     const res = await apiFetch('/api/professionals', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ name, especialidade, email, password, role:'profissional' })
+      body: JSON.stringify({ name, email, password, role:'profissional' })
     });
     const data = await res.json();
     if(!res.ok){
