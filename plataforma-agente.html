@@ -336,14 +336,14 @@ textarea.field{resize:vertical;min-height:80px}
   </div>
   <nav class="sb-nav">
     <div class="nav-section">Painel</div>
-    <div class="nav-item active" onclick="setTab('visao',this)"><span class="nav-ic">📊</span><span>Visão Geral</span></div>
-    <div class="nav-item" onclick="setTab('conversas',this)"><span class="nav-ic">💬</span><span>Conversas</span><span class="nav-badge">5</span></div>
+    <div class="nav-item active" data-view="visao" onclick="setTab('visao',this)"><span class="nav-ic">📊</span><span>Visão Geral</span></div>
+    <div class="nav-item" data-view="conversas" onclick="setTab('conversas',this)"><span class="nav-ic">💬</span><span>Conversas</span><span class="nav-badge">5</span></div>
     <div class="nav-section">Agente</div>
-    <div class="nav-item" onclick="setTab('conhecimento',this)"><span class="nav-ic">🧠</span><span>Base de Conhecimento</span></div>
-    <div class="nav-item" onclick="setTab('profissionais',this)"><span class="nav-ic">👥</span><span>Profissionais</span></div>
-    <div class="nav-item" onclick="setTab('config',this)"><span class="nav-ic">⚙️</span><span>Configurações</span></div>
-    <div class="nav-item" onclick="setTab('testar',this)"><span class="nav-ic">🧪</span><span>Testar Agente</span><span class="nav-badge green">NOVO</span></div>
-    <div class="nav-item" onclick="setTab('agendamentos',this)"><span class="nav-ic">📅</span><span>Agendamentos</span></div>
+    <div class="nav-item" data-view="conhecimento" onclick="setTab('conhecimento',this)"><span class="nav-ic">🧠</span><span>Base de Conhecimento</span></div>
+    <div class="nav-item" data-view="profissionais" onclick="setTab('profissionais',this)"><span class="nav-ic">👥</span><span>Profissionais</span></div>
+    <div class="nav-item" data-view="config" onclick="setTab('config',this)"><span class="nav-ic">⚙️</span><span>Configurações</span></div>
+    <div class="nav-item" data-view="testar" onclick="setTab('testar',this)"><span class="nav-ic">🧪</span><span>Testar Agente</span><span class="nav-badge green">NOVO</span></div>
+    <div class="nav-item" data-view="agendamentos" onclick="setTab('agendamentos',this)"><span class="nav-ic">📅</span><span>Agendamentos</span></div>
     <div class="nav-section platform-admin-only" style="display:none">Plataforma</div>
     <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('clientes',this)"><span class="nav-ic">🏢</span><span>Clientes da Plataforma</span></div>
     <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('precos',this)"><span class="nav-ic">💰</span><span>Preços</span></div>
@@ -387,13 +387,13 @@ textarea.field{resize:vertical;min-height:80px}
 
   <div class="content">
     <div class="tabs">
-      <button class="tab active" onclick="setTab('visao',null,this)">Visão Geral</button>
-      <button class="tab" onclick="setTab('conversas',null,this)">Conversas</button>
-      <button class="tab" onclick="setTab('conhecimento',null,this)">🧠 Base de Conhecimento</button>
-      <button class="tab" onclick="setTab('profissionais',null,this)">👥 Profissionais</button>
-      <button class="tab" onclick="setTab('config',null,this)">Configurações</button>
-      <button class="tab" onclick="setTab('testar',null,this)">🧪 Testar Agente</button>
-      <button class="tab" onclick="setTab('agendamentos',null,this)">📅 Agendamentos</button>
+      <button class="tab active" data-view="visao" onclick="setTab('visao',null,this)">Visão Geral</button>
+      <button class="tab" data-view="conversas" onclick="setTab('conversas',null,this)">Conversas</button>
+      <button class="tab" data-view="conhecimento" onclick="setTab('conhecimento',null,this)">🧠 Base de Conhecimento</button>
+      <button class="tab" data-view="profissionais" onclick="setTab('profissionais',null,this)">👥 Profissionais</button>
+      <button class="tab" data-view="config" onclick="setTab('config',null,this)">Configurações</button>
+      <button class="tab" data-view="testar" onclick="setTab('testar',null,this)">🧪 Testar Agente</button>
+      <button class="tab" data-view="agendamentos" onclick="setTab('agendamentos',null,this)">📅 Agendamentos</button>
       <button class="tab platform-admin-only" style="display:none" onclick="setTab('clientes',null,this)">🏢 Clientes da Plataforma</button>
       <button class="tab platform-admin-only" style="display:none" onclick="setTab('precos',null,this)">💰 Preços</button>
     </div>
@@ -407,7 +407,7 @@ textarea.field{resize:vertical;min-height:80px}
         <div class="kpi"><div class="kpi-label">Transferências <span class="tag tag-amber">2 hoje</span></div><div class="kpi-val">2</div><div class="kpi-sub">Assumidas pela equipe</div></div>
       </div>
       <div class="overview-layout" style="display:grid;gap:16px">
-        <div class="card">
+        <div class="card" id="kb-summary-card" data-view="conhecimento">
           <div class="card-head"><span class="card-title">🧠 Base de conhecimento ativa</span><button class="btn btn-ghost btn-sm" onclick="setTab('conhecimento')">Gerenciar →</button></div>
           <div style="padding:16px 22px" id="kb-summary">
             <div style="color:var(--muted);font-size:13px">Nenhum documento carregado ainda.<br>Vá em <strong>Base de Conhecimento</strong> para adicionar.</div>
@@ -1113,6 +1113,8 @@ async function submitCompleteProfile(){
   }
 }
 
+const ROLE_LABELS = { admin:'👑 Administrador', profissional:'👤 Profissional', colaborador:'🤝 Colaborador' };
+
 function applyCurrentUserToUI(){
   if(!currentUser) return;
   const isAdmin = currentUser.role === 'admin';
@@ -1121,8 +1123,9 @@ function applyCurrentUserToUI(){
   const roleEl = document.getElementById('current-user-role');
   const avatarEl = document.getElementById('current-user-avatar');
   if(nameEl) nameEl.textContent = currentUser.name;
-  if(roleEl) roleEl.textContent = isAdmin ? '👑 Administrador' : '👤 Profissional';
+  if(roleEl) roleEl.textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
   if(avatarEl) avatarEl.textContent = (currentUser.name||'').split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase();
+  applyRoleNav();
 }
 
 // Ao abrir a página: se já tem token salvo, tenta usar direto sem pedir login de novo
@@ -1141,7 +1144,37 @@ async function checkExistingSession(){
 
 // ── NAVIGATION ──
 const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',testar:'Testar Agente',agendamentos:'Agendamentos',clientes:'Clientes da Plataforma',precos:'Configuração de Preços'};
+
+// Views de nível cliente liberadas por papel. As views de plataforma
+// ('clientes'/'precos') ficam de fora — continuam controladas só por
+// isPlatformAdmin, como já era antes disso existir.
+const ROLE_VIEWS = {
+  admin:        ['visao','conversas','conhecimento','profissionais','config','testar','agendamentos'],
+  colaborador:  ['visao','conversas','profissionais','agendamentos'],
+  profissional: ['visao','agendamentos'],
+};
+
+function isViewAllowed(id){
+  if(id === 'clientes' || id === 'precos') return isPlatformAdmin;
+  if(!currentUser) return true;
+  const allowed = ROLE_VIEWS[currentUser.role];
+  return allowed ? allowed.includes(id) : true;
+}
+
+// Esconde, no menu lateral e na barra de abas, todo elemento [data-view] cuja
+// view não está liberada pro papel logado. É só wayfinding — quem realmente
+// impede o acesso é a guarda em setTab(), que cobre também botões de atalho
+// (ex: "Gerenciar →" na Visão Geral) e qualquer outra chamada a setTab().
+function applyRoleNav(){
+  if(!currentUser) return;
+  const allowed = ROLE_VIEWS[currentUser.role] || ROLE_VIEWS.admin;
+  document.querySelectorAll('[data-view]').forEach(el => {
+    el.style.display = allowed.includes(el.dataset.view) ? '' : 'none';
+  });
+}
+
 function setTab(id, navEl, tabEl){
+  if(!isViewAllowed(id)){ id = 'visao'; navEl = null; tabEl = null; }
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
