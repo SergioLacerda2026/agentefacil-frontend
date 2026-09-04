@@ -2359,8 +2359,29 @@ function selectClient(id){
           <option value="false" ${!c.active?'selected':''}>Inativo</option>
         </select>
       </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Colaboradores contratados</div>
+        <input type="number" min="0" step="1" id="client-detail-colaboradores-${id}" style="border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;width:100%;outline:none" value="${c.contracted_colaboradores ?? 0}">
+      </div>
       <div style="display:flex;gap:8px;padding-top:4px">
         <button class="btn btn-accent btn-sm" id="btn-client-detail-save-${id}" onclick="saveClient('${id}')">Salvar alterações</button>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Profissionais contratados</div>
+        <div id="client-franchise-view-${id}" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div id="client-franchise-value-${id}" style="font-size:14px;color:var(--ink);font-weight:600">${c.contracted_professionals ?? '—'}</div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="showFranchiseForm('${id}')">Alterar franquia</button>
+        </div>
+        <div id="client-franchise-form-${id}" style="display:none;margin-top:12px">
+          <div id="client-franchise-alert-${id}" class="form-alert" style="display:none"></div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5">⚠ Essa mudança pode gerar cobrança ou abatimento proporcional ao período restante do mês, calculado no momento da confirmação.</div>
+          <input type="number" min="0" step="1" id="client-franchise-input-${id}" style="border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;width:100%;outline:none;margin-bottom:10px" value="${c.contracted_professionals ?? ''}">
+          <div style="display:flex;gap:8px">
+            <button type="button" class="btn btn-accent btn-sm" id="btn-client-franchise-confirm-${id}" onclick="submitFranchiseChange('${id}')">Confirmar alteração</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="hideFranchiseForm('${id}')">Cancelar</button>
+          </div>
+        </div>
+        <div id="client-franchise-result-${id}" style="display:none;background:var(--bg);border-radius:10px;padding:14px 16px;margin-top:12px"></div>
       </div>
     </div>`;
 }
@@ -2371,22 +2392,29 @@ async function saveClient(id){
   const nameEl = document.getElementById(`client-detail-name-${id}`);
   const adminNameEl = document.getElementById(`client-detail-adminName-${id}`);
   const activeEl = document.getElementById(`client-detail-active-${id}`);
+  const colabEl = document.getElementById(`client-detail-colaboradores-${id}`);
   const name = nameEl ? nameEl.value.trim() : c.name;
   const adminName = adminNameEl ? adminNameEl.value.trim() : c.adminName;
   const active = activeEl ? activeEl.value === 'true' : c.active;
+  const colabRaw = colabEl ? colabEl.value.trim() : '';
+  const contractedColaboradores = colabRaw === '' ? 0 : Number(colabRaw);
 
   if(name.length < 3){ setFormAlert(`client-detail-alert-${id}`, 'Informe o nome do negócio (mín. 3 caracteres).', 'error'); return; }
   if(adminName.length < 3){ setFormAlert(`client-detail-alert-${id}`, 'Informe o nome do cliente/admin (mín. 3 caracteres).', 'error'); return; }
+  if(!Number.isInteger(contractedColaboradores) || contractedColaboradores < 0){ setFormAlert(`client-detail-alert-${id}`, 'Informe um número inteiro de colaboradores (0 ou mais).', 'error'); return; }
 
   setFormAlert(`client-detail-alert-${id}`, '', '');
   const btn = document.getElementById(`btn-client-detail-save-${id}`);
   if(btn){ btn.disabled = true; btn.textContent = 'Salvando...'; }
 
+  const clientPatchBody = { name, active };
+  if(contractedColaboradores !== (c.contracted_colaboradores ?? 0)) clientPatchBody.contracted_colaboradores = contractedColaboradores;
+
   const [clientResult, adminNameResult] = await Promise.allSettled([
     apiFetch(`/api/admin/clients/${id}`, {
       method:'PATCH',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ name, active })
+      body: JSON.stringify(clientPatchBody)
     }).then(async res=>({ ok: res.ok, data: await res.json().catch(()=>({})) })),
     apiFetch(`/api/admin/clients/${id}/admin-name`, {
       method:'PATCH',
@@ -2412,6 +2440,103 @@ async function saveClient(id){
   } else {
     setFormAlert(`client-detail-alert-${id}`, `⚠ Erro ao salvar nome do negócio/status: ${clientErr} ⚠ Erro ao salvar nome do admin: ${adminErr}`, 'error');
   }
+}
+
+// ── FRANQUIA DE PROFISSIONAIS (admin da plataforma, com rateio proporcional) ──
+// contracted_professionals não pode ser alterado pelo PATCH genérico de
+// saveClient() — o backend recusa esse campo ali de propósito, porque a
+// mudança gera cobrança/abatimento proporcional (prorated_amount) e precisa
+// de uma rota própria (.../franchise). Por isso é uma ação separada, com
+// resultado exibido até o admin fechar (nunca um toast que some sozinho).
+function showFranchiseForm(id){
+  const c = platformClients.find(x=>x.id===id);
+  if(!c) return;
+  const view = document.getElementById(`client-franchise-view-${id}`);
+  const form = document.getElementById(`client-franchise-form-${id}`);
+  const result = document.getElementById(`client-franchise-result-${id}`);
+  if(view) view.style.display = 'none';
+  if(result){ result.style.display = 'none'; result.innerHTML = ''; }
+  if(form){
+    form.style.display = 'block';
+    const input = document.getElementById(`client-franchise-input-${id}`);
+    if(input) input.value = c.contracted_professionals ?? '';
+  }
+  setFormAlert(`client-franchise-alert-${id}`, '', '');
+}
+
+function hideFranchiseForm(id){
+  const view = document.getElementById(`client-franchise-view-${id}`);
+  const form = document.getElementById(`client-franchise-form-${id}`);
+  if(form) form.style.display = 'none';
+  if(view) view.style.display = 'flex';
+  setFormAlert(`client-franchise-alert-${id}`, '', '');
+}
+
+async function submitFranchiseChange(id){
+  const input = document.getElementById(`client-franchise-input-${id}`);
+  const raw = input ? input.value.trim() : '';
+  const n = Number(raw);
+  if(raw === '' || !Number.isInteger(n) || n < 0){
+    setFormAlert(`client-franchise-alert-${id}`, 'Informe um número inteiro válido (0 ou mais).', 'error');
+    return;
+  }
+
+  setFormAlert(`client-franchise-alert-${id}`, '', '');
+  const btn = document.getElementById(`btn-client-franchise-confirm-${id}`);
+  if(btn){ btn.disabled = true; btn.textContent = 'Confirmando...'; }
+  try{
+    const res = await apiFetch(`/api/admin/clients/${id}/franchise`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contracted_professionals: n })
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){
+      setFormAlert(`client-franchise-alert-${id}`, data.error || 'Não foi possível alterar a franquia.', 'error');
+      return;
+    }
+    const idx = platformClients.findIndex(x=>x.id===id);
+    if(idx !== -1 && data.client) platformClients[idx] = { ...platformClients[idx], ...data.client };
+    renderFranchiseResult(id, data.franchise_change);
+  }catch(err){
+    console.error('[submitFranchiseChange] erro:', err);
+    setFormAlert(`client-franchise-alert-${id}`, 'Não foi possível conectar ao backend.', 'error');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Confirmar alteração'; }
+  }
+}
+
+function renderFranchiseResult(id, change){
+  const form = document.getElementById(`client-franchise-form-${id}`);
+  const result = document.getElementById(`client-franchise-result-${id}`);
+  if(form) form.style.display = 'none';
+  if(!result || !change) return;
+  const formatted = typeof change.prorated_amount === 'number'
+    ? change.prorated_amount.toLocaleString('pt-BR', { style:'currency', currency:'BRL' })
+    : '—';
+  const unitFormatted = typeof change.unit_price === 'number'
+    ? change.unit_price.toLocaleString('pt-BR', { style:'currency', currency:'BRL' })
+    : '—';
+  result.innerHTML = `
+    <div style="font-size:13px;color:var(--ink);line-height:1.7">
+      <div><strong>${change.change_type || 'Alteração de franquia'}</strong></div>
+      <div>${change.contracted_before} → ${change.contracted_after} profissionais</div>
+      <div>Preço unitário: ${unitFormatted}</div>
+      <div>Valor proporcional: <strong>${formatted}</strong></div>
+      <div>Status: ${change.status || '—'}</div>
+    </div>
+    <button type="button" class="btn btn-accent btn-sm" style="margin-top:12px" onclick="closeFranchiseResult('${id}')">Entendi</button>`;
+  result.style.display = 'block';
+}
+
+function closeFranchiseResult(id){
+  const c = platformClients.find(x=>x.id===id);
+  const result = document.getElementById(`client-franchise-result-${id}`);
+  const view = document.getElementById(`client-franchise-view-${id}`);
+  if(result){ result.style.display = 'none'; result.innerHTML = ''; }
+  if(view) view.style.display = 'flex';
+  const valEl = document.getElementById(`client-franchise-value-${id}`);
+  if(valEl && c) valEl.textContent = c.contracted_professionals ?? '—';
 }
 
 function showAddClientForm(){
