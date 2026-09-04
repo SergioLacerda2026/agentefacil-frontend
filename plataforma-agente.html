@@ -542,6 +542,7 @@ textarea.field{resize:vertical;min-height:80px}
               <div>
                 <div class="card-title">👥 Profissionais cadastrados</div>
                 <div class="card-desc">Cada profissional tem agenda e permissões independentes</div>
+                <div id="colab-counter" style="font-size:11px;color:var(--muted);margin-top:4px;display:none">🤝 Colaboradores: <strong id="colab-counter-text">0 de 0</strong></div>
               </div>
               <button id="btn-add-prof" class="btn btn-accent btn-sm" onclick="showAddProfForm()">+ Adicionar profissional</button>
             </div>
@@ -561,6 +562,13 @@ textarea.field{resize:vertical;min-height:80px}
                 <div class="field-label">Nome completo</div>
                 <input class="field" id="prof-name" type="text" autocomplete="off" oninput="validateProfForm()">
                 <div class="field-error" id="err-prof-name"></div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">Papel</div>
+                <select class="field" id="prof-role" onchange="updateAddProfGate()">
+                  <option value="profissional" selected>Profissional</option>
+                  <option value="colaborador">Colaborador</option>
+                </select>
               </div>
               <div class="field-group">
                 <div class="field-label">E-mail de login</div>
@@ -961,6 +969,8 @@ function resetTenantState(){
   profissionais = [];
   profContractedLimit = null;
   profActiveCount = null;
+  colabContractedLimit = null;
+  colabActiveCount = null;
   franchiseRequestPending = false;
   franchiseReqBusy = false;
   platformClients = [];
@@ -1667,6 +1677,8 @@ function initTestChat(){
 let profissionais = [];
 let profContractedLimit = null;
 let profActiveCount = null;
+let colabContractedLimit = null;
+let colabActiveCount = null;
 let selectedProfId = null; // qual profissional está aberto no painel de detalhe (pra re-render)
 
 const diasLabels = {seg:'Seg',ter:'Ter',qua:'Qua',qui:'Qui',sex:'Sex',sab:'Sáb',dom:'Dom'};
@@ -1685,6 +1697,8 @@ async function loadProfessionalsFromServer(){
     profissionais = data.professionals;
     profContractedLimit = typeof data.contracted_professionals === 'number' ? data.contracted_professionals : null;
     profActiveCount = typeof data.active_count === 'number' ? data.active_count : null;
+    colabContractedLimit = typeof data.contracted_colaboradores === 'number' ? data.contracted_colaboradores : null;
+    colabActiveCount = typeof data.colaborador_count === 'number' ? data.colaborador_count : null;
     renderProfList();
   }catch(e){
     console.error('[loadProfessionalsFromServer] erro:', e);
@@ -1724,6 +1738,16 @@ function renderProfList(){
   const addBtn = document.getElementById('btn-add-prof');
   if(addBtn) addBtn.style.display = isAdmin ? '' : 'none';
 
+  const colabCounter = document.getElementById('colab-counter');
+  if(colabCounter){
+    if(isAdmin && colabContractedLimit != null){
+      document.getElementById('colab-counter-text').textContent = `${colabActiveCount ?? 0} de ${colabContractedLimit}`;
+      colabCounter.style.display = 'block';
+    } else {
+      colabCounter.style.display = 'none';
+    }
+  }
+
   if(profissionais.length===0){
     list.innerHTML='<div style="padding:20px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhum profissional cadastrado ainda.</div>';
     return;
@@ -1737,9 +1761,10 @@ function renderProfList(){
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--ink)">${p.name}${p.role==='admin'?' 👑':''}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">${p.especialidade||'—'} · ${(p.dias_atendimento||[]).map(d=>diasLabels[d]).join(', ')}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${p.role==='colaborador' ? 'Colaborador' : `${p.especialidade||'—'} · ${(p.dias_atendimento||[]).map(d=>diasLabels[d]).join(', ')}`}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
+        ${p.role==='colaborador' ? `<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--bg);color:var(--muted);border:1px solid var(--border)">🤝 Colaborador</span>` : ''}
         ${p.role==='profissional' && !p.profile_completed ? `<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--amber-l);color:#92400E">⏳ Cadastro pendente</span>` : ''}
         <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${p.active?'var(--green-l)':'var(--bg)'};color:${p.active?'var(--green)':'var(--muted)'}">${p.active?'Ativo':'Inativo'}</span>
         ${isAdmin?`<span style="font-size:11px;color:var(--light)">→</span>`:''}
@@ -1795,7 +1820,7 @@ function selectProf(id){
   // houver pedido em análise. Backend recusa se o profissional tiver agenda
   // futura; a mensagem cai no toast, sem checagem aqui.
   let reduceFranchiseBlock = '';
-  if(isAdmin && p.role !== 'admin' && p.active){
+  if(isAdmin && p.role === 'profissional' && p.active){
     if(franchiseRequestPending){
       reduceFranchiseBlock = `<div style="padding-top:10px;margin-top:6px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.5">Já há um pedido de mudança de franquia em análise — você será avisado quando for decidido.</div>`;
     }else if(profContractedLimit != null && profContractedLimit > 1){
@@ -2044,26 +2069,47 @@ function setFormAlert(elId, message, kind){
 function showAddProfForm(){
   if(currentUser.role !== 'admin'){ showToast('⚠ Apenas administradores podem adicionar profissionais'); return; }
   const card = document.getElementById('add-prof-card');
+  if(card) card.style.display = 'block';
+  updateAddProfGate(true);
+}
+
+// Reavalia se o formulário deve ficar bloqueado por limite de franquia,
+// de acordo com o papel selecionado no dropdown (#prof-role). Profissional
+// e colaborador têm tetos independentes (contracted_professionals/
+// contracted_colaboradores) — bater o de um não pode travar o cadastro
+// do outro, por isso o gate é recalculado a cada troca de papel (onchange).
+function updateAddProfGate(focusName){
   const form = document.getElementById('add-prof-form');
   const limitAlert = document.getElementById('add-prof-limit-alert');
-  const limitReached = profContractedLimit != null && profActiveCount != null && profActiveCount >= profContractedLimit;
-  if(limitReached){
-    if(form) form.style.display = 'none';
-    if(limitAlert){
+  const roleEl = document.getElementById('prof-role');
+  const role = roleEl ? roleEl.value : 'profissional';
+
+  let limitReached = false;
+  if(role === 'colaborador'){
+    limitReached = colabContractedLimit != null && colabActiveCount != null && colabActiveCount >= colabContractedLimit;
+    if(limitReached && limitAlert){
+      limitAlert.innerHTML = `<div>Limite de colaboradores contratados atingido (${colabActiveCount} de ${colabContractedLimit}). Fale com o suporte para contratar mais.</div>`;
+    }
+  } else {
+    limitReached = profContractedLimit != null && profActiveCount != null && profActiveCount >= profContractedLimit;
+    if(limitReached && limitAlert){
       const target = profContractedLimit + 1;
       limitAlert.innerHTML = franchiseRequestPending
         ? `<div>Limite de profissionais contratados atingido (${profActiveCount} de ${profContractedLimit}).</div>
            <div style="margin-top:10px;color:var(--muted)">Já há um pedido de mudança de franquia em análise — você será avisado quando for decidido.</div>`
         : `<div style="margin-bottom:12px">Limite de profissionais contratados atingido (${profActiveCount} de ${profContractedLimit}). Para adicionar outro, solicite o aumento da sua franquia.</div>
            <button type="button" class="btn btn-accent btn-sm" id="btn-request-increase" onclick="requestFranchiseIncrease()">Solicitar aumento (${profContractedLimit} → ${target})</button>`;
-      limitAlert.style.display = 'block';
     }
+  }
+
+  if(limitReached){
+    if(form) form.style.display = 'none';
+    if(limitAlert) limitAlert.style.display = 'block';
   } else {
     if(form) form.style.display = '';
     if(limitAlert){ limitAlert.style.display = 'none'; limitAlert.innerHTML = ''; }
+    if(focusName) document.getElementById('prof-name')?.focus();
   }
-  if(card) card.style.display = 'block';
-  if(!limitReached) document.getElementById('prof-name')?.focus();
 }
 
 function hideAddProfForm(){
@@ -2084,6 +2130,8 @@ function resetAddProfForm(){
   if(pwd) pwd.type = 'password';
   const toggleBtn = document.getElementById('prof-password-toggle');
   if(toggleBtn) toggleBtn.textContent = '👁';
+  const roleEl = document.getElementById('prof-role');
+  if(roleEl) roleEl.value = 'profissional';
   setFormAlert('add-prof-alert', '', '');
   validateProfForm();
 }
@@ -2123,6 +2171,8 @@ async function submitAddProf(e){
   const name = document.getElementById('prof-name').value.trim();
   const email = document.getElementById('prof-email').value.trim();
   const password = document.getElementById('prof-password').value;
+  const roleEl = document.getElementById('prof-role');
+  const role = roleEl ? roleEl.value : 'profissional';
   const btn = document.getElementById('btn-prof-submit');
   setFormAlert('add-prof-alert', '', '');
   btn.disabled = true;
@@ -2131,7 +2181,7 @@ async function submitAddProf(e){
     const res = await apiFetch('/api/professionals', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ name, email, password, role:'profissional' })
+      body: JSON.stringify({ name, email, password, role })
     });
     const data = await res.json();
     if(!res.ok){
