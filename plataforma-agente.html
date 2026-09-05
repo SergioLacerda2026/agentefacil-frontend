@@ -347,6 +347,7 @@ textarea.field{resize:vertical;min-height:80px}
     <div class="nav-section platform-admin-only" style="display:none">Plataforma</div>
     <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('clientes',this)"><span class="nav-ic">🏢</span><span>Clientes da Plataforma</span></div>
     <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('precos',this)"><span class="nav-ic">💰</span><span>Preços</span></div>
+    <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('comercial',this)"><span class="nav-ic">🤝</span><span>Fechamentos comerciais</span></div>
   </nav>
   <div class="sb-foot">
     <div class="user-label" style="font-size:10px;color:rgba(255,255,255,.3);margin-bottom:6px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Logado como</div>
@@ -396,6 +397,7 @@ textarea.field{resize:vertical;min-height:80px}
       <button class="tab" data-view="agendamentos" onclick="setTab('agendamentos',null,this)">📅 Agendamentos</button>
       <button class="tab platform-admin-only" style="display:none" onclick="setTab('clientes',null,this)">🏢 Clientes da Plataforma</button>
       <button class="tab platform-admin-only" style="display:none" onclick="setTab('precos',null,this)">💰 Preços</button>
+      <button class="tab platform-admin-only" style="display:none" onclick="setTab('comercial',null,this)">🤝 Fechamentos comerciais</button>
     </div>
 
     <!-- ══ VISÃO GERAL ══ -->
@@ -842,6 +844,34 @@ textarea.field{resize:vertical;min-height:80px}
       </div>
     </div>
 
+    <!-- ══ FECHAMENTOS COMERCIAIS (platform admin only) ══ -->
+    <div class="view" id="view-comercial">
+      <div class="prof-layout" style="display:grid;gap:20px">
+        <!-- Lista de pedidos -->
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-head">
+              <div>
+                <div class="card-title">🤝 Pedidos de fechamento comercial</div>
+                <div class="card-desc">Pagamento confirmado, aguardando aprovação pra virar cliente</div>
+              </div>
+            </div>
+            <div style="padding:8px 0" id="comercial-list"></div>
+          </div>
+        </div>
+
+        <!-- Detalhes do pedido selecionado -->
+        <div>
+          <div class="card" id="comercial-detail-card">
+            <div class="card-head"><div class="card-title" id="comercial-detail-title">Selecione um pedido</div></div>
+            <div id="comercial-detail-body" style="padding:20px 22px;color:var(--muted);font-size:13px">
+              Clique em um pedido para ver os dados e decidir.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </main>
 </div>
@@ -974,14 +1004,16 @@ function resetTenantState(){
   franchiseRequestPending = false;
   franchiseReqBusy = false;
   platformClients = [];
+  commercialCloseRequests = [];
   testHistory = [];
   testTyping = false;
 
-  ['appt-list','prof-list','clients-list','test-chat'].forEach(id=>{
+  ['appt-list','prof-list','clients-list','comercial-list','test-chat'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.innerHTML = '';
   });
   clearProfDetail();
+  clearCommercialCloseDetail();
   const apptDesc = document.getElementById('appt-count-desc');
   if(apptDesc) apptDesc.textContent = 'Agendamentos criados pelo agente via conversa';
 
@@ -1143,7 +1175,7 @@ async function checkExistingSession(){
 }
 
 // ── NAVIGATION ──
-const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',testar:'Testar Agente',agendamentos:'Agendamentos',clientes:'Clientes da Plataforma',precos:'Configuração de Preços'};
+const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',testar:'Testar Agente',agendamentos:'Agendamentos',clientes:'Clientes da Plataforma',precos:'Configuração de Preços',comercial:'Fechamentos Comerciais'};
 
 // Views de nível cliente liberadas por papel. As views de plataforma
 // ('clientes'/'precos') ficam de fora — continuam controladas só por
@@ -1155,7 +1187,7 @@ const ROLE_VIEWS = {
 };
 
 function isViewAllowed(id){
-  if(id === 'clientes' || id === 'precos') return isPlatformAdmin;
+  if(id === 'clientes' || id === 'precos' || id === 'comercial') return isPlatformAdmin;
   if(!currentUser) return true;
   const allowed = ROLE_VIEWS[currentUser.role];
   return allowed ? allowed.includes(id) : true;
@@ -1190,6 +1222,7 @@ function setTab(id, navEl, tabEl){
   if(id==='agendamentos') loadAppointmentsFromServer();
   if(id==='clientes') loadPlatformClientsFromServer();
   if(id==='precos') loadPricingConfig();
+  if(id==='comercial') loadCommercialCloseRequestsFromServer();
 }
 
 // ── KNOWLEDGE BASE ── (agora persistida no Supabase via backend)
@@ -2672,6 +2705,233 @@ async function submitAddClient(e){
   }
 }
 
+// ── FECHAMENTOS COMERCIAIS (platform admin only, GET/PATCH /api/admin/commercial-close-requests) ──
+// GET só devolve pedidos pendentes (status pago_aguardando_aprovacao) — sem
+// filtro de status no frontend, mesma premissa já usada pra franquia.
+let commercialCloseRequests = [];
+let selectedCommercialCloseId = null;
+
+async function loadCommercialCloseRequestsFromServer(){
+  try{
+    const res = await apiFetch('/api/admin/commercial-close-requests');
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    const data = await res.json();
+    commercialCloseRequests = data.requests || [];
+    renderCommercialCloseList();
+  }catch(e){
+    console.error('[loadCommercialCloseRequestsFromServer] erro:', e);
+    const list = document.getElementById('comercial-list');
+    if(list) list.innerHTML = `<div style="padding:20px 22px;color:var(--red);font-size:13px;text-align:center">⚠ Não foi possível carregar os pedidos.</div>`;
+  }
+}
+
+function renderCommercialCloseList(){
+  const list = document.getElementById('comercial-list');
+  if(!list) return;
+  if(commercialCloseRequests.length===0){
+    list.innerHTML='<div style="padding:20px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhum pedido aguardando aprovação.</div>';
+    return;
+  }
+  list.innerHTML = commercialCloseRequests.map(r=>`
+    <div onclick="selectCommercialCloseRequest('${r.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 22px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s"
+      onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--ink)">${r.business_name||'—'}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${r.contact_name||'—'} · ${r.lead_source||'—'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--bg);color:var(--muted);border:1px solid var(--border)">${r.paid_at ? new Date(r.paid_at).toLocaleDateString('pt-BR') : '—'}</span>
+        <span style="font-size:11px;color:var(--light)">→</span>
+      </div>
+    </div>`).join('');
+}
+
+function selectCommercialCloseRequest(id){
+  const r = commercialCloseRequests.find(x=>x.id===id);
+  if(!r) return;
+  selectedCommercialCloseId = id;
+
+  document.getElementById('comercial-detail-title').textContent = r.business_name || 'Pedido';
+  document.getElementById('comercial-detail-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div id="comercial-detail-alert-${id}" class="form-alert" style="display:none"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Contato</div>
+          <div style="font-size:13px;color:var(--ink)">${r.contact_name||'—'}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Telefone</div>
+          <div style="font-size:13px;color:var(--ink)">${r.contact_phone||'—'}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">E-mail</div>
+          <div style="font-size:13px;color:var(--ink)">${r.contact_email||'—'}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Origem</div>
+          <div style="font-size:13px;color:var(--ink)">${r.lead_source||'—'}${r.origin ? ` · ${r.origin}` : ''}${r.origin_seller_name ? ` (${r.origin_seller_name})` : ''}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Profissionais pretendidos</div>
+          <div style="font-size:13px;color:var(--ink)">${r.intended_professionals ?? '—'}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pago em</div>
+          <div style="font-size:13px;color:var(--ink)">${notifFmtDate(r.paid_at) || '—'}</div>
+        </div>
+      </div>
+      ${r.notes ? `
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Observações</div>
+        <div style="font-size:13px;color:var(--ink);white-space:pre-wrap">${r.notes}</div>
+      </div>` : ''}
+      <div style="font-size:11px;color:var(--light)">Pedido criado em ${notifFmtDate(r.requested_at) || '—'}</div>
+
+      <div style="border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">✅ Aprovar</div>
+        <div class="field-group">
+          <div class="field-label">E-mail de login do admin</div>
+          <input class="field" id="comercial-email-${id}" type="email" value="${r.contact_email||''}" autocomplete="off" oninput="validateCommercialApproveForm('${id}')">
+          <div class="field-error" id="err-comercial-email-${id}"></div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Senha provisória</div>
+          <div class="password-wrap">
+            <input class="field" id="comercial-password-${id}" type="password" autocomplete="new-password" oninput="validateCommercialApproveForm('${id}')">
+            <button type="button" class="password-toggle" id="comercial-password-toggle-${id}" onclick="togglePwd('comercial-password-${id}', this)" aria-label="Mostrar/ocultar senha">👁</button>
+          </div>
+          <div class="field-error" id="err-comercial-password-${id}"></div>
+          <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="fillGeneratedPassword('${id}')">🎲 Gerar senha forte</button>
+        </div>
+        <button type="button" class="btn btn-accent btn-sm" id="btn-comercial-approve-${id}" disabled style="width:100%" onclick="approveCommercialClose('${id}')">Aprovar e criar cliente</button>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">🚫 Rejeitar</div>
+        <div class="field-group">
+          <div class="field-label">Motivo <span style="font-weight:400;color:var(--muted)">(opcional)</span></div>
+          <input class="field" id="comercial-reason-${id}" type="text" autocomplete="off">
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" style="width:100%;color:var(--red)" id="btn-comercial-reject-${id}" onclick="rejectCommercialClose('${id}')">Rejeitar pedido</button>
+      </div>
+    </div>`;
+  validateCommercialApproveForm(id);
+}
+
+function clearCommercialCloseDetail(){
+  selectedCommercialCloseId = null;
+  const title = document.getElementById('comercial-detail-title');
+  const body  = document.getElementById('comercial-detail-body');
+  if(title) title.textContent = 'Selecione um pedido';
+  if(body)  body.innerHTML = 'Clique em um pedido para ver os dados e decidir.';
+}
+
+function validateCommercialApproveForm(id){
+  const emailEl = document.getElementById(`comercial-email-${id}`);
+  const pwdEl = document.getElementById(`comercial-password-${id}`);
+  if(!emailEl || !pwdEl) return false;
+  const email = emailEl.value.trim();
+  const pwd = pwdEl.value;
+  const emailErr = document.getElementById(`err-comercial-email-${id}`);
+  const pwdErr = document.getElementById(`err-comercial-password-${id}`);
+  const emailOk = isValidEmail(email);
+  const pwdOk = pwd.length >= 8;
+  if(emailErr) emailErr.textContent = email.length > 0 && !emailOk ? 'Informe um e-mail válido.' : '';
+  if(pwdErr) pwdErr.textContent = pwd.length > 0 && !pwdOk ? 'A senha precisa ter pelo menos 8 caracteres.' : '';
+  emailEl.classList.toggle('invalid', email.length > 0 && !emailOk);
+  pwdEl.classList.toggle('invalid', pwd.length > 0 && !pwdOk);
+  const btn = document.getElementById(`btn-comercial-approve-${id}`);
+  const ok = emailOk && pwdOk;
+  if(btn) btn.disabled = !ok;
+  return ok;
+}
+
+// Gera uma senha aleatória forte (maiúsculas, minúsculas, números e símbolos,
+// sem caracteres ambíguos) via crypto.getRandomValues — pro admin de
+// plataforma não ter que inventar uma senha provisória na hora de aprovar.
+function generatePassword(length = 12){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
+  const bytes = new Uint32Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => chars[b % chars.length]).join('');
+}
+
+function fillGeneratedPassword(id){
+  const pwdEl = document.getElementById(`comercial-password-${id}`);
+  if(!pwdEl) return;
+  pwdEl.type = 'text';
+  const toggleBtn = document.getElementById(`comercial-password-toggle-${id}`);
+  if(toggleBtn) toggleBtn.textContent = '🙈';
+  pwdEl.value = generatePassword();
+  validateCommercialApproveForm(id);
+}
+
+async function approveCommercialClose(id){
+  const r = commercialCloseRequests.find(x=>x.id===id);
+  if(!r) return;
+  if(!validateCommercialApproveForm(id)) return;
+  const admin_email = document.getElementById(`comercial-email-${id}`).value.trim();
+  const admin_password = document.getElementById(`comercial-password-${id}`).value;
+  const btn = document.getElementById(`btn-comercial-approve-${id}`);
+  setFormAlert(`comercial-detail-alert-${id}`, '', '');
+  if(btn){ btn.disabled = true; btn.textContent = 'Aprovando...'; }
+  try{
+    const res = await apiFetch(`/api/admin/commercial-close-requests/${id}`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ decision:'aprovar', admin_email, admin_password, admin_name: r.contact_name })
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){
+      setFormAlert(`comercial-detail-alert-${id}`, data.error || 'Não foi possível aprovar o pedido.', 'error');
+      return;
+    }
+    commercialCloseRequests = commercialCloseRequests.filter(x=>x.id!==id);
+    renderCommercialCloseList();
+    clearCommercialCloseDetail();
+    showToast(`✓ ${r.business_name} aprovado! Peça pro admin entrar com o e-mail e a senha combinada.`);
+  }catch(err){
+    console.error('[approveCommercialClose] erro:', err);
+    setFormAlert(`comercial-detail-alert-${id}`, 'Não foi possível conectar ao backend.', 'error');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Aprovar e criar cliente'; }
+  }
+}
+
+async function rejectCommercialClose(id){
+  const r = commercialCloseRequests.find(x=>x.id===id);
+  if(!r) return;
+  const reasonEl = document.getElementById(`comercial-reason-${id}`);
+  const rejection_reason = reasonEl ? reasonEl.value.trim() : '';
+  const btn = document.getElementById(`btn-comercial-reject-${id}`);
+  setFormAlert(`comercial-detail-alert-${id}`, '', '');
+  if(btn){ btn.disabled = true; btn.textContent = 'Rejeitando...'; }
+  try{
+    const body = { decision:'rejeitar' };
+    if(rejection_reason) body.rejection_reason = rejection_reason;
+    const res = await apiFetch(`/api/admin/commercial-close-requests/${id}`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){
+      setFormAlert(`comercial-detail-alert-${id}`, data.error || 'Não foi possível rejeitar o pedido.', 'error');
+      return;
+    }
+    commercialCloseRequests = commercialCloseRequests.filter(x=>x.id!==id);
+    renderCommercialCloseList();
+    clearCommercialCloseDetail();
+    showToast(`✓ Pedido de ${r.business_name} rejeitado.`);
+  }catch(err){
+    console.error('[rejectCommercialClose] erro:', err);
+    setFormAlert(`comercial-detail-alert-${id}`, 'Não foi possível conectar ao backend.', 'error');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Rejeitar pedido'; }
+  }
+}
+
 // ── CONFIGURAÇÃO DE PREÇOS (platform admin only, GET/PATCH /api/admin/pricing) ──
 const PRICING_FIELDS = ['base_plan_price','base_plan_messages_included','additional_professional_price','additional_professional_messages','overage_message_price','message_cost_internal','setup_fee'];
 const PRICING_INT_FIELDS = ['base_plan_messages_included','additional_professional_messages'];
@@ -2802,6 +3062,17 @@ const NOTIF_SOURCES = [
     markAll: () => apiFetch('/api/appointments/cancellations/seen', { method:'PATCH' }),
     markOne: id => apiFetch(`/api/appointments/${id}/cancel-seen`, { method:'PATCH' }),
   },
+  {
+    // 'link': aviso de que há pedidos parados, sem decisão embutida no dropdown
+    // (o formulário de aprovação pede e-mail + senha — não cabe numa linha
+    // compacta do sino). Um botão só leva pra tela dedicada (setTab('comercial')).
+    id: 'commercialClose',
+    kind: 'link',
+    title: 'Fechamentos comerciais',
+    applies: () => isPlatformAdmin,
+    load: () => apiFetch('/api/admin/commercial-close-requests'),
+    pick: d => notifAsArray(d, 'requests'),
+  },
 ];
 
 function activeNotifSources(){ return NOTIF_SOURCES.filter(s => s.applies()); }
@@ -2899,6 +3170,21 @@ function notifRowHtml(source, it){
   </div>`;
 }
 
+// 'link': uma única linha-resumo pra fonte inteira (não uma por item, como
+// 'decision'/'seen') — a decisão em si não cabe no dropdown, só avisa e leva
+// pra tela dedicada.
+function notifLinkRowHtml(source, items){
+  return `<div class="notif-row">
+    <div class="notif-row-text">${items.length} pedido${items.length===1?'':'s'} de fechamento comercial aguardando aprovação.</div>
+    <div class="notif-row-actions"><button class="btn btn-accent btn-sm" onclick="goToCommercialCloseRequests()">Ver pedidos →</button></div>
+  </div>`;
+}
+
+function goToCommercialCloseRequests(){
+  closeNotifPanel();
+  setTab('comercial');
+}
+
 function renderNotifPanel(){
   const body = document.getElementById('notif-panel-body');
   const empty = document.getElementById('notif-panel-empty');
@@ -2912,7 +3198,7 @@ function renderNotifPanel(){
     if(!items.length) return;
     if(s.kind === 'seen') hasSeenItems = true;
     html += `<div class="notif-section-title">${s.title}</div>`;
-    html += items.map(it => notifRowHtml(s, it)).join('');
+    html += s.kind === 'link' ? notifLinkRowHtml(s, items) : items.map(it => notifRowHtml(s, it)).join('');
   });
   body.innerHTML = html;
   if(empty) empty.hidden = notifTotalCount() > 0;
