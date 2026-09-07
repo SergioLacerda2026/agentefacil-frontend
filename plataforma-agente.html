@@ -996,6 +996,7 @@ function doLogout(){
 function resetTenantState(){
   stopNotifications();
   appointments = [];
+  callbacks = [];
   profissionais = [];
   profContractedLimit = null;
   profActiveCount = null;
@@ -2291,10 +2292,16 @@ async function loadAdditionalProfPricing(){
 }
 
 // ── AGENDAMENTOS (dados reais do Supabase, via backend) ──
+// A aba Agenda mescla duas coisas numa lista só, ordenada por data: os
+// agendamentos normais (/api/appointments) e os retornos de ligação pedidos
+// pelo agente (/api/callbacks). O retorno de ligação não tem hora marcada,
+// só dia + período (manhã/tarde), e some da visão quando concluído.
 let appointments = [];
+let callbacks = [];
 
 const apptStatusLabel = { confirmado:'Confirmado', cancelado:'Cancelado', concluido:'Concluído', no_show:'Não compareceu' };
 const apptStatusColor = { confirmado:'var(--green)', cancelado:'var(--red)', concluido:'var(--muted)', no_show:'var(--amber)' };
+const callbackPeriodLabel = { manha:'Manhã', tarde:'Tarde', noite:'Noite' };
 
 function formatApptDateOnly(iso){
   try{ return new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}); }catch(e){ return iso; }
@@ -2306,33 +2313,40 @@ function formatApptPhone(phone){
   if(!phone) return '';
   return phone.startsWith('teste-painel-') ? '(teste)' : phone;
 }
+// preferred_date costuma vir como data pura (YYYY-MM-DD); força meia-noite local
+// pra não escorregar um dia por fuso.
+function formatCallbackDate(d){
+  if(!d) return '—';
+  try{
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(d) ? d + 'T00:00:00' : d;
+    return new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+  }catch(e){ return d; }
+}
 
 async function loadAppointmentsFromServer(){
+  const list = document.getElementById('appt-list');
   try{
-    const res = await apiFetch('/api/appointments');
-    if(!res.ok) throw new Error(`Erro ${res.status}`);
-    const data = await res.json();
+    const [apptRes, cbRes] = await Promise.all([
+      apiFetch('/api/appointments'),
+      apiFetch('/api/callbacks').catch(() => null),
+    ]);
+    if(!apptRes.ok) throw new Error(`Erro ${apptRes.status}`);
+    const data = await apptRes.json();
     appointments = (data.appointments || []).sort((a,b)=> new Date(a.start_time) - new Date(b.start_time));
+    callbacks = [];
+    if(cbRes && cbRes.ok){
+      const cbData = await cbRes.json().catch(() => ({}));
+      callbacks = cbData.callbacks || [];
+    }
     renderAppointmentsList();
   }catch(e){
     console.error('[loadAppointmentsFromServer] erro:', e);
-    const list = document.getElementById('appt-list');
     if(list) list.innerHTML = `<div style="padding:20px 22px;color:var(--red);font-size:13px;text-align:center">⚠ Não foi possível carregar os agendamentos.</div>`;
   }
 }
 
-function renderAppointmentsList(){
-  const list = document.getElementById('appt-list');
-  if(!list) return;
-  const desc = document.getElementById('appt-count-desc');
-  if(desc) desc.textContent = `${appointments.length} agendamento${appointments.length!==1?'s':''} no total`;
-
-  if(appointments.length===0){
-    list.innerHTML='<div style="padding:20px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhum agendamento ainda.</div>';
-    return;
-  }
-
-  list.innerHTML = appointments.map(a=>`
+function apptRowHtml(a){
+  return `
     <div style="display:flex;flex-direction:column;gap:10px;padding:14px 22px;border-bottom:1px solid var(--border)">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
         <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Cliente:</span> ${a.customer_name || 'Cliente'} <span style="color:var(--muted)">· ${formatApptPhone(a.customer_phone)}</span></div>
@@ -2344,7 +2358,65 @@ function renderAppointmentsList(){
         <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${apptStatusColor[a.status]||'var(--muted)'}22;color:${apptStatusColor[a.status]||'var(--muted)'}">${apptStatusLabel[a.status]||a.status}</span>
         ${a.status==='confirmado' ? `<button class="btn btn-ghost btn-sm" onclick="cancelAppointmentFromPanel('${a.id}')">Cancelar</button>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+}
+
+function callbackRowHtml(c){
+  const done = c.status === 'concluido';
+  const per = callbackPeriodLabel[c.preferred_period] || c.preferred_period || '';
+  return `
+    <div style="display:flex;flex-direction:column;gap:10px;padding:14px 22px;border-bottom:1px solid var(--border);border-left:3px solid var(--amber)">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+        <div style="font-size:12px;font-weight:700;color:var(--amber);letter-spacing:.04em;text-transform:uppercase">📞 Retorno de ligação</div>
+        <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Cliente:</span> ${c.customer_name || 'Cliente'} <span style="color:var(--muted)">· ${formatApptPhone(c.customer_phone)}</span></div>
+        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Dia:</span> ${formatCallbackDate(c.preferred_date)}${per ? ` <span style="color:var(--muted)">·</span> <span style="font-weight:600;color:var(--muted)">Período:</span> ${per}` : ''}</div>
+        ${c.reason ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Motivo:</span> ${c.reason}</div>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${done?'var(--muted)':'var(--amber)'}22;color:${done?'var(--muted)':'var(--amber)'}">${done?'Concluído':'Pendente'}</span>
+        ${done ? '' : `<button class="btn btn-ghost btn-sm" onclick="markCallbackDone('${c.id}')">Marcar como concluído</button>`}
+      </div>
+    </div>`;
+}
+
+function renderAppointmentsList(){
+  const list = document.getElementById('appt-list');
+  if(!list) return;
+  const desc = document.getElementById('appt-count-desc');
+  if(desc){
+    const parts = [`${appointments.length} agendamento${appointments.length!==1?'s':''}`];
+    if(callbacks.length) parts.push(`${callbacks.length} retorno${callbacks.length!==1?'s':''} de ligação`);
+    desc.textContent = parts.join(' · ') + ' no total';
+  }
+
+  if(appointments.length===0 && callbacks.length===0){
+    list.innerHTML='<div style="padding:20px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhum agendamento ainda.</div>';
+    return;
+  }
+
+  const rows = [
+    ...appointments.map(a => ({ when:a.start_time, html:apptRowHtml(a) })),
+    ...callbacks.map(c => ({ when:c.preferred_date, html:callbackRowHtml(c) })),
+  ].sort((x,y) => new Date(x.when) - new Date(y.when));
+
+  list.innerHTML = rows.map(r => r.html).join('');
+}
+
+async function markCallbackDone(id){
+  if(!confirm('Marcar este retorno de ligação como concluído?')) return;
+  try{
+    const res = await apiFetch(`/api/callbacks/${id}`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status:'concluido' })
+    });
+    if(!res.ok){ const d = await res.json().catch(()=>({})); showToast(`⚠ ${d.error||'Não foi possível concluir o retorno.'}`, 7000); return; }
+    showToast('✓ Retorno de ligação concluído');
+    await loadAppointmentsFromServer();
+  }catch(e){
+    console.error('[markCallbackDone] erro:', e);
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }
 }
 
 async function cancelAppointmentFromPanel(id){
@@ -3063,6 +3135,23 @@ const NOTIF_SOURCES = [
     markOne: id => apiFetch(`/api/appointments/${id}/cancel-seen`, { method:'PATCH' }),
   },
   {
+    // Fila item a item: cada transferência some só quando marcada como atendida
+    // (não expira, não vira resumo em linha única). Mesmo escopo de quem vê a aba
+    // Agendamentos: admin, colaborador e profissional com permissão ampla.
+    id: 'handoffs',
+    kind: 'seen',
+    title: 'Transferências pendentes',
+    applies: () => !!currentUser && (
+      currentUser.role === 'admin' ||
+      currentUser.role === 'colaborador' ||
+      (currentUser.role === 'profissional' && ['todas_ver','todas_assumir'].includes(currentUser.permissao))
+    ),
+    load: () => apiFetch('/api/handoffs'),
+    pick: d => notifAsArray(d, 'handoffs'),
+    markAll: () => apiFetch('/api/handoffs/seen', { method:'PATCH' }),
+    markOne: id => apiFetch(`/api/handoffs/${id}/seen`, { method:'PATCH' }),
+  },
+  {
     // 'link': aviso de que há pedidos parados, sem decisão embutida no dropdown
     // (o formulário de aprovação pede e-mail + senha — não cabe numa linha
     // compacta do sino). Um botão só leva pra tela dedicada (setTab('comercial')).
@@ -3072,6 +3161,21 @@ const NOTIF_SOURCES = [
     applies: () => isPlatformAdmin,
     load: () => apiFetch('/api/admin/commercial-close-requests'),
     pick: d => notifAsArray(d, 'requests'),
+  },
+  {
+    // Seção separada da fila de aprovação: aqui é só ligar pro cliente novo.
+    // Item por item (nome + telefone), sem "marcar todas" — ligar é ação
+    // individual. Um mesmo pedido pode passar antes pela fila de aprovação e
+    // depois aparecer aqui (inclusive já aprovado).
+    id: 'newClientContact',
+    kind: 'seen',
+    title: 'Ligar para clientes novos',
+    applies: () => isPlatformAdmin,
+    load: () => apiFetch('/api/admin/commercial-close-requests/pending-contact'),
+    pick: d => notifAsArray(d, 'requests'),
+    markOne: id => apiFetch(`/api/admin/commercial-close-requests/${id}/contacted`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}'
+    }),
   },
 ];
 
@@ -3164,6 +3268,21 @@ function notifRowHtml(source, it){
       <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.resolved_at || it.requested_at)}</span><button class="notif-dismiss" onclick="markOneSeen('clientFranchise','${it.id}')">Marcar visto</button></div>
     </div>`;
   }
+  if(source.id === 'handoffs'){
+    const canal = it.channel ? ` <span class="muted">· ${it.channel}</span>` : '';
+    const motivo = it.reason ? `<div class="notif-row-text muted">Motivo: ${it.reason}</div>` : '';
+    return `<div class="notif-row">
+      <div class="notif-row-text"><span class="muted">${it.customer_name || 'Cliente'}</span> pediu transferência para atendimento humano.<br>${formatApptPhone(it.customer_phone) || 'sem telefone'}${canal}</div>
+      ${motivo}
+      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span><button class="notif-dismiss" onclick="markOneSeen('handoffs','${it.id}')">Marcar atendida</button></div>
+    </div>`;
+  }
+  if(source.id === 'newClientContact'){
+    return `<div class="notif-row">
+      <div class="notif-row-text"><span class="muted">${it.business_name || 'Cliente'}</span> — ${it.contact_name || '—'}<br>${it.contact_phone || 'sem telefone'}${it.contact_email ? ` <span class="muted">· ${it.contact_email}</span>` : ''}</div>
+      <div class="notif-row-actions"><span class="notif-row-time">${it.paid_at ? 'Pago '+notifFmtDate(it.paid_at) : ''}</span><button class="notif-dismiss" onclick="markOneSeen('newClientContact','${it.id}')">Marcar contatado</button></div>
+    </div>`;
+  }
   return `<div class="notif-row">
     <div class="notif-row-text"><span class="muted">${it.customer_name || 'Cliente'}</span> cancelou o agendamento de ${notifFmtDate(it.start_time)}.</div>
     <div class="notif-row-actions"><span class="notif-row-time">Cancelado ${notifFmtDate(it.cancelled_at)}</span><button class="notif-dismiss" onclick="markOneSeen('proCancellations','${it.id}')">Marcar visto</button></div>
@@ -3196,7 +3315,9 @@ function renderNotifPanel(){
   sources.forEach(s => {
     const items = notifCache[s.id] || [];
     if(!items.length) return;
-    if(s.kind === 'seen') hasSeenItems = true;
+    // Só habilita o botão global "Marcar tudo" se a fonte suporta markAll —
+    // 'Ligar para clientes novos' é item a item por decisão de produto.
+    if(s.kind === 'seen' && s.markAll) hasSeenItems = true;
     html += `<div class="notif-section-title">${s.title}</div>`;
     html += s.kind === 'link' ? notifLinkRowHtml(s, items) : items.map(it => notifRowHtml(s, it)).join('');
   });
