@@ -404,11 +404,20 @@ textarea.field{resize:vertical;min-height:80px}
 
     <!-- ══ VISÃO GERAL ══ -->
     <div class="view active" id="view-visao">
-      <div class="grid-4">
-        <div class="kpi"><div class="kpi-label">Mensagens hoje <span class="tag tag-green">+18%</span></div><div class="kpi-val">47</div><div class="kpi-sub">100% respondidas</div></div>
-        <div class="kpi"><div class="kpi-label">Agendamentos <span class="tag tag-green">↑ 3</span></div><div class="kpi-val">12</div><div class="kpi-sub">Via agente hoje</div></div>
-        <div class="kpi"><div class="kpi-label">Taxa conversão <span class="tag tag-accent">↑ 8%</span></div><div class="kpi-val">76%</div><div class="kpi-sub">Leads agendados</div></div>
-        <div class="kpi"><div class="kpi-label">Transferências <span class="tag tag-amber">2 hoje</span></div><div class="kpi-val">2</div><div class="kpi-sub">Assumidas pela equipe</div></div>
+      <div class="admin-only" style="margin-bottom:24px">
+        <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:12px">
+          <select id="overview-period" class="field" style="width:auto" onchange="setOverviewPeriod(this.value)">
+            <option value="hoje">Hoje</option>
+            <option value="7d">Últimos 7 dias</option>
+            <option value="mes">Este mês</option>
+          </select>
+        </div>
+        <div class="grid-4" style="margin-bottom:0">
+          <div class="kpi"><div class="kpi-label">Mensagens</div><div class="kpi-val" id="kpi-mensagens">—</div><div class="kpi-sub"></div></div>
+          <div class="kpi"><div class="kpi-label">Agendamentos</div><div class="kpi-val" id="kpi-agendamentos">—</div><div class="kpi-sub"></div></div>
+          <div class="kpi"><div class="kpi-label">Taxa de conversão</div><div class="kpi-val" id="kpi-conversao">—</div><div class="kpi-sub"></div></div>
+          <div class="kpi"><div class="kpi-label">Transferências</div><div class="kpi-val" id="kpi-transferencias">—</div><div class="kpi-sub" id="kpi-transferencias-sub"></div></div>
+        </div>
       </div>
       <div class="overview-layout" style="display:grid;gap:16px">
         <div class="card" id="kb-summary-card" data-view="conhecimento">
@@ -1126,6 +1135,7 @@ function resetTenantState(){
   clearProfDetail();
   clearCommercialCloseDetail();
   clearFiscalForm();
+  clearOverviewKpis();
   const apptDesc = document.getElementById('appt-count-desc');
   if(apptDesc) apptDesc.textContent = 'Agendamentos criados pelo agente via conversa';
 
@@ -1167,6 +1177,7 @@ function showApp(){
   loadKnowledgeFromServer();
   loadSettingsFromServer();
   if(currentUser?.role === 'admin') loadProfessionalsFromServer();
+  if(currentUser?.role === 'admin') loadOverviewFromServer();
   startNotifications();
 }
 
@@ -1328,6 +1339,7 @@ function setTab(id, navEl, tabEl){
   if(tabEl) tabEl.classList.add('active');
   else document.querySelectorAll('.tab').forEach(t=>{if(t.getAttribute('onclick')?.includes("'"+id+"'"))t.classList.add('active');});
   document.getElementById('page-title').textContent = titles[id]||'';
+  if(id==='visao') loadOverviewFromServer();
   if(id==='testar') syncKbToTest();
   if(id==='conhecimento') loadKnowledgeFromServer();
   if(id==='fiscal') loadFiscalFromServer();
@@ -1625,6 +1637,56 @@ function downloadTemplate(){
   a.download = 'modelo-conhecimento-agente.txt';
   a.click();
   showToast('✓ Modelo baixado! Preencha e faça o upload.');
+}
+
+// ── VISÃO GERAL: KPIs reais (GET /api/overview?period=hoje|7d|mes) ──
+// Só admin do cliente. Período é estado de UI (não persiste): começa em 'hoje'
+// e volta pra 'hoje' no resetTenantState. Chamado eager no showApp() e lazy no
+// setTab('visao'). Falha silenciosa, igual loadSettingsFromServer.
+let overviewPeriod = 'hoje';
+
+function setOverviewPeriod(p){
+  overviewPeriod = p;
+  loadOverviewFromServer();
+}
+
+function fmtConversao(taxa){
+  return taxa == null ? '—' : Math.round(taxa * 100) + '%';
+}
+
+function renderOverviewKpis(k){
+  const set = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+  set('kpi-mensagens', k.mensagens ?? '—');
+  set('kpi-agendamentos', k.agendamentos ?? '—');
+  set('kpi-conversao', fmtConversao(k.taxa_conversao));
+  set('kpi-transferencias', k.transferencias ?? '—');
+  const at = k.transferencias_atendidas ?? 0;
+  set('kpi-transferencias-sub', `${at} atendida${at === 1 ? '' : 's'}`);
+}
+
+function clearOverviewKpis(){
+  overviewPeriod = 'hoje';
+  const sel = document.getElementById('overview-period');
+  if(sel) sel.value = 'hoje';
+  ['kpi-mensagens','kpi-agendamentos','kpi-conversao','kpi-transferencias'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = '—';
+  });
+  const sub = document.getElementById('kpi-transferencias-sub');
+  if(sub) sub.textContent = '';
+}
+
+async function loadOverviewFromServer(){
+  if(currentUser?.role !== 'admin') return;
+  try{
+    const res = await apiFetch(`/api/overview?period=${encodeURIComponent(overviewPeriod)}`);
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    const { kpis } = await res.json();
+    renderOverviewKpis(kpis || {});
+  }catch(e){
+    console.error('[loadOverviewFromServer] erro:', e);
+    // Silencioso: mantém os últimos números na tela.
+  }
 }
 
 // ── STATUS LIST ──
