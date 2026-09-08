@@ -405,7 +405,8 @@ textarea.field{resize:vertical;min-height:80px}
     <!-- ══ VISÃO GERAL ══ -->
     <div class="view active" id="view-visao">
       <div class="admin-only" style="margin-bottom:24px">
-        <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:12px">
+          <label for="overview-period" style="font-size:12px;font-weight:500;color:var(--muted)">Período</label>
           <select id="overview-period" class="field" style="width:auto" onchange="setOverviewPeriod(this.value)">
             <option value="hoje">Hoje</option>
             <option value="7d">Últimos 7 dias</option>
