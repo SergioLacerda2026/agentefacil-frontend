@@ -342,6 +342,7 @@ textarea.field{resize:vertical;min-height:80px}
     <div class="nav-item" data-view="conhecimento" onclick="setTab('conhecimento',this)"><span class="nav-ic">🧠</span><span>Base de Conhecimento</span></div>
     <div class="nav-item" data-view="profissionais" onclick="setTab('profissionais',this)"><span class="nav-ic">👥</span><span>Profissionais</span></div>
     <div class="nav-item" data-view="config" onclick="setTab('config',this)"><span class="nav-ic">⚙️</span><span>Configurações</span></div>
+    <div class="nav-item" data-view="fiscal" onclick="setTab('fiscal',this)"><span class="nav-ic">🧾</span><span>Dados fiscais</span></div>
     <div class="nav-item" data-view="testar" onclick="setTab('testar',this)"><span class="nav-ic">🧪</span><span>Testar Agente</span><span class="nav-badge green">NOVO</span></div>
     <div class="nav-item" data-view="agendamentos" onclick="setTab('agendamentos',this)"><span class="nav-ic">📅</span><span>Agendamentos</span></div>
     <div class="nav-section platform-admin-only" style="display:none">Plataforma</div>
@@ -393,6 +394,7 @@ textarea.field{resize:vertical;min-height:80px}
       <button class="tab" data-view="conhecimento" onclick="setTab('conhecimento',null,this)">🧠 Base de Conhecimento</button>
       <button class="tab" data-view="profissionais" onclick="setTab('profissionais',null,this)">👥 Profissionais</button>
       <button class="tab" data-view="config" onclick="setTab('config',null,this)">Configurações</button>
+      <button class="tab" data-view="fiscal" onclick="setTab('fiscal',null,this)">🧾 Dados fiscais</button>
       <button class="tab" data-view="testar" onclick="setTab('testar',null,this)">🧪 Testar Agente</button>
       <button class="tab" data-view="agendamentos" onclick="setTab('agendamentos',null,this)">📅 Agendamentos</button>
       <button class="tab platform-admin-only" style="display:none" onclick="setTab('clientes',null,this)">🏢 Clientes da Plataforma</button>
@@ -653,6 +655,114 @@ textarea.field{resize:vertical;min-height:80px}
           </div>
           <div style="text-align:right">
             <button class="btn btn-accent" onclick="saveSettingsToServer()">Salvar configurações</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ DADOS FISCAIS (admin do próprio cliente — mesmo gate de Configurações) ══ -->
+    <div class="view" id="view-fiscal">
+      <div class="cfg-grid">
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="cfg-section">
+              <div class="cfg-title">🧾 Identificação fiscal</div>
+              <div class="field-group">
+                <div class="field-label">Tipo de pessoa</div>
+                <select class="field" id="fiscal-tipo-pessoa" onchange="applyFiscalTipoPessoa()">
+                  <option value="">— não definido —</option>
+                  <option value="PJ">Pessoa jurídica (PJ)</option>
+                  <option value="PF">Pessoa física (PF)</option>
+                </select>
+                <div class="field-hint">Define quais campos de identificação são usados na nota.</div>
+              </div>
+
+              <div id="fiscal-block-pj" hidden>
+                <div class="field-group">
+                  <div class="field-label">Razão social</div>
+                  <input class="field" id="fiscal-razao_social" type="text" autocomplete="off">
+                </div>
+                <div class="field-group">
+                  <div class="field-label">Nome fantasia</div>
+                  <input class="field" id="fiscal-nome_fantasia" type="text" autocomplete="off">
+                </div>
+                <div class="field-group">
+                  <div class="field-label">CNPJ</div>
+                  <input class="field" id="fiscal-cnpj" type="text" autocomplete="off">
+                </div>
+                <div class="field-group">
+                  <div class="field-label">Inscrição estadual</div>
+                  <input class="field" id="fiscal-inscricao_estadual" type="text" autocomplete="off">
+                </div>
+              </div>
+
+              <div id="fiscal-block-pf" hidden>
+                <div class="field-group">
+                  <div class="field-label">Nome completo</div>
+                  <input class="field" id="fiscal-nome_completo" type="text" autocomplete="off">
+                </div>
+                <div class="field-group">
+                  <div class="field-label">CPF</div>
+                  <input class="field" id="fiscal-cpf" type="text" autocomplete="off">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="cfg-section">
+              <div class="cfg-title">📍 Endereço fiscal</div>
+              <div class="field-group">
+                <div class="field-label">CEP</div>
+                <input class="field" id="fiscal-fiscal_cep" type="text" autocomplete="off">
+              </div>
+              <div class="field-group">
+                <div class="field-label">Logradouro</div>
+                <input class="field" id="fiscal-fiscal_logradouro" type="text" autocomplete="off">
+              </div>
+              <div class="field-group">
+                <div class="field-label">Número</div>
+                <input class="field" id="fiscal-fiscal_numero" type="text" autocomplete="off">
+              </div>
+              <div class="field-group">
+                <div class="field-label">Complemento</div>
+                <input class="field" id="fiscal-fiscal_complemento" type="text" autocomplete="off">
+              </div>
+              <div class="field-group">
+                <div class="field-label">Bairro</div>
+                <input class="field" id="fiscal-fiscal_bairro" type="text" autocomplete="off">
+              </div>
+              <div class="field-group">
+                <div class="field-label">Cidade</div>
+                <input class="field" id="fiscal-fiscal_cidade" type="text" autocomplete="off">
+              </div>
+              <div class="field-group">
+                <div class="field-label">UF</div>
+                <input class="field" id="fiscal-fiscal_uf" type="text" autocomplete="off">
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:16px">
+            <div class="cfg-section">
+              <div class="cfg-title">💳 Contato financeiro</div>
+              <div class="field-group">
+                <div class="field-label">E-mail financeiro</div>
+                <input class="field" id="fiscal-email_financeiro" type="text" autocomplete="off">
+              </div>
+              <div class="field-group">
+                <div class="field-label">Telefone financeiro</div>
+                <input class="field" id="fiscal-telefone_financeiro" type="text" autocomplete="off">
+              </div>
+            </div>
+          </div>
+
+          <div id="fiscal-alert" class="form-alert" style="display:none"></div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px">
+            <span id="fiscal-updated-at" style="font-size:11px;color:var(--light)"></span>
+            <button class="btn btn-accent" id="btn-fiscal-save" onclick="saveFiscalToServer()">Salvar dados fiscais</button>
           </div>
         </div>
       </div>
@@ -1015,6 +1125,7 @@ function resetTenantState(){
   });
   clearProfDetail();
   clearCommercialCloseDetail();
+  clearFiscalForm();
   const apptDesc = document.getElementById('appt-count-desc');
   if(apptDesc) apptDesc.textContent = 'Agendamentos criados pelo agente via conversa';
 
@@ -1176,13 +1287,13 @@ async function checkExistingSession(){
 }
 
 // ── NAVIGATION ──
-const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',testar:'Testar Agente',agendamentos:'Agendamentos',clientes:'Clientes da Plataforma',precos:'Configuração de Preços',comercial:'Fechamentos Comerciais'};
+const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',fiscal:'Dados fiscais',testar:'Testar Agente',agendamentos:'Agendamentos',clientes:'Clientes da Plataforma',precos:'Configuração de Preços',comercial:'Fechamentos Comerciais'};
 
 // Views de nível cliente liberadas por papel. As views de plataforma
 // ('clientes'/'precos') ficam de fora — continuam controladas só por
 // isPlatformAdmin, como já era antes disso existir.
 const ROLE_VIEWS = {
-  admin:        ['visao','conversas','conhecimento','profissionais','config','testar','agendamentos'],
+  admin:        ['visao','conversas','conhecimento','profissionais','config','fiscal','testar','agendamentos'],
   colaborador:  ['visao','conversas','profissionais','agendamentos'],
   profissional: ['visao','agendamentos'],
 };
@@ -1219,6 +1330,7 @@ function setTab(id, navEl, tabEl){
   document.getElementById('page-title').textContent = titles[id]||'';
   if(id==='testar') syncKbToTest();
   if(id==='conhecimento') loadKnowledgeFromServer();
+  if(id==='fiscal') loadFiscalFromServer();
   if(id==='profissionais') loadProfessionalsFromServer();
   if(id==='agendamentos') loadAppointmentsFromServer();
   if(id==='clientes') loadPlatformClientsFromServer();
@@ -1617,6 +1729,118 @@ async function saveSettingsToServer(){
   }catch(e){
     console.error('[saveSettingsToServer] erro:', e);
     showToast(`⚠ Não foi possível conectar ao backend em ${BACKEND_URL}.`);
+  }
+}
+
+// ── DADOS FISCAIS (admin do próprio cliente — GET/PUT /api/client-fiscal) ──
+// Os campos comuns (endereço + contato financeiro) sempre vão no PUT; os campos
+// de identificação vão só do lado do tipo_pessoa selecionado no momento do save.
+// Nunca mandamos as chaves do outro lado — assim trocar de tipo e salvar não
+// dispara o 400 de "campo do tipo errado"; o backend zera o lado anterior sozinho.
+const FISCAL_PJ_FIELDS = ['razao_social','nome_fantasia','cnpj','inscricao_estadual'];
+const FISCAL_PF_FIELDS = ['nome_completo','cpf'];
+const FISCAL_COMMON_FIELDS = [
+  'fiscal_cep','fiscal_logradouro','fiscal_numero','fiscal_complemento',
+  'fiscal_bairro','fiscal_cidade','fiscal_uf',
+  'email_financeiro','telefone_financeiro',
+];
+const FISCAL_LABELS = {
+  razao_social:'Razão social', nome_fantasia:'Nome fantasia', cnpj:'CNPJ', inscricao_estadual:'Inscrição estadual',
+  nome_completo:'Nome completo', cpf:'CPF',
+  fiscal_cep:'CEP', fiscal_logradouro:'Logradouro', fiscal_numero:'Número', fiscal_complemento:'Complemento',
+  fiscal_bairro:'Bairro', fiscal_cidade:'Cidade', fiscal_uf:'UF',
+  email_financeiro:'E-mail financeiro', telefone_financeiro:'Telefone financeiro',
+};
+
+function fiscalFmtUpdatedAt(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d)) return '';
+  return 'Atualizado em ' + d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+// Mostra o bloco de identificação do tipo escolhido e esconde o outro.
+function applyFiscalTipoPessoa(){
+  const tp = document.getElementById('fiscal-tipo-pessoa')?.value || '';
+  const pj = document.getElementById('fiscal-block-pj');
+  const pf = document.getElementById('fiscal-block-pf');
+  if(pj) pj.hidden = tp !== 'PJ';
+  if(pf) pf.hidden = tp !== 'PF';
+}
+
+// Zera o formulário (troca de tenant / logout).
+function clearFiscalForm(){
+  const tp = document.getElementById('fiscal-tipo-pessoa');
+  if(tp) tp.value = '';
+  [...FISCAL_PJ_FIELDS, ...FISCAL_PF_FIELDS, ...FISCAL_COMMON_FIELDS].forEach(f=>{
+    const el = document.getElementById('fiscal-'+f);
+    if(el) el.value = '';
+  });
+  applyFiscalTipoPessoa();
+  setFormAlert('fiscal-alert', '', '');
+  const upd = document.getElementById('fiscal-updated-at');
+  if(upd) upd.textContent = '';
+}
+
+async function loadFiscalFromServer(){
+  try{
+    const res = await apiFetch('/api/client-fiscal');
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    const { fiscal } = await res.json();
+    const f = fiscal || {};
+    const tp = document.getElementById('fiscal-tipo-pessoa');
+    if(tp) tp.value = (f.tipo_pessoa === 'PJ' || f.tipo_pessoa === 'PF') ? f.tipo_pessoa : '';
+    [...FISCAL_PJ_FIELDS, ...FISCAL_PF_FIELDS, ...FISCAL_COMMON_FIELDS].forEach(k=>{
+      const el = document.getElementById('fiscal-'+k);
+      if(el) el.value = f[k] ?? '';
+    });
+    applyFiscalTipoPessoa();
+    const upd = document.getElementById('fiscal-updated-at');
+    if(upd) upd.textContent = fiscalFmtUpdatedAt(f.fiscal_data_updated_at);
+    setFormAlert('fiscal-alert', '', '');
+  }catch(e){
+    console.error('[loadFiscalFromServer] erro:', e);
+    // Silencioso, igual loadSettingsFromServer — o que já está na tela permanece.
+  }
+}
+
+async function saveFiscalToServer(){
+  const tpEl = document.getElementById('fiscal-tipo-pessoa');
+  const tipo_pessoa = tpEl ? tpEl.value : '';
+  const val = k => {
+    const el = document.getElementById('fiscal-'+k);
+    return el ? el.value.trim() : '';
+  };
+
+  // tipo_pessoa: '' na UI → null (limpa). Campos comuns sempre; identificação só
+  // do lado ativo — string vazia limpa o campo, conforme o contrato.
+  const payload = { tipo_pessoa: tipo_pessoa === '' ? null : tipo_pessoa };
+  FISCAL_COMMON_FIELDS.forEach(k => { payload[k] = val(k); });
+  if(tipo_pessoa === 'PJ') FISCAL_PJ_FIELDS.forEach(k => { payload[k] = val(k); });
+  if(tipo_pessoa === 'PF') FISCAL_PF_FIELDS.forEach(k => { payload[k] = val(k); });
+
+  const btn = document.getElementById('btn-fiscal-save');
+  setFormAlert('fiscal-alert', '', '');
+  if(btn){ btn.disabled = true; btn.textContent = 'Salvando...'; }
+  try{
+    const res = await apiFetch('/api/client-fiscal', {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){
+      setFormAlert('fiscal-alert', data.error || 'Não foi possível salvar os dados fiscais.', 'error');
+      return;
+    }
+    showToast('✓ Dados fiscais salvos');
+    // Recarrega pra refletir a normalização do backend (ex.: lado anterior zerado).
+    await loadFiscalFromServer();
+  }catch(e){
+    console.error('[saveFiscalToServer] erro:', e);
+    setFormAlert('fiscal-alert', 'Não foi possível conectar ao backend.', 'error');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Salvar dados fiscais'; }
   }
 }
 
@@ -2521,6 +2745,35 @@ function selectClient(id){
         </div>
         <div id="client-franchise-result-${id}" style="display:none;background:var(--bg);border-radius:10px;padding:14px 16px;margin-top:12px"></div>
       </div>
+      ${fiscalReadonlyBlockHtml(c)}
+    </div>`;
+}
+
+// Bloco somente-leitura dos dados fiscais do cliente. GET /api/admin/clients
+// faz select('*') na tabela clients, então os campos fiscais vêm direto no
+// objeto do cliente (c.tipo_pessoa, c.cnpj, ...), não aninhados. A manutenção
+// é feita pelo admin do próprio cliente na aba "Dados fiscais", não aqui.
+function fiscalReadonlyBlockHtml(c){
+  const f = c;
+  const has = f.tipo_pessoa === 'PJ' || f.tipo_pessoa === 'PF';
+  const row = (label, value) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;line-height:1.5;padding:3px 0">
+        <span style="color:var(--muted)">${label}</span>
+        <span style="color:var(--ink);text-align:right;overflow-wrap:anywhere">${value ? value : '—'}</span>
+      </div>`;
+  let inner;
+  if(!has){
+    inner = `<div style="font-size:13px;color:var(--muted)">Nenhum dado fiscal informado ainda.</div>`;
+  }else{
+    const idFields = f.tipo_pessoa === 'PJ' ? FISCAL_PJ_FIELDS : FISCAL_PF_FIELDS;
+    inner = row('Tipo de pessoa', f.tipo_pessoa === 'PJ' ? 'Pessoa jurídica (PJ)' : 'Pessoa física (PF)')
+      + idFields.map(k => row(FISCAL_LABELS[k], f[k])).join('')
+      + FISCAL_COMMON_FIELDS.map(k => row(FISCAL_LABELS[k], f[k])).join('');
+  }
+  const upd = fiscalFmtUpdatedAt(f.fiscal_data_updated_at);
+  return `<div style="border-top:1px solid var(--border);padding-top:16px">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Dados fiscais</div>
+      ${inner}
+      ${upd ? `<div style="font-size:11px;color:var(--light);margin-top:8px">${upd}</div>` : ''}
     </div>`;
 }
 
