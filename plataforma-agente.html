@@ -1017,7 +1017,8 @@ let isPlatformAdmin = false; // true se o usuário logado também é admin da pl
 // Falha silenciosamente (403/401) para qualquer usuário comum — isso é esperado, não é erro.
 async function checkPlatformAdmin(){
   try{
-    const res = await apiFetch('/api/admin/me');
+    // skipAuthGuard: 403/401 aqui é esperado pra usuário comum — não é sessão expirada.
+    const res = await apiFetch('/api/admin/me', { skipAuthGuard: true });
     isPlatformAdmin = res.ok;
   }catch(e){
     isPlatformAdmin = false;
@@ -1028,16 +1029,36 @@ async function checkPlatformAdmin(){
   if(notifPollTimer) refreshNotifications();
 }
 
+// Interceptação central de sessão expirada: qualquer 401 numa chamada
+// autenticada = token morto → volta pro login, uma vez só (guarda de
+// reentrância, porque as N chamadas do showApp() estouram 401 quase juntas).
+// O flag é rearmado no afterLoginSuccess(), pra um novo login na mesma aba
+// voltar a detectar expiração depois.
+let sessionExpiredHandled = false;
+
+function handleSessionExpired(){
+  if(sessionExpiredHandled) return;
+  sessionExpiredHandled = true;
+  doLogout();
+  const errEl = document.getElementById('login-error');
+  if(errEl) errEl.textContent = 'Sua sessão expirou. Entre novamente.';
+}
+
 // Helper: toda chamada ao backend passa por aqui, garantindo que o token
-// de sessão nunca seja esquecido em algum fetch novo.
-function apiFetch(path, options = {}) {
-  return fetch(`${BACKEND_URL}${path}`, {
-    ...options,
+// de sessão nunca seja esquecido em algum fetch novo. Chamadas que esperam
+// 401/403 pelo papel do usuário (checkPlatformAdmin, polling do sino) passam
+// { skipAuthGuard:true } e não disparam o logout.
+async function apiFetch(path, options = {}) {
+  const { skipAuthGuard = false, ...init } = options;
+  const res = await fetch(`${BACKEND_URL}${path}`, {
+    ...init,
     headers: {
-      ...(options.headers || {}),
+      ...(init.headers || {}),
       'Authorization': `Bearer ${authToken}`,
     },
   });
+  if(res.status === 401 && !skipAuthGuard) handleSessionExpired();
+  return res;
 }
 
 // ── LOGIN / LOGOUT ──
@@ -1188,6 +1209,7 @@ function showApp(){
 // de especialidade + dias_atendimento — sem isso o agente de agendamento
 // nunca oferece esse profissional pros clientes.
 function afterLoginSuccess(){
+  sessionExpiredHandled = false;   // rearma o detector de expiração pra esta sessão
   if(currentUser.role === 'profissional' && !currentUser.profile_completed){
     showCompleteProfileModal();
   } else {
@@ -1290,6 +1312,17 @@ async function checkExistingSession(){
     document.getElementById('login-screen').style.display = 'flex';
     return;
   }
+  // Fast path: o token é um JWT. Se o exp já passou, nem tenta a rede —
+  // volta direto pro login. Token malformado (payload não decodificável)
+  // cai no fluxo normal abaixo.
+  try{
+    const b64 = authToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(b64));
+    if(payload && typeof payload.exp === 'number' && Date.now() >= payload.exp * 1000 - 5000){
+      handleSessionExpired();
+      return;
+    }
+  }catch(e){ /* token malformado — segue o fluxo normal */ }
   await loadCurrentUser();
   if(currentUser){
     afterLoginSuccess();
@@ -3427,7 +3460,7 @@ const NOTIF_SOURCES = [
     kind: 'decision',
     title: 'Pedidos de franquia',
     applies: () => isPlatformAdmin,
-    load: () => apiFetch('/api/admin/franchise-requests'),
+    load: () => apiFetch('/api/admin/franchise-requests', { skipAuthGuard: true }),
     pick: d => notifAsArray(d, 'requests'),
   },
   {
@@ -3435,7 +3468,7 @@ const NOTIF_SOURCES = [
     kind: 'seen',
     title: 'Seus pedidos de franquia',
     applies: () => currentUser?.role === 'admin' && !isPlatformAdmin,
-    load: () => apiFetch('/api/franchise/requests'),
+    load: () => apiFetch('/api/franchise/requests', { skipAuthGuard: true }),
     pick: d => notifAsArray(d, 'requests').filter(x => x.status !== 'pendente' && !x.client_seen_at),
     markAll: () => apiFetch('/api/franchise/requests/seen', { method:'PATCH' }),
     markOne: id => apiFetch(`/api/franchise/requests/${id}/seen`, { method:'PATCH' }),
@@ -3445,7 +3478,7 @@ const NOTIF_SOURCES = [
     kind: 'seen',
     title: 'Cancelamentos de clientes',
     applies: () => !!currentUser && currentUser.role !== 'admin',
-    load: () => apiFetch('/api/appointments/cancellations'),
+    load: () => apiFetch('/api/appointments/cancellations', { skipAuthGuard: true }),
     pick: d => notifAsArray(d, 'cancellations'),
     markAll: () => apiFetch('/api/appointments/cancellations/seen', { method:'PATCH' }),
     markOne: id => apiFetch(`/api/appointments/${id}/cancel-seen`, { method:'PATCH' }),
@@ -3462,7 +3495,7 @@ const NOTIF_SOURCES = [
       currentUser.role === 'colaborador' ||
       (currentUser.role === 'profissional' && ['todas_ver','todas_assumir'].includes(currentUser.permissao))
     ),
-    load: () => apiFetch('/api/handoffs'),
+    load: () => apiFetch('/api/handoffs', { skipAuthGuard: true }),
     pick: d => notifAsArray(d, 'handoffs'),
     markAll: () => apiFetch('/api/handoffs/seen', { method:'PATCH' }),
     markOne: id => apiFetch(`/api/handoffs/${id}/seen`, { method:'PATCH' }),
@@ -3475,7 +3508,7 @@ const NOTIF_SOURCES = [
     kind: 'link',
     title: 'Fechamentos comerciais',
     applies: () => isPlatformAdmin,
-    load: () => apiFetch('/api/admin/commercial-close-requests'),
+    load: () => apiFetch('/api/admin/commercial-close-requests', { skipAuthGuard: true }),
     pick: d => notifAsArray(d, 'requests'),
   },
   {
@@ -3487,7 +3520,7 @@ const NOTIF_SOURCES = [
     kind: 'seen',
     title: 'Ligar para clientes novos',
     applies: () => isPlatformAdmin,
-    load: () => apiFetch('/api/admin/commercial-close-requests/pending-contact'),
+    load: () => apiFetch('/api/admin/commercial-close-requests/pending-contact', { skipAuthGuard: true }),
     pick: d => notifAsArray(d, 'requests'),
     markOne: id => apiFetch(`/api/admin/commercial-close-requests/${id}/contacted`, {
       method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}'
