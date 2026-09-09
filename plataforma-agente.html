@@ -346,6 +346,7 @@ textarea.field{resize:vertical;min-height:80px}
     <div class="nav-item" data-view="testar" onclick="setTab('testar',this)"><span class="nav-ic">🧪</span><span>Testar Agente</span><span class="nav-badge green">NOVO</span></div>
     <div class="nav-item" data-view="agendamentos" onclick="setTab('agendamentos',this)"><span class="nav-ic">📅</span><span>Agendamentos</span></div>
     <div class="nav-section platform-admin-only" style="display:none">Plataforma</div>
+    <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('plat-visao',this)"><span class="nav-ic">📊</span><span>Visão Geral</span></div>
     <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('clientes',this)"><span class="nav-ic">🏢</span><span>Clientes da Plataforma</span></div>
     <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('precos',this)"><span class="nav-ic">💰</span><span>Preços</span></div>
     <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('comercial',this)"><span class="nav-ic">🤝</span><span>Fechamentos comerciais</span></div>
@@ -397,6 +398,7 @@ textarea.field{resize:vertical;min-height:80px}
       <button class="tab" data-view="fiscal" onclick="setTab('fiscal',null,this)">🧾 Dados fiscais</button>
       <button class="tab" data-view="testar" onclick="setTab('testar',null,this)">🧪 Testar Agente</button>
       <button class="tab" data-view="agendamentos" onclick="setTab('agendamentos',null,this)">📅 Agendamentos</button>
+      <button class="tab platform-admin-only" style="display:none" onclick="setTab('plat-visao',null,this)">📊 Visão Geral da Plataforma</button>
       <button class="tab platform-admin-only" style="display:none" onclick="setTab('clientes',null,this)">🏢 Clientes da Plataforma</button>
       <button class="tab platform-admin-only" style="display:none" onclick="setTab('precos',null,this)">💰 Preços</button>
       <button class="tab platform-admin-only" style="display:none" onclick="setTab('comercial',null,this)">🤝 Fechamentos comerciais</button>
@@ -839,6 +841,51 @@ textarea.field{resize:vertical;min-height:80px}
       </div>
     </div>
 
+    <!-- ══ VISÃO GERAL DA PLATAFORMA (platform admin only) ══ -->
+    <div class="view" id="view-plat-visao">
+      <!-- Período: afeta só clientes, volume e excedente de franquia -->
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:12px">
+        <label for="plat-overview-period" style="font-size:14px;font-weight:700;color:var(--ink2)">Período</label>
+        <select id="plat-overview-period" class="field" style="width:auto" onchange="setPlatOverviewPeriod(this.value)">
+          <option value="hoje">Hoje</option>
+          <option value="7d">Últimos 7 dias</option>
+          <option value="mes">Este mês</option>
+        </select>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:16px">
+        <div class="kpi"><div class="kpi-label">Clientes ativos</div><div class="kpi-val" id="plat-kpi-ativos">—</div><div class="kpi-sub">agendamento funcionando, agora</div></div>
+        <div class="kpi"><div class="kpi-label">Clientes novos</div><div class="kpi-val" id="plat-kpi-novos">—</div><div class="kpi-sub">ativados no período</div></div>
+        <div class="kpi"><div class="kpi-label">Mensagens</div><div class="kpi-val" id="plat-kpi-mensagens">—</div><div class="kpi-sub">soma de todos os clientes</div></div>
+        <div class="kpi"><div class="kpi-label">Agendamentos</div><div class="kpi-val" id="plat-kpi-agendamentos">—</div><div class="kpi-sub">soma de todos os clientes</div></div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:28px">
+        <div class="kpi"><div class="kpi-label">Excederam a franquia</div><div class="kpi-val" id="plat-kpi-excederam">—</div><div class="kpi-sub">clientes, no período</div></div>
+        <div class="kpi"><div class="kpi-label">Mensagens excedentes</div><div class="kpi-val" id="plat-kpi-msgs-excedentes">—</div><div class="kpi-sub">somadas de todos os clientes</div></div>
+      </div>
+
+      <!-- Receita: sempre por competência (mês). Seletor próprio, não usa o Período. -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+        <div style="font-size:15px;font-weight:700;color:var(--ink2)">Receita da competência</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label for="plat-overview-competencia" style="font-size:14px;font-weight:700;color:var(--ink2)">Mês</label>
+          <input type="month" id="plat-overview-competencia" class="field" style="width:auto" onchange="setPlatOverviewCompetencia(this.value)">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
+        <div class="card">
+          <div class="card-head"><span class="card-title">📊 Receita Prevista</span><span class="card-desc" id="plat-rev-prev-comp">—</span></div>
+          <div style="padding:8px 22px 16px" id="plat-rev-prev-body"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-title">✅ Receita Realizada</span><span class="card-desc" id="plat-rev-real-comp">—</span></div>
+          <div style="padding:8px 22px 16px" id="plat-rev-real-body"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ CLIENTES DA PLATAFORMA (admin only) ══ -->
     <div class="view" id="view-clientes">
       <div class="prof-layout" style="display:grid;gap:20px">
@@ -1158,6 +1205,7 @@ function resetTenantState(){
   clearCommercialCloseDetail();
   clearFiscalForm();
   clearOverviewKpis();
+  clearPlatformOverview();
   const apptDesc = document.getElementById('appt-count-desc');
   if(apptDesc) apptDesc.textContent = 'Agendamentos criados pelo agente via conversa';
 
@@ -1332,7 +1380,7 @@ async function checkExistingSession(){
 }
 
 // ── NAVIGATION ──
-const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',fiscal:'Dados fiscais',testar:'Testar Agente',agendamentos:'Agendamentos',clientes:'Clientes da Plataforma',precos:'Configuração de Preços',comercial:'Fechamentos Comerciais'};
+const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',fiscal:'Dados fiscais',testar:'Testar Agente',agendamentos:'Agendamentos','plat-visao':'Visão Geral da Plataforma',clientes:'Clientes da Plataforma',precos:'Configuração de Preços',comercial:'Fechamentos Comerciais'};
 
 // Views de nível cliente liberadas por papel. As views de plataforma
 // ('clientes'/'precos') ficam de fora — continuam controladas só por
@@ -1344,7 +1392,7 @@ const ROLE_VIEWS = {
 };
 
 function isViewAllowed(id){
-  if(id === 'clientes' || id === 'precos' || id === 'comercial') return isPlatformAdmin;
+  if(id === 'plat-visao' || id === 'clientes' || id === 'precos' || id === 'comercial') return isPlatformAdmin;
   if(!currentUser) return true;
   const allowed = ROLE_VIEWS[currentUser.role];
   return allowed ? allowed.includes(id) : true;
@@ -1382,6 +1430,7 @@ function setTab(id, navEl, tabEl){
   if(id==='clientes') loadPlatformClientsFromServer();
   if(id==='precos') loadPricingConfig();
   if(id==='comercial') loadCommercialCloseRequestsFromServer();
+  if(id==='plat-visao') loadPlatformOverviewFromServer();
 }
 
 // ── KNOWLEDGE BASE ── (agora persistida no Supabase via backend)
@@ -1719,6 +1768,104 @@ async function loadOverviewFromServer(){
     renderOverviewKpis(kpis || {});
   }catch(e){
     console.error('[loadOverviewFromServer] erro:', e);
+    // Silencioso: mantém os últimos números na tela.
+  }
+}
+
+// ── VISÃO GERAL DA PLATAFORMA: métricas consolidadas (só platform admin) ──
+// GET /api/admin/platform-overview?period=hoje|7d|mes&competencia=YYYY-MM
+//   period      → só clientes, volume e excedente de franquia
+//   competencia → só os cards de Receita (Prevista/Realizada)
+// Estado de UI (não persiste): período volta pra 'hoje' e mês pro corrente
+// no resetTenantState. Carregado lazy no setTab('plat-visao'). Falha silenciosa.
+let platOverviewPeriod = 'hoje';
+let platOverviewCompetencia = ''; // '' = backend usa o mês corrente
+
+function setPlatOverviewPeriod(p){
+  platOverviewPeriod = p;
+  loadPlatformOverviewFromServer();
+}
+
+function setPlatOverviewCompetencia(m){
+  platOverviewCompetencia = m || '';
+  loadPlatformOverviewFromServer();
+}
+
+function fmtBRL(n){
+  return Number(n || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+}
+
+function renderPlatRevenueCard(bodyId, bloco){
+  const el = document.getElementById(bodyId);
+  if(!el) return;
+  bloco = bloco || {};
+  const row = (label, val, strong) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:13px${strong
+      ? ';border-top:1px solid var(--border);margin-top:4px;padding-top:12px;font-weight:700;font-size:14px'
+      : ';color:var(--muted)'}">
+      <span>${label}</span><span style="color:var(--ink)">${fmtBRL(val)}</span>
+    </div>`;
+  el.innerHTML =
+    row('Mensalidade', bloco.mensalidade) +
+    row('Excedente', bloco.excedente) +
+    row('Implantação', bloco.implantacao) +
+    row('Total', bloco.total, true);
+}
+
+function renderPlatformOverview(data){
+  data = data || {};
+  const set = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+  const num = v => (v ?? 0).toLocaleString('pt-BR');
+  const m = data.metricas || {};
+  const c = m.clientes || {}, v = m.volume || {}, e = m.excedente_franquia || {};
+  set('plat-kpi-ativos', c.ativos ?? '—');
+  set('plat-kpi-novos', c.novos ?? '—');
+  set('plat-kpi-mensagens', num(v.mensagens));
+  set('plat-kpi-agendamentos', num(v.agendamentos));
+  set('plat-kpi-excederam', e.clientes_excederam ?? '—');
+  set('plat-kpi-msgs-excedentes', num(e.mensagens_excedentes));
+
+  const r = data.receita || {};
+  const compLabel = r.competencia ? `Competência ${r.competencia}` : '—';
+  set('plat-rev-prev-comp', compLabel);
+  set('plat-rev-real-comp', compLabel);
+  renderPlatRevenueCard('plat-rev-prev-body', r.prevista);
+  renderPlatRevenueCard('plat-rev-real-body', r.realizada);
+
+  // 1ª carga: o campo de mês vem vazio e o backend resolve pro mês corrente —
+  // reflete de volta no seletor pra ficar coerente.
+  const compSel = document.getElementById('plat-overview-competencia');
+  if(compSel && r.competencia && !compSel.value) compSel.value = r.competencia;
+}
+
+function clearPlatformOverview(){
+  platOverviewPeriod = 'hoje';
+  platOverviewCompetencia = '';
+  const pSel = document.getElementById('plat-overview-period');
+  if(pSel) pSel.value = 'hoje';
+  const cSel = document.getElementById('plat-overview-competencia');
+  if(cSel) cSel.value = '';
+  ['plat-kpi-ativos','plat-kpi-novos','plat-kpi-mensagens','plat-kpi-agendamentos','plat-kpi-excederam','plat-kpi-msgs-excedentes'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.textContent = '—';
+  });
+  ['plat-rev-prev-body','plat-rev-real-body'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.innerHTML = '';
+  });
+  ['plat-rev-prev-comp','plat-rev-real-comp'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.textContent = '—';
+  });
+}
+
+async function loadPlatformOverviewFromServer(){
+  if(!isPlatformAdmin) return;
+  try{
+    const qs = new URLSearchParams({ period: platOverviewPeriod });
+    if(platOverviewCompetencia) qs.set('competencia', platOverviewCompetencia);
+    const res = await apiFetch(`/api/admin/platform-overview?${qs.toString()}`);
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    renderPlatformOverview(await res.json());
+  }catch(e){
+    console.error('[loadPlatformOverviewFromServer] erro:', e);
     // Silencioso: mantém os últimos números na tela.
   }
 }
