@@ -337,7 +337,7 @@ textarea.field{resize:vertical;min-height:80px}
   <nav class="sb-nav">
     <div class="nav-section">Painel</div>
     <div class="nav-item active" data-view="visao" onclick="setTab('visao',this)"><span class="nav-ic">📊</span><span>Visão Geral</span></div>
-    <div class="nav-item" data-view="conversas" onclick="setTab('conversas',this)"><span class="nav-ic">💬</span><span>Conversas</span><span class="nav-badge">5</span></div>
+    <div class="nav-item" data-view="conversas" onclick="setTab('conversas',this)"><span class="nav-ic">💬</span><span>Conversas</span></div>
     <div class="nav-section">Agente</div>
     <div class="nav-item" data-view="conhecimento" onclick="setTab('conhecimento',this)"><span class="nav-ic">🧠</span><span>Base de Conhecimento</span></div>
     <div class="nav-item" data-view="profissionais" onclick="setTab('profissionais',this)"><span class="nav-ic">👥</span><span>Profissionais</span></div>
@@ -439,7 +439,17 @@ textarea.field{resize:vertical;min-height:80px}
     <!-- ══ CONVERSAS ══ -->
     <div class="view" id="view-conversas">
       <div class="card">
-        <div class="card-head"><span class="card-title">💬 Histórico de conversas</span><span style="font-size:12px;color:var(--muted)">Últimas 24h</span></div>
+        <div class="card-head">
+          <span class="card-title">💬 Histórico de conversas</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label for="conv-period" style="font-size:13px;font-weight:600;color:var(--muted)">Período</label>
+            <select id="conv-period" class="field" style="width:auto" onchange="setConvPeriod(this.value)">
+              <option value="hoje">Hoje</option>
+              <option value="7d">Últimos 7 dias</option>
+              <option value="mes">Este mês</option>
+            </select>
+          </div>
+        </div>
         <div style="padding:8px 0" id="conv-list"></div>
       </div>
     </div>
@@ -1192,6 +1202,7 @@ function resetTenantState(){
   clearCommercialCloseDetail();
   clearFiscalForm();
   clearOverviewKpis();
+  clearConversations();
   clearPlatformOverview();
   const apptDesc = document.getElementById('appt-count-desc');
   if(apptDesc) apptDesc.textContent = 'Agendamentos criados pelo agente via conversa';
@@ -1409,6 +1420,7 @@ function setTab(id, navEl, tabEl){
   else document.querySelectorAll('.tab').forEach(t=>{if(t.getAttribute('onclick')?.includes("'"+id+"'"))t.classList.add('active');});
   document.getElementById('page-title').textContent = titles[id]||'';
   if(id==='visao') loadOverviewFromServer();
+  if(id==='conversas') loadConversationsFromServer();
   if(id==='testar') syncKbToTest();
   if(id==='conhecimento') loadKnowledgeFromServer();
   if(id==='fiscal') loadFiscalFromServer();
@@ -1874,29 +1886,198 @@ statusItems.forEach(s=>{
 });
 
 // ── CONVERSAS ──
-const convs = [
-  {init:'JR',cor:'#6366F1',nome:'João Rocha',hora:'10:42',msg:'Quero agendar para amanhã manhã',status:'ia'},
-  {init:'MS',cor:'#EC4899',nome:'Maria Santos',hora:'09:58',msg:'✓ Agendamento confirmado',status:'done'},
-  {init:'PT',cor:'#F59E0B',nome:'Pedro Torres',hora:'09:15',msg:'Tem dúvida sobre retorno',status:'ia'},
-  {init:'RN',cor:'#EF4444',nome:'Roberto Nunes',hora:'08:50',msg:'🚨 Transferido para humano',status:'transfer'},
-  {init:'LC',cor:'#10B981',nome:'Lúcia Costa',hora:'08:10',msg:'Obrigada pelo atendimento!',status:'done'},
-];
-const cl = document.getElementById('conv-list');
-convs.forEach(c=>{
-  const badge = c.status==='transfer'?`<span class="tag" style="background:var(--red-l);color:var(--red)">⚠ Humano</span>`:
-                c.status==='done'?`<span class="tag tag-green">✓ Concluído</span>`:
-                `<span class="tag tag-accent">🤖 IA</span>`;
-  cl.innerHTML+=`<div style="display:flex;gap:12px;padding:12px 22px;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
-    <div style="width:38px;height:38px;border-radius:50%;background:${c.cor};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:14px;flex-shrink:0">${c.init}</div>
-    <div style="flex:1;min-width:0">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px">${c.nome}${badge}</span>
-        <span style="font-size:11px;color:var(--light)">${c.hora}</span>
+// Lista viva de conversas, puxada de GET /api/conversations?period=hoje|7d|mes.
+// "Uma conversa" = par (customer_phone, channel) — não há corte de sessão. Sem
+// filtro de origem na UI: a resposta traz whatsapp e painel_teste juntos, cada
+// linha com o próprio channel. Clicar numa linha abre o histórico completo em
+// acordeão (GET /api/conversations/history?phone=&channel=), no mesmo padrão de
+// "Clientes da Plataforma" (cac7ac8). Estado de UI (não persiste): período volta
+// pra 'hoje' e o acordeão fecha no resetTenantState.
+let convPeriod = 'hoje';
+let conversations = [];
+// Acordeão: chave (channel + '::' + phone) da conversa aberta; só uma por vez.
+let expandedConvKey = null;
+// Cache do histórico por conversa: ausente = nunca pedido; 'loading' = em voo;
+// 'error' = falhou (permite retry ao reabrir); objeto = { messages, truncated }.
+let convHistoryCache = {};
+
+function convKey(phone, channel){ return `${channel}::${phone}`; }
+function convDomId(key){ return 'conv-hist-' + key.replace(/[^a-zA-Z0-9]/g, '_'); }
+
+function convEsc(s){
+  return String(s == null ? '' : s).replace(/[<>&]/g, x => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[x]));
+}
+
+// Rótulo do identificador: o teste do painel não tem telefone real.
+function convIdentifier(c){
+  return c.channel === 'painel_teste' ? '(teste de painel)' : (c.customer_phone || '—');
+}
+
+// "Quem falou por último" só a partir de role ('user' = cliente final,
+// 'assistant' = agente). Distinguir humano de IA fica pra quando o sino de
+// transferência for linkado aqui (próxima etapa).
+function convLastAuthorTag(role){
+  return role === 'assistant'
+    ? `<span class="tag tag-accent">🤖 IA</span>`
+    : `<span class="tag" style="background:var(--bg);color:var(--muted)">👤 Cliente</span>`;
+}
+
+// Última atividade: só a hora se for hoje, senão dia/mês + hora.
+function convFmtActivity(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d)) return '';
+  const hora = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  return d.toDateString() === new Date().toDateString()
+    ? hora
+    : d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) + ' ' + hora;
+}
+function convFmtMsgTime(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+// Avatar: cor e iniciais estáveis a partir do telefone (ou 🧪 pro teste).
+const CONV_AVATAR_CORES = ['#6366F1','#EC4899','#F59E0B','#EF4444','#10B981','#0EA5E9','#8B5CF6'];
+function convAvatar(c){
+  if(c.channel === 'painel_teste') return { cor:'#8B5CF6', ini:'🧪' };
+  const base = c.customer_phone || '';
+  let hash = 0;
+  for(let i = 0; i < base.length; i++) hash = (hash * 31 + base.charCodeAt(i)) | 0;
+  const dig = base.replace(/\D/g, '');
+  return {
+    cor: CONV_AVATAR_CORES[Math.abs(hash) % CONV_AVATAR_CORES.length],
+    ini: dig.length >= 2 ? dig.slice(-2) : (dig || '?'),
+  };
+}
+
+function setConvPeriod(p){
+  convPeriod = p;
+  expandedConvKey = null;
+  loadConversationsFromServer();
+}
+
+async function loadConversationsFromServer(){
+  const list = document.getElementById('conv-list');
+  if(list && !conversations.length){
+    list.innerHTML = `<div style="padding:20px 22px;color:var(--muted);font-size:13px;text-align:center">Carregando…</div>`;
+  }
+  try{
+    const res = await apiFetch(`/api/conversations?period=${encodeURIComponent(convPeriod)}`);
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    const data = await res.json();
+    // A lista já vem desc por atividade; reordena defensivamente mesmo assim.
+    conversations = (data.conversations || []).slice()
+      .sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+    renderConversationsList();
+  }catch(e){
+    console.error('[loadConversationsFromServer] erro:', e);
+    if(list) list.innerHTML = `<div style="padding:20px 22px;color:var(--red);font-size:13px;text-align:center">⚠ Não foi possível carregar as conversas.</div>`;
+  }
+}
+
+function renderConversationsList(){
+  const list = document.getElementById('conv-list');
+  if(!list) return;
+  if(!conversations.length){
+    list.innerHTML = `<div style="padding:20px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhuma conversa neste período.</div>`;
+    return;
+  }
+  list.innerHTML = conversations.map(c => {
+    const key = convKey(c.customer_phone, c.channel);
+    const open = key === expandedConvKey;
+    const { cor, ini } = convAvatar(c);
+    const nome = convEsc(convIdentifier(c));
+    const tag = convLastAuthorTag(c.last_message_role);
+    const preview = convEsc(c.last_message_preview) || '<span style="opacity:.6">sem prévia</span>';
+    const count = c.message_count
+      ? `<span style="font-size:11px;color:var(--light)">${c.message_count} msg${c.message_count === 1 ? '' : 's'}</span>` : '';
+    return `
+    <div onclick="toggleConversation('${c.customer_phone}','${c.channel}')" style="display:flex;gap:12px;padding:12px 22px;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border);background:${open ? 'var(--bg)' : ''}"
+      onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='${open ? 'var(--bg)' : ''}'">
+      <div style="width:38px;height:38px;border-radius:50%;background:${cor};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:13px;flex-shrink:0">${ini}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome}</span>${tag}</span>
+          <span style="display:flex;align-items:center;gap:8px;flex-shrink:0">${count}<span style="font-size:11px;color:var(--light)">${convFmtActivity(c.last_message_at)}</span><span style="font-size:11px;color:var(--light)">${open ? '▾' : '→'}</span></span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}</div>
       </div>
-      <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.msg}</div>
     </div>
-  </div>`;
-});
+    ${open ? `<div style="padding:16px 22px;border-bottom:1px solid var(--border);background:var(--bg);border-left:3px solid var(--accent-l)"><div id="${convDomId(key)}">${convHistoryHtml(key)}</div></div>` : ''}`;
+  }).join('');
+}
+
+// Conteúdo do histórico de uma conversa, renderizado inline no acordeão.
+function convHistoryHtml(key){
+  const entry = convHistoryCache[key];
+  if(entry === undefined || entry === 'loading'){
+    return `<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">Carregando histórico…</div>`;
+  }
+  if(entry === 'error'){
+    return `<div style="color:var(--red);font-size:12px;text-align:center;padding:12px">⚠ Não foi possível carregar o histórico.</div>`;
+  }
+  const msgs = entry.messages || [];
+  if(!msgs.length){
+    return `<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">Sem mensagens nesta conversa.</div>`;
+  }
+  const trunc = entry.truncated
+    ? `<div class="p-sep" style="background:var(--amber-l);color:#92400E">Mostrando só as ${msgs.length} mensagens mais recentes</div>` : '';
+  const bubbles = msgs.map(m => {
+    const dir = m.role === 'assistant' ? 'out' : 'in';
+    return `<div class="p-msg ${dir}">
+      <div class="p-bubble">${convEsc(m.content)}</div>
+      <div class="p-meta${dir === 'out' ? ' right' : ''}">${convFmtMsgTime(m.created_at)}</div>
+    </div>`;
+  }).join('');
+  return `<div style="background:#ECE5DD;border-radius:10px;padding:12px 10px;display:flex;flex-direction:column;gap:4px;max-height:420px;overflow-y:auto">${trunc}${bubbles}</div>`;
+}
+
+// Acordeão: abre/fecha uma conversa. Clicar na já aberta fecha; clicar em outra
+// fecha a anterior e abre a nova. Dispara o fetch do histórico só na 1ª abertura
+// (ou num retry após erro).
+function toggleConversation(phone, channel){
+  const key = convKey(phone, channel);
+  if(expandedConvKey === key){
+    expandedConvKey = null;
+    renderConversationsList();
+    return;
+  }
+  expandedConvKey = key;
+  const need = !(key in convHistoryCache) || convHistoryCache[key] === 'error';
+  if(need) convHistoryCache[key] = 'loading';
+  renderConversationsList();
+  if(need) loadConversationHistory(phone, channel);
+}
+
+async function loadConversationHistory(phone, channel){
+  const key = convKey(phone, channel);
+  try{
+    const qs = new URLSearchParams({ phone, channel });
+    const res = await apiFetch(`/api/conversations/history?${qs}`);
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    const data = await res.json();
+    convHistoryCache[key] = { messages: data.messages || [], truncated: !!data.truncated };
+  }catch(e){
+    console.error('[loadConversationHistory] erro:', e);
+    convHistoryCache[key] = 'error';
+  }
+  // Re-renderiza só se a conversa ainda estiver aberta.
+  if(expandedConvKey === key) renderConversationsList();
+}
+
+// Chamado no resetTenantState (logout / troca de tenant).
+function clearConversations(){
+  convPeriod = 'hoje';
+  conversations = [];
+  expandedConvKey = null;
+  convHistoryCache = {};
+  const sel = document.getElementById('conv-period');
+  if(sel) sel.value = 'hoje';
+  const list = document.getElementById('conv-list');
+  if(list) list.innerHTML = '';
+}
 
 // ── FEATURES ──
 const feats=[
