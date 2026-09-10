@@ -1193,6 +1193,7 @@ function resetTenantState(){
   franchiseRequestPending = false;
   franchiseReqBusy = false;
   platformClients = [];
+  clientBillingCache = {};
   commercialCloseRequests = [];
   testHistory = [];
   testTyping = false;
@@ -2905,6 +2906,10 @@ async function cancelAppointmentFromPanel(id){
 
 // ── CLIENTES DA PLATAFORMA (admin da plataforma, via /api/admin) ──
 let platformClients = [];
+// Cache de sessão do faturamento por cliente (GET /api/admin/clients/:id/billing).
+// undefined = ainda não carregado / carregando; 'error' = falhou (permite retry
+// ao reabrir); objeto = resposta do backend.
+let clientBillingCache = {};
 
 async function loadPlatformClientsFromServer(){
   try{
@@ -2989,7 +2994,9 @@ function selectClient(id){
         <div id="client-franchise-result-${id}" style="display:none;background:var(--bg);border-radius:10px;padding:14px 16px;margin-top:12px"></div>
       </div>
       ${fiscalReadonlyBlockHtml(c)}
+      ${financialReadonlyBlockHtml(id)}
     </div>`;
+  loadClientBilling(id);
 }
 
 // Bloco somente-leitura dos dados fiscais do cliente. GET /api/admin/clients
@@ -3018,6 +3025,134 @@ function fiscalReadonlyBlockHtml(c){
       ${inner}
       ${upd ? `<div style="font-size:11px;color:var(--light);margin-top:8px">${upd}</div>` : ''}
     </div>`;
+}
+
+// ── DADOS FINANCEIROS DO CLIENTE (somente leitura — GET /api/admin/clients/:id/billing) ──
+// Carga lazy ao abrir o cliente, cacheada por sessão em clientBillingCache.
+// Sem nenhum botão/ação: os valores vêm do banco.
+function fmtBRL(n){
+  return typeof n === 'number' ? n.toLocaleString('pt-BR', { style:'currency', currency:'BRL' }) : '—';
+}
+// paid_at/realizada_em vêm como timestamp ISO; reference_month vem como data pura
+// (YYYY-MM-DD) — força meia-noite local pra não escorregar um dia por fuso.
+function fmtBillDate(v){
+  if(!v) return '—';
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v + 'T00:00:00' : v;
+  const d = new Date(iso);
+  return isNaN(d) ? '—' : d.toLocaleDateString('pt-BR');
+}
+// Meses completos (piso) entre a ativação e hoje. Ativou 20/08, hoje 09/09 → 0.
+function monthsActive(iso){
+  if(!iso) return null;
+  const start = new Date(iso), now = new Date();
+  if(isNaN(start)) return null;
+  let m = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  if(now.getDate() < start.getDate()) m--;
+  return Math.max(0, m);
+}
+
+function financialReadonlyBlockHtml(id){
+  return `<div style="border-top:1px solid var(--border);padding-top:16px">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Dados financeiros</div>
+      <div id="client-financial-body-${id}">${financialBodyHtml(id)}</div>
+    </div>`;
+}
+
+function renderFinancialBlock(id){
+  const el = document.getElementById(`client-financial-body-${id}`);
+  if(el) el.innerHTML = financialBodyHtml(id);
+}
+
+function financialBodyHtml(id){
+  const b = clientBillingCache[id];
+  if(b === undefined) return `<div style="font-size:13px;color:var(--muted)">Carregando dados financeiros…</div>`;
+  if(b === 'error') return `<div style="font-size:13px;color:var(--red)">⚠ Não foi possível carregar os dados financeiros.</div>`;
+
+  const row = (label, value) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;line-height:1.5;padding:3px 0">
+      <span style="color:var(--muted)">${label}</span>
+      <span style="color:var(--ink);text-align:right;overflow-wrap:anywhere">${value}</span>
+    </div>`;
+  const section = (title, rows) => `<div style="margin-top:14px">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${title}</div>
+      ${rows}
+    </div>`;
+
+  const entries = Array.isArray(b.entries) ? b.entries : [];
+  const now = new Date();
+  const curMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+
+  // Topo: há quantos meses o cliente está ativo.
+  const meses = monthsActive(b.scheduling_activated_at);
+  const topo = meses == null
+    ? `<div style="font-size:13px;color:var(--muted);margin-bottom:6px">Agendamento ainda não ativado.</div>`
+    : `<div style="font-size:13px;color:var(--ink);margin-bottom:6px">Cliente ativo há <strong>${meses === 1 ? '1 mês' : meses + ' meses'}</strong></div>`;
+
+  // 1. Implantação — resumo.implantacao.
+  const imp = (b.resumo && b.resumo.implantacao) || {};
+  const impPrevisto = typeof imp.amount === 'number'
+    ? `${fmtBRL(imp.amount)}${imp.status === 'pago' ? ` · pago ${fmtBillDate(imp.paid_at)}` : ' · pagamento pendente'}`
+    : '—';
+  let impRealizado;
+  if(imp.status === 'pago' && imp.dentro_da_carencia === true){
+    impRealizado = imp.grace_days ? `Em carência (${imp.grace_days} dias)` : 'Em carência';
+  }else if(imp.status === 'pago'){
+    impRealizado = `${fmtBRL(imp.amount)} · vigente desde ${fmtBillDate(imp.realizada_em)}`;
+  }else{
+    impRealizado = '—';
+  }
+  const secImplantacao = section('Implantação', row('Previsto', impPrevisto) + row('Realizado', impRealizado));
+
+  // 2. Mensalidade — o backend materializa a linha do mês corrente assim que a
+  //    implantação é paga (mesmo antes da ativação do agendamento). O ramo
+  //    "sem lançamento" abaixo é só fallback de estado inesperado (falha de
+  //    carga, ou implantação ainda não paga).
+  const mens = entries.find(e => e.kind === 'mensalidade' && e.reference_month === curMonth);
+  let secMensalidade;
+  if(!mens){
+    secMensalidade = section('Mensalidade (mês atual)', row('—', 'Mensalidade do mês ainda não lançada.'));
+  }else{
+    // 1ª parcela proporcional: ancorada na data de pagamento da implantação.
+    // Meses cheios: dia 1 do mês de referência.
+    const prevData = mens.prorated ? fmtBillDate(imp.paid_at) : fmtBillDate(mens.reference_month);
+    const mPrevisto = `${fmtBRL(mens.amount)} · esperada ${prevData}`;
+    const mRealizado = mens.status === 'pago' ? `${fmtBRL(mens.amount)} · paga ${fmtBillDate(mens.paid_at)}` : '—';
+    secMensalidade = section('Mensalidade (mês atual)', row('Previsto', mPrevisto) + row('Realizado', mRealizado));
+  }
+
+  // 3. Excedente — só o lançamento do mês corrente; sem lançamento = previsto 0.
+  const exc = entries.find(e => e.kind === 'excedente' && e.reference_month === curMonth);
+  let secExcedente;
+  if(!exc){
+    secExcedente = section('Excedente (mês atual)',
+      row('Previsto', `${fmtBRL(0)} · dentro da franquia de 3.000 msgs (apurado no fechamento do mês)`) +
+      row('Realizado', '—'));
+  }else{
+    const ePrevisto = `${fmtBRL(exc.amount)} · referente a ${fmtBillDate(exc.reference_month)}`;
+    const eRealizado = exc.status === 'pago' ? `${fmtBRL(exc.amount)} · pago ${fmtBillDate(exc.paid_at)}` : '—';
+    secExcedente = section('Excedente (mês atual)', row('Previsto', ePrevisto) + row('Realizado', eRealizado));
+  }
+
+  // 4. Agendamento — contadores diretos.
+  const ag = b.agendamentos || {};
+  const secAgendamento = section('Agendamento',
+    row('Agendamentos do mês', `${ag.mes ?? 0}`) +
+    row('Agendamentos acumulado', `${ag.acumulado ?? 0}`));
+
+  return topo + secImplantacao + secMensalidade + secExcedente + secAgendamento;
+}
+
+async function loadClientBilling(id){
+  // Já em cache (sucesso) — o bloco já renderiza a partir dele, não refaz a chamada.
+  if(clientBillingCache[id] && clientBillingCache[id] !== 'error') return;
+  try{
+    const res = await apiFetch(`/api/admin/clients/${id}/billing`);
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    clientBillingCache[id] = await res.json();
+  }catch(e){
+    console.error('[loadClientBilling] erro:', e);
+    clientBillingCache[id] = 'error';
+  }
+  renderFinancialBlock(id);
 }
 
 async function saveClient(id){
