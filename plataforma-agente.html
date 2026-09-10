@@ -888,72 +888,57 @@ textarea.field{resize:vertical;min-height:80px}
 
     <!-- ══ CLIENTES DA PLATAFORMA (admin only) ══ -->
     <div class="view" id="view-clientes">
-      <div class="prof-layout" style="display:grid;gap:20px">
-        <!-- Lista de clientes -->
-        <div>
-          <div class="card" style="margin-bottom:16px">
-            <div class="card-head">
-              <div>
-                <div class="card-title">🏢 Clientes cadastrados na plataforma</div>
-                <div class="card-desc">Cada cliente é uma instalação independente do AgenteFácil</div>
-              </div>
-              <button class="btn btn-accent btn-sm" onclick="showAddClientForm()">+ Novo cliente</button>
-            </div>
-            <div style="padding:8px 0" id="clients-list"></div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head">
+          <div>
+            <div class="card-title">🏢 Clientes cadastrados na plataforma</div>
+            <div class="card-desc">Cada cliente é uma instalação independente do AgenteFácil</div>
           </div>
-
-          <!-- Formulário de cadastro de cliente (substitui os prompt() antigos) -->
-          <div id="add-client-card" class="card" style="margin-bottom:16px;display:none">
-            <div class="card-head">
-              <div class="card-title">➕ Novo cliente</div>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="hideAddClientForm()">Cancelar</button>
-            </div>
-            <form id="add-client-form" style="padding:20px 22px" onsubmit="submitAddClient(event)" novalidate>
-              <div id="add-client-alert" class="form-alert" style="display:none"></div>
-              <div class="field-group">
-                <div class="field-label">Nome do negócio</div>
-                <input class="field" id="client-name" type="text" autocomplete="off" oninput="validateClientForm()">
-                <div class="field-error" id="err-client-name"></div>
-              </div>
-              <div class="field-group">
-                <div class="field-label">Nome do primeiro admin</div>
-                <input class="field" id="client-adminName" type="text" autocomplete="off" oninput="validateClientForm()">
-                <div class="field-error" id="err-client-adminName"></div>
-              </div>
-              <div class="field-group">
-                <div class="field-label">E-mail de login do admin</div>
-                <input class="field" id="client-adminEmail" type="email" autocomplete="off" oninput="validateClientForm()">
-                <div class="field-error" id="err-client-adminEmail"></div>
-              </div>
-              <div class="field-group">
-                <div class="field-label">Senha inicial</div>
-                <div class="password-wrap">
-                  <input class="field" id="client-adminPassword" type="password" autocomplete="new-password" oninput="validateClientForm()">
-                  <button type="button" class="password-toggle" id="client-adminPassword-toggle" onclick="togglePwd('client-adminPassword', this)" aria-label="Mostrar/ocultar senha">👁</button>
-                </div>
-                <div class="field-error" id="err-client-adminPassword"></div>
-                <div class="field-hint">Combine com o admin pra ele trocar depois.</div>
-              </div>
-              <div class="field-group">
-                <div class="field-label">Profissionais contratados <span style="font-weight:400;color:var(--muted)">(opcional)</span></div>
-                <input class="field" id="client-professionalsCount" type="number" min="1" step="1" placeholder="1" autocomplete="off" oninput="validateClientForm()">
-                <div class="field-error" id="err-client-professionalsCount"></div>
-                <div class="field-hint">Deixe em branco para usar o padrão (1).</div>
-              </div>
-              <button type="submit" class="btn btn-accent" id="btn-client-submit" disabled style="width:100%">Cadastrar cliente</button>
-            </form>
-          </div>
+          <button class="btn btn-accent btn-sm" onclick="showAddClientForm()">+ Novo cliente</button>
         </div>
+        <div style="padding:8px 0" id="clients-list"></div>
+      </div>
 
-        <!-- Detalhes do cliente selecionado -->
-        <div>
-          <div class="card" id="client-detail-card">
-            <div class="card-head"><div class="card-title" id="client-detail-title">Selecione um cliente</div></div>
-            <div id="client-detail-body" style="padding:20px 22px;color:var(--muted);font-size:13px">
-              Clique em um cliente para ver e editar seus dados.
-            </div>
-          </div>
+      <!-- Formulário de cadastro de cliente (substitui os prompt() antigos) -->
+      <div id="add-client-card" class="card" style="margin-bottom:16px;display:none">
+        <div class="card-head">
+          <div class="card-title">➕ Novo cliente</div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="hideAddClientForm()">Cancelar</button>
         </div>
+        <form id="add-client-form" style="padding:20px 22px" onsubmit="submitAddClient(event)" novalidate>
+          <div id="add-client-alert" class="form-alert" style="display:none"></div>
+          <div class="field-group">
+            <div class="field-label">Nome do negócio</div>
+            <input class="field" id="client-name" type="text" autocomplete="off" oninput="validateClientForm()">
+            <div class="field-error" id="err-client-name"></div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Nome do primeiro admin</div>
+            <input class="field" id="client-adminName" type="text" autocomplete="off" oninput="validateClientForm()">
+            <div class="field-error" id="err-client-adminName"></div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">E-mail de login do admin</div>
+            <input class="field" id="client-adminEmail" type="email" autocomplete="off" oninput="validateClientForm()">
+            <div class="field-error" id="err-client-adminEmail"></div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Senha inicial</div>
+            <div class="password-wrap">
+              <input class="field" id="client-adminPassword" type="password" autocomplete="new-password" oninput="validateClientForm()">
+              <button type="button" class="password-toggle" id="client-adminPassword-toggle" onclick="togglePwd('client-adminPassword', this)" aria-label="Mostrar/ocultar senha">👁</button>
+            </div>
+            <div class="field-error" id="err-client-adminPassword"></div>
+            <div class="field-hint">Combine com o admin pra ele trocar depois.</div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Profissionais contratados <span style="font-weight:400;color:var(--muted)">(opcional)</span></div>
+            <input class="field" id="client-professionalsCount" type="number" min="1" step="1" placeholder="1" autocomplete="off" oninput="validateClientForm()">
+            <div class="field-error" id="err-client-professionalsCount"></div>
+            <div class="field-hint">Deixe em branco para usar o padrão (1).</div>
+          </div>
+          <button type="submit" class="btn btn-accent" id="btn-client-submit" disabled style="width:100%">Cadastrar cliente</button>
+        </form>
       </div>
     </div>
 
@@ -1194,6 +1179,7 @@ function resetTenantState(){
   franchiseReqBusy = false;
   platformClients = [];
   clientBillingCache = {};
+  expandedClientId = null;
   commercialCloseRequests = [];
   testHistory = [];
   testTyping = false;
@@ -2910,6 +2896,8 @@ let platformClients = [];
 // undefined = ainda não carregado / carregando; 'error' = falhou (permite retry
 // ao reabrir); objeto = resposta do backend.
 let clientBillingCache = {};
+// Acordeão: id do cliente com o painel de detalhe aberto (só um por vez).
+let expandedClientId = null;
 
 async function loadPlatformClientsFromServer(){
   try{
@@ -2932,26 +2920,43 @@ function renderClientsList(){
     list.innerHTML='<div style="padding:20px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhum cliente cadastrado ainda.</div>';
     return;
   }
-  list.innerHTML = platformClients.map(c=>`
-    <div onclick="selectClient('${c.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 22px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s"
-      onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+  list.innerHTML = platformClients.map(c=>{
+    const open = c.id === expandedClientId;
+    return `
+    <div onclick="toggleClient('${c.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 22px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;background:${open?'var(--bg)':''}"
+      onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='${open?'var(--bg)':''}'">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--ink)">${c.name}</div>
         <div style="font-size:12px;color:var(--muted);margin-top:2px">Cadastrado em ${c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${c.active?'var(--green-l)':'var(--bg)'};color:${c.active?'var(--green)':'var(--muted)'}">${c.active?'Ativo':'Inativo'}</span>
-        <span style="font-size:11px;color:var(--light)">→</span>
+        <span style="font-size:11px;color:var(--light)">${open?'▾':'→'}</span>
       </div>
-    </div>`).join('');
+    </div>
+    ${open ? `<div style="padding:20px 22px;border-bottom:1px solid var(--border);background:var(--bg);border-left:3px solid var(--accent-l)">${clientDetailHtml(c)}</div>` : ''}`;
+  }).join('');
+  if(expandedClientId && platformClients.some(c => c.id === expandedClientId)) loadClientBilling(expandedClientId);
 }
 
-function selectClient(id){
-  const c = platformClients.find(x=>x.id===id);
-  if(!c) return;
+// Acordeão: alterna o cliente aberto. Clicar no já aberto fecha; clicar em
+// outro fecha o anterior e abre o novo (só um expandedClientId por vez).
+function toggleClient(id){
+  expandedClientId = (expandedClientId === id) ? null : id;
+  renderClientsList();
+}
 
-  document.getElementById('client-detail-title').textContent = c.name;
-  document.getElementById('client-detail-body').innerHTML = `
+// Atalho mantido: saveClient() chama isto depois de recarregar a lista, pra
+// reabrir o cliente recém-salvo com o dado fresco.
+function selectClient(id){
+  expandedClientId = id;
+  renderClientsList();
+}
+
+// Conteúdo do painel de detalhe do cliente, renderizado inline no acordeão.
+function clientDetailHtml(c){
+  const id = c.id;
+  return `
     <div style="display:flex;flex-direction:column;gap:16px">
       <div id="client-detail-alert-${id}" class="form-alert" style="display:none"></div>
       <div>
@@ -2996,7 +3001,6 @@ function selectClient(id){
       ${fiscalReadonlyBlockHtml(c)}
       ${financialReadonlyBlockHtml(id)}
     </div>`;
-  loadClientBilling(id);
 }
 
 // Bloco somente-leitura dos dados fiscais do cliente. GET /api/admin/clients
