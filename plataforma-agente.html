@@ -2063,8 +2063,10 @@ async function loadConversationHistory(phone, channel){
     console.error('[loadConversationHistory] erro:', e);
     convHistoryCache[key] = 'error';
   }
-  // Re-renderiza só se a conversa ainda estiver aberta.
+  // Re-renderiza só se a conversa ainda estiver aberta — na aba Conversas e/ou
+  // no acordeão da linha do sino de transferência (mesmo cache dos dois lados).
   if(expandedConvKey === key) renderConversationsList();
+  if(expandedHandoffKey === key) renderNotifPanel();
 }
 
 // Chamado no resetTenantState (logout / troca de tenant).
@@ -3918,6 +3920,10 @@ let notifOpen = false;
 let notifBusy = false;            // trava anti-duplo-clique nas ações
 let notifCache = {};              // { [sourceId]: item[] }
 let notifOutsideHandler = null;
+// convKey(phone, channel) da transferência com o histórico aberto inline no sino.
+// Reaproveita convHistoryCache/convHistoryHtml da aba Conversas. Só uma por vez;
+// sobrevive a fechar/reabrir o sino (cache quente) — zerada só no logout.
+let expandedHandoffKey = null;
 
 const notifAsArray = (d, key) => Array.isArray(d) ? d : (d && Array.isArray(d[key]) ? d[key] : []);
 
@@ -4008,6 +4014,7 @@ function stopNotifications(){
   closeNotifPanel();
   notifCache = {};
   notifBusy = false;
+  expandedHandoffKey = null;
   renderNotifBadge();
 }
 
@@ -4085,12 +4092,16 @@ function notifRowHtml(source, it){
     </div>`;
   }
   if(source.id === 'handoffs'){
+    const ch = it.channel || 'whatsapp';
+    const key = convKey(it.customer_phone, ch);
+    const open = key === expandedHandoffKey;
     const canal = it.channel ? ` <span class="muted">· ${it.channel}</span>` : '';
     const motivo = it.reason ? `<div class="notif-row-text muted">Motivo: ${it.reason}</div>` : '';
     return `<div class="notif-row">
       <div class="notif-row-text"><span class="muted">${it.customer_name || 'Cliente'}</span> pediu transferência para atendimento humano.<br>${formatApptPhone(it.customer_phone) || 'sem telefone'}${canal}</div>
       ${motivo}
-      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span><button class="notif-dismiss" onclick="markOneSeen('handoffs','${it.id}')">Marcar atendida</button></div>
+      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span><button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory('${it.customer_phone}','${ch}')">${open ? 'Ocultar histórico' : 'Ver histórico'}</button><button class="notif-dismiss" onclick="markOneSeen('handoffs','${it.id}')">Marcar atendida</button></div>
+      ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px;margin-top:4px">${convHistoryHtml(key)}</div>` : ''}
     </div>`;
   }
   if(source.id === 'newClientContact'){
@@ -4173,6 +4184,21 @@ async function decideFranchise(id, decision){
     notifBusy = false;
     setNotifActionsDisabled(false);
   }
+}
+
+// Acordeão inline do histórico da conversa dentro da linha do sino. Clicar na
+// já aberta fecha; clicar em outra fecha a anterior e abre a nova. Reaproveita
+// loadConversationHistory/convHistoryCache/convHistoryHtml da aba Conversas —
+// sem janela de tempo, mostra o thread inteiro. Sobrevive ao re-render do poll
+// porque notifRowHtml re-injeta o bloco a partir de expandedHandoffKey.
+function toggleHandoffHistory(phone, channel){
+  const key = convKey(phone, channel);
+  if(expandedHandoffKey === key){ expandedHandoffKey = null; renderNotifPanel(); return; }
+  expandedHandoffKey = key;
+  const need = !(key in convHistoryCache) || convHistoryCache[key] === 'error';
+  if(need) convHistoryCache[key] = 'loading';
+  renderNotifPanel();
+  if(need) loadConversationHistory(phone, channel);
 }
 
 async function markOneSeen(sourceId, id){
