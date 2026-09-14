@@ -95,7 +95,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 
 /* ── CARD ── */
 .card{background:var(--card);border-radius:14px;box-shadow:0 1px 3px rgba(20,23,26,.07)}
-.card-head{padding:18px 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.card-head{padding:18px 22px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;border-bottom:1px solid var(--border)}
 .card-title{font-size:14px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
 .card-desc{font-size:12px;color:var(--muted);margin-top:2px}
 
@@ -407,8 +407,8 @@ textarea.field{resize:vertical;min-height:80px}
     <!-- ══ VISÃO GERAL ══ -->
     <div class="view active" id="view-visao">
       <div class="admin-only" style="margin-bottom:24px">
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:12px">
-          <label for="overview-period" style="font-size:14px;font-weight:700;color:var(--ink2)">Período</label>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:12px">
+          <label for="overview-period" style="font-size:14px;font-weight:700;color:var(--ink2);white-space:nowrap">Período</label>
           <select id="overview-period" class="field" style="width:auto" onchange="setOverviewPeriod(this.value)">
             <option value="hoje">Hoje</option>
             <option value="7d">Últimos 7 dias</option>
@@ -441,8 +441,8 @@ textarea.field{resize:vertical;min-height:80px}
       <div class="card">
         <div class="card-head">
           <span class="card-title">💬 Histórico de conversas</span>
-          <div style="display:flex;align-items:center;gap:8px">
-            <label for="conv-period" style="font-size:13px;font-weight:600;color:var(--muted)">Período</label>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <label for="conv-period" style="font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap">Período</label>
             <select id="conv-period" class="field" style="width:auto" onchange="setConvPeriod(this.value)">
               <option value="hoje">Hoje</option>
               <option value="7d">Últimos 7 dias</option>
@@ -854,8 +854,8 @@ textarea.field{resize:vertical;min-height:80px}
     <!-- ══ VISÃO GERAL DA PLATAFORMA (platform admin only) ══ -->
     <div class="view" id="view-plat-visao">
       <!-- Período: afeta só clientes, volume e excedente de franquia -->
-      <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:12px">
-        <label for="plat-overview-period" style="font-size:14px;font-weight:700;color:var(--ink2)">Período</label>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:12px">
+        <label for="plat-overview-period" style="font-size:14px;font-weight:700;color:var(--ink2);white-space:nowrap">Período</label>
         <select id="plat-overview-period" class="field" style="width:auto" onchange="setPlatOverviewPeriod(this.value)">
           <option value="hoje">Hoje</option>
           <option value="7d">Últimos 7 dias</option>
@@ -1992,7 +1992,7 @@ function renderConversationsList(){
     const tag = convLastAuthorTag(c.last_message_role);
     const preview = convEsc(c.last_message_preview) || '<span style="opacity:.6">sem prévia</span>';
     const count = c.message_count
-      ? `<span style="font-size:11px;color:var(--light)">${c.message_count} msg${c.message_count === 1 ? '' : 's'}</span>` : '';
+      ? `<span style="font-size:11px;font-weight:700;color:var(--muted)">${c.message_count} msg${c.message_count === 1 ? '' : 's'}</span>` : '';
     return `
     <div onclick="toggleConversation('${c.customer_phone}','${c.channel}')" style="display:flex;gap:12px;padding:12px 22px;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border);background:${open ? 'var(--bg)' : ''}"
       onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='${open ? 'var(--bg)' : ''}'">
@@ -2000,7 +2000,7 @@ function renderConversationsList(){
       <div style="flex:1;min-width:0">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px">
           <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome}</span>${tag}</span>
-          <span style="display:flex;align-items:center;gap:8px;flex-shrink:0">${count}<span style="font-size:11px;color:var(--light)">${convFmtActivity(c.last_message_at)}</span><span style="font-size:11px;color:var(--light)">${open ? '▾' : '→'}</span></span>
+          <span style="display:flex;align-items:center;gap:8px;flex-shrink:0">${count}<span style="font-size:11px;font-weight:700;color:var(--muted)">${convFmtActivity(c.last_message_at)}</span><span style="font-size:11px;color:var(--light)">${open ? '▾' : '→'}</span></span>
         </div>
         <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}</div>
       </div>
