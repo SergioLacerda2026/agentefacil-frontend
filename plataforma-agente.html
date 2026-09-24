@@ -1193,6 +1193,7 @@ function resetTenantState(){
   commercialCloseRequests = [];
   testHistory = [];
   testTyping = false;
+  testConversationId = newTestConversationId();
 
   ['appt-list','prof-list','clients-list','comercial-list','test-chat'].forEach(id=>{
     const el = document.getElementById(id);
@@ -1887,21 +1888,33 @@ statusItems.forEach(s=>{
 
 // ── CONVERSAS ──
 // Lista viva de conversas, puxada de GET /api/conversations?period=hoje|7d|mes.
-// "Uma conversa" = par (customer_phone, channel) — não há corte de sessão. Sem
-// filtro de origem na UI: a resposta traz whatsapp e painel_teste juntos, cada
-// linha com o próprio channel. Clicar numa linha abre o histórico completo em
-// acordeão (GET /api/conversations/history?phone=&channel=), no mesmo padrão de
-// "Clientes da Plataforma" (cac7ac8). Estado de UI (não persiste): período volta
-// pra 'hoje' e o acordeão fecha no resetTenantState.
+// "Uma conversa" = uma SESSÃO (conversation_id). O mesmo telefone pode ter várias
+// sessões, cada uma numa linha. Sem filtro de origem na UI: a resposta traz
+// whatsapp e painel_teste juntos, cada linha com o próprio channel. Clicar numa
+// linha abre o histórico da sessão em acordeão
+// (GET /api/conversations/history?conversation_id=), no mesmo padrão de
+// "Clientes da Plataforma" (cac7ac8). A resposta traz previous_sessions (outras
+// sessões do mesmo telefone), clicáveis dentro do próprio acordeão. Estado de UI
+// (não persiste): período volta pra 'hoje' e o acordeão fecha no resetTenantState.
 let convPeriod = 'hoje';
 let conversations = [];
-// Acordeão: chave (channel + '::' + phone) da conversa aberta; só uma por vez.
+// Acordeão: chave da conversa aberta (ver convRefKey); só uma por vez.
 let expandedConvKey = null;
-// Cache do histórico por conversa: ausente = nunca pedido; 'loading' = em voo;
-// 'error' = falhou (permite retry ao reabrir); objeto = { messages, truncated }.
+// Cache do histórico por sessão: ausente = nunca pedido; 'loading' = em voo;
+// 'error' = falhou (permite retry ao reabrir); objeto = { messages, truncated,
+// previous_sessions }.
 let convHistoryCache = {};
+// Sessão anterior aberta dentro de um acordeão: { [chave da linha]: conversation_id }.
+// Ausente = o acordeão mostra a sessão da própria linha.
+let convSessionView = {};
 
+// Chave legada (par telefone+canal): só para handoffs antigos sem conversation_id.
 function convKey(phone, channel){ return `${channel}::${phone}`; }
+// Chave de cache/acordeão: conversation_id quando existe; senão a legada (o
+// backend resolve phone+channel para a sessão mais recente).
+function convRefKey(conversationId, phone, channel){
+  return conversationId ? `cid::${conversationId}` : convKey(phone, channel);
+}
 function convDomId(key){ return 'conv-hist-' + key.replace(/[^a-zA-Z0-9]/g, '_'); }
 
 function convEsc(s){
@@ -1985,7 +1998,7 @@ function renderConversationsList(){
     return;
   }
   list.innerHTML = conversations.map(c => {
-    const key = convKey(c.customer_phone, c.channel);
+    const key = convRefKey(c.conversation_id, c.customer_phone, c.channel);
     const open = key === expandedConvKey;
     const { cor, ini } = convAvatar(c);
     const nome = convEsc(convIdentifier(c));
@@ -1994,7 +2007,7 @@ function renderConversationsList(){
     const count = c.message_count
       ? `<span style="font-size:11px;font-weight:700;color:var(--muted)">${c.message_count} msg${c.message_count === 1 ? '' : 's'}</span>` : '';
     return `
-    <div onclick="toggleConversation('${c.customer_phone}','${c.channel}')" style="display:flex;gap:12px;padding:12px 22px;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border);background:${open ? 'var(--bg)' : ''}"
+    <div onclick="toggleConversation('${c.conversation_id || ''}','${c.customer_phone}','${c.channel}')" style="display:flex;gap:12px;padding:12px 22px;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border);background:${open ? 'var(--bg)' : ''}"
       onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='${open ? 'var(--bg)' : ''}'">
       <div style="width:38px;height:38px;border-radius:50%;background:${cor};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:13px;flex-shrink:0">${ini}</div>
       <div style="flex:1;min-width:0">
@@ -2010,63 +2023,116 @@ function renderConversationsList(){
 }
 
 // Conteúdo do histórico de uma conversa, renderizado inline no acordeão.
-function convHistoryHtml(key){
-  const entry = convHistoryCache[key];
+// `rowKey` é a chave da linha (conversa da lista ou item do sino). Se o usuário
+// abriu uma sessão anterior dentro dela (convSessionView), mostra essa; a lista
+// previous_sessions vem sempre da sessão da própria linha.
+function convHistoryHtml(rowKey){
+  const base = convHistoryCache[rowKey];
+  const viewCid = convSessionView[rowKey];
+  const viewKey = viewCid ? convRefKey(viewCid) : rowKey;
+  const entry = convHistoryCache[viewKey];
+  const voltar = viewCid ? convBackLinkHtml(rowKey) : '';
   if(entry === undefined || entry === 'loading'){
-    return `<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">Carregando histórico…</div>`;
+    return `${voltar}<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">Carregando histórico…</div>`;
   }
   if(entry === 'error'){
-    return `<div style="color:var(--red);font-size:12px;text-align:center;padding:12px">⚠ Não foi possível carregar o histórico.</div>`;
+    return `${voltar}<div style="color:var(--red);font-size:12px;text-align:center;padding:12px">⚠ Não foi possível carregar o histórico.</div>`;
   }
   const msgs = entry.messages || [];
+  let corpo;
   if(!msgs.length){
-    return `<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">Sem mensagens nesta conversa.</div>`;
+    corpo = `<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">Sem mensagens nesta conversa.</div>`;
+  }else{
+    const trunc = entry.truncated
+      ? `<div class="p-sep" style="background:var(--amber-l);color:#92400E">Mostrando só as ${msgs.length} mensagens mais recentes</div>` : '';
+    const bubbles = msgs.map(m => {
+      const dir = m.role === 'assistant' ? 'out' : 'in';
+      return `<div class="p-msg ${dir}">
+        <div class="p-bubble">${convEsc(m.content)}</div>
+        <div class="p-meta${dir === 'out' ? ' right' : ''}">${convFmtMsgTime(m.created_at)}</div>
+      </div>`;
+    }).join('');
+    corpo = `<div style="background:#ECE5DD;border-radius:10px;padding:12px 10px;display:flex;flex-direction:column;gap:4px;max-height:420px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain">${trunc}${bubbles}</div>`;
   }
-  const trunc = entry.truncated
-    ? `<div class="p-sep" style="background:var(--amber-l);color:#92400E">Mostrando só as ${msgs.length} mensagens mais recentes</div>` : '';
-  const bubbles = msgs.map(m => {
-    const dir = m.role === 'assistant' ? 'out' : 'in';
-    return `<div class="p-msg ${dir}">
-      <div class="p-bubble">${convEsc(m.content)}</div>
-      <div class="p-meta${dir === 'out' ? ' right' : ''}">${convFmtMsgTime(m.created_at)}</div>
+  const prev = (base && base !== 'loading' && base !== 'error' && Array.isArray(base.previous_sessions)) ? base.previous_sessions : [];
+  return voltar + corpo + convPreviousSessionsHtml(rowKey, prev, viewCid);
+}
+
+function convBackLinkHtml(rowKey){
+  return `<div style="margin-bottom:8px"><button class="btn btn-ghost btn-sm" onclick="setConvSessionView('${rowKey}',null)">← Voltar para a conversa atual</button></div>`;
+}
+
+// Lista de sessões anteriores do mesmo telefone; cada uma abre a sessão dentro
+// do mesmo acordeão. A que está aberta fica destacada.
+function convPreviousSessionsHtml(rowKey, prev, viewCid){
+  if(!prev.length) return '';
+  const itens = prev.map(ps => {
+    const ativa = ps.conversation_id === viewCid;
+    const n = ps.message_count ? `${ps.message_count} msg${ps.message_count === 1 ? '' : 's'}` : '';
+    const preview = convEsc(ps.last_message_preview) || '<span style="opacity:.6">sem prévia</span>';
+    return `<div onclick="setConvSessionView('${rowKey}','${ps.conversation_id}')" style="cursor:pointer;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:${ativa ? 'var(--accent-l)' : '#fff'};margin-top:6px">
+      <div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:700;color:var(--muted)"><span>${convFmtActivity(ps.last_message_at)}</span><span>${n}</span></div>
+      <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}</div>
     </div>`;
   }).join('');
-  return `<div style="background:#ECE5DD;border-radius:10px;padding:12px 10px;display:flex;flex-direction:column;gap:4px;max-height:420px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain">${trunc}${bubbles}</div>`;
+  return `<div style="margin-top:12px"><div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Sessões anteriores deste telefone</div>${itens}</div>`;
+}
+
+// Abre (cid) ou fecha (null) uma sessão anterior dentro do acordeão da linha.
+function setConvSessionView(rowKey, cid){
+  if(cid) convSessionView[rowKey] = cid; else delete convSessionView[rowKey];
+  if(cid){
+    const k = convRefKey(cid);
+    if(!(k in convHistoryCache) || convHistoryCache[k] === 'error'){
+      convHistoryCache[k] = 'loading';
+      loadConversationHistory(cid);
+    }
+  }
+  if(expandedConvKey !== null) renderConversationsList();
+  if(expandedHandoffKey !== null) renderNotifPanel();
 }
 
 // Acordeão: abre/fecha uma conversa. Clicar na já aberta fecha; clicar em outra
 // fecha a anterior e abre a nova. Dispara o fetch do histórico só na 1ª abertura
 // (ou num retry após erro).
-function toggleConversation(phone, channel){
-  const key = convKey(phone, channel);
+function toggleConversation(conversationId, phone, channel){
+  const key = convRefKey(conversationId, phone, channel);
   if(expandedConvKey === key){
     expandedConvKey = null;
     renderConversationsList();
     return;
   }
   expandedConvKey = key;
+  delete convSessionView[key];
   const need = !(key in convHistoryCache) || convHistoryCache[key] === 'error';
   if(need) convHistoryCache[key] = 'loading';
   renderConversationsList();
-  if(need) loadConversationHistory(phone, channel);
+  if(need) loadConversationHistory(conversationId, phone, channel);
 }
 
-async function loadConversationHistory(phone, channel){
-  const key = convKey(phone, channel);
+// Com conversation_id busca a sessão exata; sem ele (handoff antigo) cai no
+// formato legado phone+channel, que o backend resolve para a sessão mais recente.
+async function loadConversationHistory(conversationId, phone, channel){
+  const key = convRefKey(conversationId, phone, channel);
   try{
-    const qs = new URLSearchParams({ phone, channel });
+    const qs = new URLSearchParams(conversationId ? { conversation_id: conversationId } : { phone, channel });
     const res = await apiFetch(`/api/conversations/history?${qs}`);
     if(!res.ok) throw new Error(`Erro ${res.status}`);
     const data = await res.json();
-    convHistoryCache[key] = { messages: data.messages || [], truncated: !!data.truncated };
+    convHistoryCache[key] = {
+      messages: data.messages || [],
+      truncated: !!data.truncated,
+      previous_sessions: Array.isArray(data.previous_sessions) ? data.previous_sessions : [],
+    };
   }catch(e){
     console.error('[loadConversationHistory] erro:', e);
     convHistoryCache[key] = 'error';
   }
-  // Re-renderiza só se a conversa ainda estiver aberta — na aba Conversas e/ou
-  // no acordeão da linha do sino de transferência (mesmo cache dos dois lados).
-  if(expandedConvKey === key) renderConversationsList();
-  if(expandedHandoffKey === key) renderNotifPanel();
+  // Re-renderiza o que estiver aberto — na aba Conversas e/ou no acordeão da
+  // linha do sino de transferência (mesmo cache dos dois lados). Barato e evita
+  // rastrear qual linha depende de qual sessão (inclui sessões anteriores).
+  if(expandedConvKey !== null) renderConversationsList();
+  if(expandedHandoffKey !== null) renderNotifPanel();
 }
 
 // Chamado no resetTenantState (logout / troca de tenant).
@@ -2075,6 +2141,7 @@ function clearConversations(){
   conversations = [];
   expandedConvKey = null;
   convHistoryCache = {};
+  convSessionView = {};
   const sel = document.getElementById('conv-period');
   if(sel) sel.value = 'hoje';
   const list = document.getElementById('conv-list');
@@ -2259,6 +2326,12 @@ async function saveFiscalToServer(){
 
 // ── TEST CHAT ──
 let testHistory=[], testTyping=false;
+// Sessão do "Testar Agente": id novo ao abrir e a cada "Reiniciar conversa".
+// Sem ele o backend agruparia tudo numa sessão só.
+function newTestConversationId(){
+  return (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') ? crypto.randomUUID() : null;
+}
+let testConversationId = newTestConversationId();
 
 function getTime(){return new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
 
@@ -2330,7 +2403,8 @@ async function testSend(){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        messages:testHistory
+        messages:testHistory,
+        conversationId:testConversationId
       })
     });
     if(!res.ok){
@@ -2339,6 +2413,7 @@ async function testSend(){
     }
     const data=await res.json();
     const reply=data.reply||'Desculpe, tive um problema. Pode repetir?';
+    if(data.conversationId) testConversationId=data.conversationId;
     testRemoveTyping();
     testHistory.push({role:'assistant',content:reply});
     let quick=[];
@@ -2354,6 +2429,7 @@ async function testSend(){
 function resetTestChat(){
   testHistory=[];
   testTyping=false;
+  testConversationId=newTestConversationId();
   const chat=document.getElementById('test-chat');
   chat.innerHTML='';
   initTestChat();
@@ -3937,7 +4013,7 @@ let notifOpen = false;
 let notifBusy = false;            // trava anti-duplo-clique nas ações
 let notifCache = {};              // { [sourceId]: item[] }
 let notifOutsideHandler = null;
-// convKey(phone, channel) da transferência com o histórico aberto inline no sino.
+// convRefKey(conversation_id, phone, channel) da transferência com o histórico aberto inline no sino.
 // Reaproveita convHistoryCache/convHistoryHtml da aba Conversas. Só uma por vez;
 // sobrevive a fechar/reabrir o sino (cache quente) — zerada só no logout.
 let expandedHandoffKey = null;
@@ -4110,14 +4186,14 @@ function notifRowHtml(source, it){
   }
   if(source.id === 'handoffs'){
     const ch = it.channel || 'whatsapp';
-    const key = convKey(it.customer_phone, ch);
+    const key = convRefKey(it.conversation_id, it.customer_phone, ch);
     const open = key === expandedHandoffKey;
     const canal = it.channel ? ` <span class="muted">· ${it.channel}</span>` : '';
     const motivo = it.reason ? `<div class="notif-row-text muted">Motivo: ${it.reason}</div>` : '';
     return `<div class="notif-row">
       <div class="notif-row-text"><span class="muted">${it.customer_name || 'Cliente'}</span> pediu transferência para atendimento humano.<br>${formatApptPhone(it.customer_phone) || 'sem telefone'}${canal}</div>
       ${motivo}
-      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span><button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory('${it.customer_phone}','${ch}')">${open ? 'Ocultar histórico' : 'Ver histórico'}</button><button class="notif-dismiss" onclick="markOneSeen('handoffs','${it.id}')">Marcar atendida</button></div>
+      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span><button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory('${it.conversation_id || ''}','${it.customer_phone}','${ch}')">${open ? 'Ocultar histórico' : 'Ver histórico'}</button><button class="notif-dismiss" onclick="markOneSeen('handoffs','${it.id}')">Marcar atendida</button></div>
       ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px;margin-top:4px">${convHistoryHtml(key)}</div>` : ''}
     </div>`;
   }
@@ -4208,14 +4284,15 @@ async function decideFranchise(id, decision){
 // loadConversationHistory/convHistoryCache/convHistoryHtml da aba Conversas —
 // sem janela de tempo, mostra o thread inteiro. Sobrevive ao re-render do poll
 // porque notifRowHtml re-injeta o bloco a partir de expandedHandoffKey.
-function toggleHandoffHistory(phone, channel){
-  const key = convKey(phone, channel);
+function toggleHandoffHistory(conversationId, phone, channel){
+  const key = convRefKey(conversationId, phone, channel);
   if(expandedHandoffKey === key){ expandedHandoffKey = null; renderNotifPanel(); return; }
   expandedHandoffKey = key;
+  delete convSessionView[key];
   const need = !(key in convHistoryCache) || convHistoryCache[key] === 'error';
   if(need) convHistoryCache[key] = 'loading';
   renderNotifPanel();
-  if(need) loadConversationHistory(phone, channel);
+  if(need) loadConversationHistory(conversationId, phone, channel);
 }
 
 async function markOneSeen(sourceId, id){
