@@ -3274,20 +3274,31 @@ function financialBodyHtml(id){
     ? `<div style="font-size:13px;color:var(--muted);margin-bottom:6px">Agendamento ainda não ativado.</div>`
     : `<div style="font-size:13px;color:var(--ink);margin-bottom:6px">Cliente ativo há <strong>${meses === 1 ? '1 mês' : meses + ' meses'}</strong></div>`;
 
-  // 1. Implantação — resumo.implantacao.
-  const imp = (b.resumo && b.resumo.implantacao) || {};
-  const impPrevisto = typeof imp.amount === 'number'
-    ? `${fmtBRL(imp.amount)}${imp.status === 'pago' ? ` · pago ${fmtBillDate(imp.paid_at)}` : ' · pagamento pendente'}`
-    : '—';
-  let impRealizado;
-  if(imp.status === 'pago' && imp.dentro_da_carencia === true){
-    impRealizado = imp.grace_days ? `Em carência (${imp.grace_days} dias)` : 'Em carência';
-  }else if(imp.status === 'pago'){
-    impRealizado = `${fmtBRL(imp.amount)} · vigente desde ${fmtBillDate(imp.realizada_em)}`;
-  }else{
-    impRealizado = '—';
-  }
-  const secImplantacao = section('Implantação', row('Previsto', impPrevisto) + row('Realizado', impRealizado));
+  // 1. Implantação — resumo.implantacao_parcelas (um item por parcela; à vista = 1 item).
+  const resumo = b.resumo || {};
+  const parcelas = Array.isArray(resumo.implantacao_parcelas) ? resumo.implantacao_parcelas : [];
+  const secParcela = imp => {
+    const previsto = typeof imp.amount === 'number'
+      ? `${fmtBRL(imp.amount)}${imp.status === 'pago' ? ` · pago ${fmtBillDate(imp.paid_at)}` : ' · pagamento pendente'}`
+      : '—';
+    let realizado;
+    if(imp.status === 'pago' && imp.dentro_da_carencia === true){
+      realizado = imp.grace_days ? `Em carência (${imp.grace_days} dias)` : 'Em carência';
+    }else if(imp.status === 'pago'){
+      realizado = `${fmtBRL(imp.amount)} · vigente desde ${fmtBillDate(imp.realizada_em)}`;
+    }else{
+      realizado = '—';
+    }
+    const titulo = imp.installment_total > 1
+      ? `Implantação — parcela ${imp.installment_number}/${imp.installment_total}`
+      : 'Implantação';
+    return section(titulo, row('Previsto', previsto) + row('Realizado', realizado));
+  };
+  const secImplantacao = parcelas.length
+    ? parcelas.map(secParcela).join('')
+    : section('Implantação', row('Previsto', '—') + row('Realizado', '—'));
+  // Âncora da 1ª mensalidade proporcional: pagamento da parcela 1 (ou da única, à vista).
+  const imp = parcelas.find(p => p.installment_number === 1) || {};
 
   // 2. Mensalidade — o backend materializa a linha do mês corrente assim que a
   //    implantação é paga (mesmo antes da ativação do agendamento). O ramo
@@ -3325,7 +3336,13 @@ function financialBodyHtml(id){
     row('Agendamentos do mês', `${ag.mes ?? 0}`) +
     row('Agendamentos acumulado', `${ag.acumulado ?? 0}`));
 
-  return topo + secImplantacao + secMensalidade + secExcedente + secAgendamento;
+  // 5. Notas fiscais aguardando dados fiscais — só aparece quando há pendência.
+  const notasPend = Number(resumo.notas_pendentes_fiscal) || 0;
+  const secNotas = notasPend > 0
+    ? section('Notas fiscais', row('Notas fiscais pendentes de dados fiscais', `${notasPend}`))
+    : '';
+
+  return topo + secImplantacao + secMensalidade + secExcedente + secAgendamento + secNotas;
 }
 
 async function loadClientBilling(id){
