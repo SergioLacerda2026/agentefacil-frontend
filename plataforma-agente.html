@@ -285,6 +285,9 @@ textarea.field{resize:vertical;min-height:80px}
 .apu-list{list-style:none;display:flex;flex-direction:column;gap:6px}
 .apu-list li{font-size:12px;line-height:1.5;color:var(--muted);padding:8px 10px;border:1px solid var(--border);border-radius:8px}
 .apu-list li.warn{background:var(--amber-l);color:#92400E;border-color:#FCD34D}
+.apu-const.bad-amber{background:var(--amber-l);border-color:#FCD34D}
+.apu-const.bad-red{background:var(--red-l);border-color:#FCA5A5}
+.apu-need-attn{color:#92400E;font-weight:600}
 
 @media(max-width:900px){
   .apu-result-val{font-size:22px}
@@ -1096,6 +1099,33 @@ textarea.field{resize:vertical;min-height:80px}
           </div>
           <div class="apu-progress" id="apu-progress" role="status"><span class="apu-spin"></span><span>Verificando os fornecedores e calculando o mês… isso pode levar mais de 1 minuto. Não feche esta tela.</span></div>
           <div id="apu-result" style="margin-top:18px"></div>
+        </div>
+      </div>
+
+      <!-- Migração das constantes de custo pendente: aviso no lugar do card de fornecedores -->
+      <div id="apu-sup-migration" class="apu-banner" style="display:none;max-width:860px;margin-top:16px">
+        <span class="apu-banner-text">⚠️ <b>Migração pendente no backend.</b> Os custos dos fornecedores ainda não estão disponíveis: aplique a migração <code>migration_cost_constants.sql</code> no Supabase e recarregue esta tela.</span>
+      </div>
+
+      <!-- Custos dos fornecedores (constantes de custo usadas na apuração) -->
+      <div class="card" id="apu-sup-card" style="max-width:860px;margin-top:16px">
+        <div class="card-head">
+          <div>
+            <div class="card-title">🏷️ Custos dos fornecedores</div>
+            <div class="card-desc">Preços que a apuração usa (Anthropic, Twilio e Meta) e se conferem com o site de cada fornecedor</div>
+          </div>
+        </div>
+        <div style="padding:20px 22px">
+          <div id="apu-sup-error" class="form-alert" style="display:none"></div>
+          <div id="apu-sup-msg" class="form-alert" style="display:none"></div>
+          <div class="apu-muted" style="margin-bottom:14px"><b>Como o custo é calculado:</b> custo por mensagem = PTAX × (IA + Twilio + Meta) ÷ linhas de WhatsApp.
+            <br>PTAX é a cotação do dólar; linhas de WhatsApp são as mensagens recebidas e enviadas no período.</div>
+          <div id="apu-sup-weight" style="margin-bottom:14px"></div>
+          <div id="apu-sup-list"><div class="apu-muted">Carregando…</div></div>
+          <div class="apu-actions" style="margin-top:6px">
+            <button type="button" class="btn btn-ghost apu-btn" id="btn-verify-sup" onclick="verifyCostConstants()">Só verificar fornecedores</button>
+          </div>
+          <div class="apu-progress" id="apu-sup-progress" role="status"><span class="apu-spin"></span><span>Conferindo os preços nos sites dos fornecedores… normalmente leva cerca de 10 segundos, mas pode levar mais de 1 minuto. Não feche esta tela.</span></div>
         </div>
       </div>
     </div>
@@ -4044,6 +4074,7 @@ async function loadPricingConfig(){
     if(fieldsEl) fieldsEl.style.display = 'block';
     validatePricingForm();
     loadApuracaoStatus({ sync:true });
+    loadCostConstants();
   }catch(e){
     console.error('[loadPricingConfig] erro:', e);
     if(loadingEl) loadingEl.textContent = 'Não foi possível carregar os valores atuais.';
@@ -4359,7 +4390,7 @@ function apuScrollToCard(){
 }
 
 // ── Erros / migração / trava ──
-const apuErrEl = target => document.getElementById(target === 'cost' ? 'apu-cost-msg' : 'apu-error');
+const apuErrEl = target => document.getElementById(target === 'cost' ? 'apu-cost-msg' : target === 'sup' ? 'apu-sup-error' : 'apu-error');
 function apuClearError(target){
   const el = apuErrEl(target);
   if(el){ el.style.display = 'none'; el.innerHTML = ''; el.className = 'form-alert'; }
@@ -4390,15 +4421,17 @@ function apuSetMigration(on){
   if(on){
     if(b) b.style.display = 'none';
     renderReminderBanner('apu-banner-precos', null);
+    apuWeightUnavailable();
   }
 }
 // 503 migracao_pendente → aviso amarelo; 409 → mensagem + recarrega o status; demais → alerta.
 function apuHandleError(res, data, target, retry){
   if(res.status === 401) return;
-  if(res.status === 503 && data && data.code === 'migracao_pendente'){ apuSetMigration(true); return; }
+  if(res.status === 503 && data && data.code === 'migracao_pendente'){ if(target === 'sup') apuSupMigration(true); else apuSetMigration(true); return; }
   if(res.status === 409){
-    apuShowError(target, `${(data && data.error) || 'A apuração mudou.'} O status foi recarregado.`);
-    loadApuracaoStatus({ sync:true, keepMsg:true });
+    apuShowError(target, `${(data && data.error) || 'A apuração mudou.'} ${target === 'sup' ? 'A lista foi recarregada.' : 'O status foi recarregado.'}`);
+    if(target === 'sup') loadCostConstants({ keepMsg:true });
+    else loadApuracaoStatus({ sync:true, keepMsg:true });
     return;
   }
   apuShowError(target, (data && data.error) || `Erro ${res.status}`, res.status >= 500 ? retry : null);
@@ -4412,10 +4445,11 @@ async function loadApuracaoStatus({ sync = false, keepMsg = false } = {}){
   try{
     const res = await apiFetch('/api/admin/message-cost/status');
     const data = await res.json().catch(() => ({}));
-    if(!res.ok){ apuHandleError(res, data, 'card', () => loadApuracaoStatus({ sync })); return; }
+    if(!res.ok){ apuWeightUnavailable(); apuHandleError(res, data, 'card', () => loadApuracaoStatus({ sync })); return; }
     renderApuracaoStatus(data, sync);
   }catch(e){
     console.error('[loadApuracaoStatus] erro:', e);
+    apuWeightUnavailable();
     apuShowError('card', 'Não foi possível conectar ao backend.', () => loadApuracaoStatus({ sync }));
   }
 }
@@ -4462,6 +4496,7 @@ function renderApuracaoStatus(st, sync){
   }
   document.getElementById('apu-cost-info').innerHTML = h;
   document.getElementById('apu-costbox').style.display = 'block';
+  apuLoadWeight(lr);
 }
 
 // ── Ações ──
@@ -4492,6 +4527,7 @@ async function runApuracao(){
     showToast(data.run.status === 'falhou' ? '⚠ A apuração falhou — veja o motivo abaixo'
       : data.run.applied ? '✓ Apuração concluída e aplicada' : '✓ Apuração concluída — resultado como sugestão');
     loadApuracaoStatus({ sync: !!data.run.applied, keepMsg:true });
+    loadCostConstants({ keepMsg:true }); // a apuração também verifica os fornecedores
   }catch(e){
     console.error('[runApuracao] erro:', e);
     apuShowError('card', 'Não foi possível conectar ao backend.', runApuracao);
@@ -4564,6 +4600,267 @@ async function openApuracaoRun(id){
   }
 }
 
+// ── CUSTOS DOS FORNECEDORES (card da tela Preços) ──
+// Fontes: GET /api/admin/cost-constants, POST .../cost-constants/verify, POST .../cost-constants/:key/adopt,
+// além do status da apuração (last_concluded_run) e GET /runs/:id para o "peso" de cada fornecedor.
+// Nenhum valor de custo é escrito aqui: tudo vem da API; o que faltar aparece como "—".
+let apuConsts = null;       // lista de /cost-constants (null = ainda não carregou)
+let apuWeight = null;       // { id, run } | { none:true } | { unavailable:true } | { error:true, id } | null (carregando)
+let apuWeightReq = 0;       // descarta respostas antigas de /runs/:id
+
+const APU_SUPPLIERS = [
+  ['anthropic', 'IA — Anthropic (Claude)'],
+  ['twilio', 'Twilio (envio e recebimento no WhatsApp)'],
+  ['meta', 'Meta (WhatsApp Business)'],
+];
+// Chaves = identificadores das constantes (não são valores de custo).
+const APU_KEY_TWILIO = 'twilio:whatsapp:per_message';
+const APU_KEY_META_RATE = 'meta:whatsapp:service_per_message_usd';
+const APU_KEY_META_TIER = 'meta:whatsapp:service_free_tier';
+const APU_ANTHROPIC_KEY = /^anthropic:(.+):(input|output|cache_write_5m|cache_write_1h|cache_read)$/;
+const APU_TOKEN_ROWS = [['input', 'Entrada'], ['output', 'Saída'], ['cache_write_5m', 'Escrita de cache (5 min)'], ['cache_write_1h', 'Escrita de cache (1 h)'], ['cache_read', 'Leitura de cache']];
+const APU_UNIT = {
+  usd_per_mtok: ['US$ ', 'por milhão de tokens'],
+  usd_per_message: ['US$ ', 'por mensagem'],
+  brl_per_message: ['R$ ', 'por mensagem'],
+  messages_per_number_month: ['', 'mensagens por número/mês'],
+};
+const APU_SUP_EXPLAIN = {
+  confirmada: 'O preço gravado confere com o site do fornecedor.',
+  divergente: 'O site do fornecedor mostra um valor diferente do gravado. Revise e, se o valor encontrado estiver certo, use "Adotar valor encontrado".',
+  nao_confirmada: 'Não foi possível conferir com o site do fornecedor (veja o motivo no detalhe). O valor gravado continua sendo usado, mas sem confirmação.',
+};
+const APU_STATUS_RANK = { confirmada: 0, divergente: 1, nao_confirmada: 2 };
+
+function apuConstText(c, v){
+  const n = apuNum(v === undefined ? c.value : v);
+  if(n === null) return '—';
+  const u = APU_UNIT[c.unit] || ['', c.unit || ''];
+  return `${u[0]}${apuFmt(n, u[0] ? 2 : 0, 8)} ${u[1]}`.trim();
+}
+function apuToday(){
+  return (apuStatus && apuStatus.today) || new Date().toLocaleDateString('en-CA', { timeZone:'America/Sao_Paulo' });
+}
+const apuIsFuture = c => !!c.effective_from && String(c.effective_from).slice(0, 10) > apuToday();
+// Pior status entre as constantes (confirmada < divergente < nao_confirmada); valor desconhecido conta como não confirmada.
+function apuWorstStatus(list){
+  return list.reduce((w, c) => {
+    const s = APU_STATUS_RANK[c.status] === undefined ? 'nao_confirmada' : c.status;
+    return APU_STATUS_RANK[s] > APU_STATUS_RANK[w] ? s : w;
+  }, 'confirmada');
+}
+function apuLastChecked(list){
+  const ts = list.map(c => c.checked_at).filter(Boolean).map(t => new Date(t).getTime()).filter(n => !isNaN(n));
+  return ts.length ? new Date(Math.max(...ts)).toISOString() : null;
+}
+// Percentuais com 1 casa que somam exatamente 100,0 (maior resto).
+function apuPercents(vals){
+  const tot = vals.reduce((a, b) => a + b, 0);
+  if(!(tot > 0)) return vals.map(() => null);
+  const raw = vals.map(v => v / tot * 1000), fl = raw.map(Math.floor);
+  let rem = 1000 - fl.reduce((a, b) => a + b, 0);
+  raw.map((r, i) => [r - fl[i], i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if(rem > 0){ fl[i] += 1; rem--; } });
+  return fl.map(x => x / 10);
+}
+
+// ── Peso na última apuração REAL (não dry-run, não teste) ──
+function apuWeightUnavailable(){ apuWeightReq++; apuWeight = { unavailable:true }; renderSuppliers(); }
+async function apuLoadWeight(lr){
+  const real = lr && lr.status !== 'falhou' && !lr.dry_run && !lr.include_test && APU_UUID.test(String(lr.id || ''));
+  if(!real){ apuWeightReq++; apuWeight = { none:true }; renderSuppliers(); return; }
+  if(apuWeight && apuWeight.run && apuWeight.id === lr.id){ renderSuppliers(); return; }
+  const req = ++apuWeightReq;
+  apuWeight = null;
+  renderSuppliers();
+  try{
+    const res = await apiFetch(`/api/admin/message-cost/runs/${encodeURIComponent(lr.id)}`);
+    const data = await res.json().catch(() => ({}));
+    if(req !== apuWeightReq) return;
+    const run = data && data.run;
+    if(!res.ok || !run || !run.components || run.dry_run || run.include_test) throw new Error(`Erro ${res.status}`);
+    apuWeight = { id: lr.id, run };
+  }catch(e){
+    if(req !== apuWeightReq) return;
+    console.error('[apuLoadWeight] erro:', e);
+    apuWeight = { error:true, id: lr.id };
+  }
+  renderSuppliers();
+}
+function apuWeightHtml(){
+  const w = apuWeight;
+  const title = t => `<div class="apu-block-title"><span>${t}</span></div>`;
+  if(w === null) return `<div class="apu-block">${title('Peso na última apuração real')}<div class="apu-muted">Carregando…</div></div>`;
+  if(w.unavailable) return `<div class="apu-block">${title('Peso na última apuração real')}<div class="apu-muted">—</div></div>`;
+  if(w.none) return `<div class="apu-block">${title('Peso na última apuração real')}<div class="apu-muted">Ainda sem apuração real. Simulações e testes não entram aqui.</div></div>`;
+  if(w.error) return `<div class="apu-block">${title('Peso na última apuração real')}<div class="apu-muted">Não foi possível carregar o detalhamento da última apuração. <button type="button" class="btn btn-ghost btn-sm apu-btn" onclick="apuLoadWeight(apuStatus && apuStatus.last_concluded_run)">Tentar de novo</button></div></div>`;
+  const run = w.run, c = run.components || {};
+  const lines = apuNum(c.lines);
+  const parts = [['IA (Anthropic)', c.ia], ['Twilio', c.twilio], ['Meta', c.meta]];
+  const brl = parts.map(([, p]) => apuNum(p && p.brl) || 0);
+  const pct = apuPercents(brl);
+  const rows = parts.map(([label], i) => apuRow(label,
+    `${lines ? apuBRL(brl[i] / lines) : '—'} por mensagem · ${pct[i] === null ? '—' : apuFmt(pct[i], 1, 1) + '%'}`)).join('');
+  const totalRow = apuRow('Total', `${lines ? apuBRL(brl.reduce((a, b) => a + b, 0) / lines) : '—'} por mensagem · ${pct[0] === null ? '—' : '100,0%'}`);
+  return `<div class="apu-block">${title(`Peso na última apuração real (${apuMonth(run.month)})`)}` +
+    `<div class="apu-muted">Quanto cada fornecedor pesa no custo de uma mensagem.</div>${rows}${totalRow}</div>`;
+}
+
+// ── Resumo e detalhe por fornecedor ──
+function apuModelsInUse(){
+  const run = apuWeight && apuWeight.run;
+  const list = run && run.components && run.components.ia && run.components.ia.by_model;
+  return Array.isArray(list) ? list.map(m => m.model).filter(Boolean) : null;
+}
+function apuSupConstHtml(c){
+  const st = c.status;
+  const cls = st === 'divergente' ? ' bad-amber' : st === 'confirmada' ? '' : ' bad-red';
+  const diff = apuNum(c.difference);
+  return `<div class="apu-const${cls}"><div class="apu-const-top"><code>${apuEsc(c.key)}</code>${apuTag(APU_CONST_STATUS, st)}` +
+    (apuIsFuture(c) ? `<span class="tag tag-accent">vale a partir de ${apuDate(c.effective_from)}</span>` : '') + `</div>` +
+    (c.description ? `<div class="apu-muted" style="margin-bottom:4px">${apuEsc(c.description)}</div>` : '') +
+    apuRow('Valor gravado (usado no cálculo)', apuEsc(apuConstText(c))) +
+    (apuNum(c.value_found) !== null ? apuRow('Valor encontrado na fonte', apuEsc(apuConstText(c, c.value_found))) : '') +
+    (diff !== null && diff !== 0 ? apuRow('Diferença (encontrado − gravado)', apuEsc((diff > 0 ? '+' : '') + apuFmt(diff, 0, 8))) : '') +
+    (c.failure_reason ? apuRow('Motivo', apuEsc(c.failure_reason)) : '') +
+    apuRow('Fonte', apuSourceHtml(c.source_url)) +
+    (c.source_excerpt ? `<div class="apu-quote">${apuEsc(c.source_excerpt)}</div>` : '') +
+    apuRow('Última verificação', c.checked_at ? apuDateTime(c.checked_at) : 'nunca verificada') +
+    (c.effective_from ? apuRow('Vale a partir de', apuDate(c.effective_from) + (apuIsFuture(c) ? ' (ainda não vigente)' : '')) : '') +
+    (st === 'divergente' && apuNum(c.value_found) !== null
+      ? `<div class="apu-actions" style="margin-top:6px"><button type="button" class="btn btn-accent btn-sm apu-btn" data-key="${apuEsc(c.key)}" onclick="adoptCostConstant(this.dataset.key)">Adotar valor encontrado</button></div>` : '') +
+    `</div>`;
+}
+function apuSupBlockHtml(label, key, list, openKeys){
+  const worst = apuWorstStatus(list);
+  const checked = apuLastChecked(list);
+  const attn = list.filter(c => c.status !== 'confirmada').length;
+  const badge = list.length ? apuTag(APU_CONST_STATUS, worst) : '<span class="apu-muted">—</span>';
+  let summary = '';
+  if(key === 'anthropic'){
+    const models = {};
+    list.forEach(c => { const m = APU_ANTHROPIC_KEY.exec(c.key); if(m){ (models[m[1]] = models[m[1]] || {})[m[2]] = c; } });
+    const inUse = apuModelsInUse();
+    const names = Object.keys(models).sort();
+    summary += `<div class="apu-muted">Modelo em uso: ${inUse && inUse.length ? apuEsc(inUse.join(', ')) : '— (aparece depois da primeira apuração real)'}</div>`;
+    summary += names.length ? names.map(n => {
+      const tag = inUse ? (inUse.includes(n) ? '<span class="tag tag-green">em uso</span>' : '<span class="tag tag-gray">não usado na última apuração</span>') : '';
+      return `<div class="apu-sub"><div class="apu-const-top">${apuEsc(n)} ${tag}</div>` +
+        APU_TOKEN_ROWS.map(([cat, lab]) => { const c = models[n][cat]; return apuRow(lab, c ? apuEsc(apuConstText(c)) : '—'); }).join('') + `</div>`;
+    }).join('') : apuRow('Preços por milhão de tokens', '—');
+  }else if(key === 'twilio'){
+    const c = list.find(x => x.key === APU_KEY_TWILIO);
+    summary += apuRow('Tarifa por mensagem', c ? apuEsc(apuConstText(c)) : '—');
+  }else if(key === 'meta'){
+    const rate = list.find(x => x.key === APU_KEY_META_RATE), tier = list.find(x => x.key === APU_KEY_META_TIER);
+    const from = (rate && rate.effective_from) || (tier && tier.effective_from) || null;
+    summary += apuRow('Tarifa por mensagem enviada', rate ? apuEsc(apuConstText(rate)) : '—') +
+      apuRow('Franquia grátis por número/mês', tier ? apuEsc(apuConstText(tier)) : '—') +
+      apuRow('Passa a valer em', from ? `${apuDate(from)}${String(from).slice(0, 10) > apuToday() ? ' (ainda não vigente)' : ''}` : '—');
+  }
+  const detail = list.length
+    ? `<details class="apu-det" data-k="${key}"${openKeys.has(key) ? ' open' : ''}><summary>Detalhe por constante (${list.length})${attn ? ` <span class="apu-need-attn">· ${attn} precisa(m) de atenção</span>` : ''}</summary><div class="apu-det-body">${list.map(apuSupConstHtml).join('')}</div></details>`
+    : '';
+  return `<div class="apu-block"><div class="apu-block-title"><span>${label}</span>${badge}</div>` +
+    (list.length ? `<div class="apu-muted" style="margin-bottom:6px">${apuEsc(APU_SUP_EXPLAIN[worst])} Última verificação: ${checked ? apuDateTime(checked) : 'nunca verificada'}.</div>` : '<div class="apu-muted">Nenhuma constante cadastrada.</div>') +
+    summary + detail + `</div>`;
+}
+function renderSuppliers(){
+  const wEl = document.getElementById('apu-sup-weight'), lEl = document.getElementById('apu-sup-list');
+  if(wEl) wEl.innerHTML = apuWeightHtml();
+  if(!lEl) return;
+  if(apuConsts === null){ if(!lEl.querySelector('.apu-block') && !lEl.dataset.failed) lEl.innerHTML = '<div class="apu-muted">Carregando…</div>'; return; }
+  delete lEl.dataset.failed;
+  const openKeys = new Set([...lEl.querySelectorAll('details[data-k][open]')].map(d => d.dataset.k));
+  lEl.innerHTML = APU_SUPPLIERS.map(([key, label]) => apuSupBlockHtml(label, key, apuConsts.filter(c => c.supplier === key), openKeys)).join('');
+}
+function apuSupMsg(text){
+  const el = document.getElementById('apu-sup-msg');
+  if(!el) return;
+  if(!text){ el.style.display = 'none'; el.innerHTML = ''; el.className = 'form-alert'; return; }
+  el.className = 'form-alert success';
+  el.textContent = text;
+  el.style.display = 'block';
+}
+function apuSupMigration(on){
+  const n = document.getElementById('apu-sup-migration'), c = document.getElementById('apu-sup-card');
+  if(n) n.style.display = on ? 'flex' : 'none';
+  if(c) c.style.display = on ? 'none' : 'block';
+}
+
+async function loadCostConstants({ keepMsg = false } = {}){
+  if(!isPlatformAdmin) return;
+  apuSupMigration(false);
+  if(!keepMsg){ apuClearError('sup'); apuSupMsg(''); }
+  try{
+    const res = await apiFetch('/api/admin/cost-constants');
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){
+      if(apuConsts === null){ const l = document.getElementById('apu-sup-list'); if(l){ l.dataset.failed = '1'; l.innerHTML = '<div class="apu-muted">Não foi possível carregar os custos dos fornecedores.</div>'; } }
+      apuHandleError(res, data, 'sup', () => loadCostConstants());
+      return;
+    }
+    apuConsts = Array.isArray(data.constants) ? data.constants : [];
+    renderSuppliers();
+  }catch(e){
+    console.error('[loadCostConstants] erro:', e);
+    if(apuConsts === null){ const l = document.getElementById('apu-sup-list'); if(l){ l.dataset.failed = '1'; l.innerHTML = '<div class="apu-muted">Não foi possível carregar os custos dos fornecedores.</div>'; } }
+    apuShowError('sup', 'Não foi possível conectar ao backend.', () => loadCostConstants());
+  }
+}
+
+async function verifyCostConstants(){
+  if(apuBusy) return;
+  const btn = document.getElementById('btn-verify-sup'), prog = document.getElementById('apu-sup-progress');
+  apuClearError('sup');
+  apuSupMsg('');
+  apuSetBusy(true);
+  btn.textContent = 'Verificando…';
+  prog.style.display = 'flex';
+  try{
+    const res = await apiFetch('/api/admin/cost-constants/verify', { method:'POST' });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ apuHandleError(res, data, 'sup', verifyCostConstants); return; }
+    await loadCostConstants({ keepMsg:true });
+    const counts = { confirmada:0, divergente:0, nao_confirmada:0 };
+    (apuConsts || []).forEach(c => { if(counts[c.status] !== undefined) counts[c.status]++; });
+    // Resumo a partir da lista recarregada (o que está na tela); a resposta do verify só serve de reserva.
+    const s = (apuConsts && apuConsts.length) ? counts : ((data.summary && typeof data.summary === 'object') ? data.summary : counts);
+    apuSupMsg(`Verificação concluída${data.verified_at ? ' em ' + apuDateTime(data.verified_at) : ''}: ${apuInt(s.confirmada)} confirmada(s), ${apuInt(s.divergente)} divergente(s), ${apuInt(s.nao_confirmada)} não confirmada(s).`);
+    showToast('✓ Verificação dos fornecedores concluída');
+  }catch(e){
+    console.error('[verifyCostConstants] erro:', e);
+    apuShowError('sup', 'Não foi possível conectar ao backend.', verifyCostConstants);
+  }finally{
+    apuSetBusy(false);
+    btn.textContent = 'Só verificar fornecedores';
+    prog.style.display = 'none';
+  }
+}
+
+async function adoptCostConstant(key){
+  if(apuBusy || !key) return;
+  const c = (apuConsts || []).find(x => x.key === key);
+  if(!c || c.status !== 'divergente' || apuNum(c.value_found) === null) return;
+  if(!confirm(`Adotar o valor encontrado para esta constante?\n\n${c.key}${c.description ? '\n' + c.description : ''}\n\nValor gravado hoje: ${apuConstText(c)}\nValor que será adotado: ${apuConstText(c, c.value_found)}\n\nAs próximas apurações passarão a usar o novo valor.`)) return;
+  apuClearError('sup');
+  apuSupMsg('');
+  apuSetBusy(true);
+  try{
+    const res = await apiFetch(`/api/admin/cost-constants/${encodeURIComponent(key)}/adopt`, { method:'POST' });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ apuHandleError(res, data, 'sup', () => adoptCostConstant(key)); return; }
+    await loadCostConstants({ keepMsg:true });
+    const now = (apuConsts || []).find(x => x.key === key) || data.constant || c;
+    apuSupMsg(`Valor adotado: ${key} agora é ${apuConstText(now)}.`);
+    showToast('✓ Valor adotado');
+  }catch(e){
+    console.error('[adoptCostConstant] erro:', e);
+    apuShowError('sup', 'Não foi possível conectar ao backend.', () => adoptCostConstant(key));
+  }finally{
+    apuSetBusy(false);
+  }
+}
+
 function clearApuracao(){
   apuBusy = false; apuStatus = null; apuVigente = null; apuMinLoaded = null; apuShownRun = null; apuRetryFns = {};
   ['plat-apu-banner', 'apu-banner-precos'].forEach(id => renderReminderBanner(id, null));
@@ -4576,6 +4873,15 @@ function clearApuracao(){
   const d = document.getElementById('apu-dry'); if(d) d.checked = false;
   apuClearError('card'); apuClearError('cost');
   apuSetMigration(false);
+  // card "Custos dos fornecedores"
+  apuConsts = null; apuWeight = null; apuWeightReq = 0;
+  const sl = document.getElementById('apu-sup-list'); if(sl) sl.innerHTML = '<div class="apu-muted">Carregando…</div>';
+  const sw = document.getElementById('apu-sup-weight'); if(sw) sw.innerHTML = '';
+  const sm = document.getElementById('apu-sup-msg'); if(sm){ sm.style.display = 'none'; sm.innerHTML = ''; }
+  const sp = document.getElementById('apu-sup-progress'); if(sp) sp.style.display = 'none';
+  const vb = document.getElementById('btn-verify-sup'); if(vb){ vb.disabled = false; vb.textContent = 'Só verificar fornecedores'; }
+  apuClearError('sup');
+  apuSupMigration(false);
 }
 
 // ── NOTIFICAÇÕES (sino da topbar) ──
