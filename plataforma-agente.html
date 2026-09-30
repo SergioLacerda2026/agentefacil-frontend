@@ -244,7 +244,50 @@ textarea.field{resize:vertical;min-height:80px}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;line-height:1.45;max-width:min(420px,calc(100vw - 48px));opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:9999}
 .toast.show{opacity:1;transform:translateY(0);pointer-events:auto;cursor:pointer}
 
+/* ── APURAÇÃO DO CUSTO POR MENSAGEM (Preços) ── */
+.tag-red{background:var(--red-l);color:#991B1B}
+.tag-gray{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+.apu-btn:disabled{opacity:.55;cursor:not-allowed}
+.apu-banner{align-items:center;gap:8px 12px;flex-wrap:wrap;background:var(--amber-l);border:1px solid #FCD34D;color:#92400E;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;line-height:1.45}
+.apu-banner-text{flex:1;min-width:200px}
+.apu-costbox{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:12px}
+.apu-costbox .apu-actions{margin-top:8px}
+.apu-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.apu-muted{font-size:12px;color:var(--muted);line-height:1.45}
+.apu-row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:2px 12px;padding:4px 0;font-size:12px;color:var(--muted)}
+.apu-row>span{flex:1 1 150px;min-width:0}
+.apu-row>b{font-weight:600;color:var(--ink);text-align:right;flex:0 1 auto;max-width:100%}
+.apu-row>b .apu-muted{font-weight:400}
+.apu-adv{margin-bottom:14px}
+.apu-adv>summary,.apu-det>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink);padding:10px 0}
+.apu-adv-body{padding:4px 0 8px;display:flex;flex-direction:column;gap:12px}
+.apu-check{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--muted);line-height:1.45}
+.apu-check input{margin-top:2px;flex-shrink:0}
+.apu-progress{display:none;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-top:12px;line-height:1.45}
+.apu-spin{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:apuspin .8s linear infinite;flex-shrink:0}
+@keyframes apuspin{to{transform:rotate(360deg)}}
+.apu-run-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:12px}
+.apu-result-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.apu-result-val{font-size:26px;font-weight:700;color:var(--ink);letter-spacing:-.5px;line-height:1.1}
+.apu-result-val span{font-size:12px;font-weight:500;color:var(--muted);letter-spacing:0}
+.apu-fail{background:var(--red-l);color:#991B1B;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.45;margin-bottom:8px}
+.apu-warn{background:var(--amber-l);color:#92400E;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.45;margin:6px 0}
+.apu-det{border-top:1px solid var(--border)}
+.apu-det-body{padding:0 0 14px}
+.apu-block{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.apu-block-title{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.apu-block-title b{font-weight:700}
+.apu-sub{margin:4px 0 8px;padding-left:10px;border-left:2px solid var(--border)}
+.apu-const{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.apu-const-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:4px;font-size:12px;color:var(--ink);font-weight:600}
+.apu-const-top code{font-size:11px;font-weight:600;word-break:break-all}
+.apu-quote{font-size:11px;color:var(--muted);border-left:2px solid var(--border);padding-left:8px;margin:4px 0;line-height:1.5;font-style:italic}
+.apu-list{list-style:none;display:flex;flex-direction:column;gap:6px}
+.apu-list li{font-size:12px;line-height:1.5;color:var(--muted);padding:8px 10px;border:1px solid var(--border);border-radius:8px}
+.apu-list li.warn{background:var(--amber-l);color:#92400E;border-color:#FCD34D}
+
 @media(max-width:900px){
+  .apu-result-val{font-size:22px}
   .grid-4{grid-template-columns:repeat(2,1fr)}
   .kb-layout,.cfg-grid,.overview-layout,.prof-layout{grid-template-columns:1fr}
   .test-layout{grid-template-columns:1fr;height:auto}
@@ -853,6 +896,8 @@ textarea.field{resize:vertical;min-height:80px}
 
     <!-- ══ VISÃO GERAL DA PLATAFORMA (platform admin only) ══ -->
     <div class="view" id="view-plat-visao">
+      <!-- Lembrete da apuração do custo por mensagem (só com apuracao_custo.lembrete === true) -->
+      <div id="plat-apu-banner" class="apu-banner" style="display:none"></div>
       <!-- Período: afeta só clientes, volume e excedente de franquia -->
       <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:12px">
         <label for="plat-overview-period" style="font-size:14px;font-weight:700;color:var(--ink2);white-space:nowrap">Período</label>
@@ -954,6 +999,7 @@ textarea.field{resize:vertical;min-height:80px}
 
     <!-- ══ CONFIGURAÇÃO DE PREÇOS (platform admin only) ══ -->
     <div class="view" id="view-precos">
+      <div id="apu-banner-precos" class="apu-banner" style="display:none;max-width:860px"></div>
       <div class="card" style="max-width:520px">
         <div class="card-head">
           <div>
@@ -999,6 +1045,16 @@ textarea.field{resize:vertical;min-height:80px}
               <div class="field-label">Custo interno por mensagem (R$) <span style="color:var(--light);font-weight:400">— uso interno, cálculo de margem</span></div>
               <input class="field" id="price-message_cost_internal" type="number" step="0.0001" min="0" oninput="validatePricingForm()">
               <div class="field-error" id="err-price-message_cost_internal"></div>
+              <!-- Valor em uso, origem, modo e sugestão da apuração (preenchido por renderApuracaoStatus) -->
+              <div class="apu-costbox" id="apu-costbox" style="display:none">
+                <div id="apu-cost-msg" class="form-alert" style="display:none"></div>
+                <div id="apu-cost-info"></div>
+              </div>
+            </div>
+            <div class="field-group" id="apu-minsample-group" style="display:none">
+              <div class="field-label">Amostra mínima da apuração (linhas) <span style="color:var(--light);font-weight:400">— abaixo disso a apuração só sugere o valor</span></div>
+              <input class="field" id="price-message_cost_min_sample" type="number" step="1" min="0" oninput="validatePricingForm()">
+              <div class="field-error" id="err-price-message_cost_min_sample"></div>
             </div>
             <div class="field-group">
               <div class="field-label">Margem por mensagem excedente (R$) <span style="color:var(--light);font-weight:400">— calculado, somente leitura</span></div>
@@ -1007,6 +1063,40 @@ textarea.field{resize:vertical;min-height:80px}
             <button type="submit" class="btn btn-accent" id="btn-pricing-submit" disabled style="width:100%">Salvar preços</button>
           </div>
         </form>
+      </div>
+
+      <!-- Migração pendente no backend: esconde só o card de apuração; o formulário acima segue funcionando -->
+      <div id="apu-migration" class="apu-banner" style="display:none;max-width:860px;margin-top:16px">
+        <span class="apu-banner-text">⚠️ <b>Migração pendente no backend.</b> A apuração do custo por mensagem ainda não está disponível: aplique a migração <code>migration_message_cost_runs.sql</code> no Supabase e recarregue esta tela.</span>
+      </div>
+
+      <!-- Apuração mensal do custo interno por mensagem -->
+      <div class="card" id="apu-card" style="max-width:860px;margin-top:16px">
+        <div class="card-head">
+          <div>
+            <div class="card-title">🧮 Apuração mensal do custo por mensagem</div>
+            <div class="card-desc">Verifica os preços dos fornecedores e calcula o custo do mês fechado anterior</div>
+          </div>
+        </div>
+        <div style="padding:20px 22px">
+          <div id="apu-error" class="form-alert" style="display:none"></div>
+          <details class="apu-adv">
+            <summary>Opções avançadas</summary>
+            <div class="apu-adv-body">
+              <div>
+                <label class="field-label" for="apu-month" style="display:block">Mês a apurar</label>
+                <input class="field" id="apu-month" type="month" style="width:auto;max-width:100%">
+                <div class="field-hint">Vazio = mês fechado anterior. Só meses já fechados podem ser apurados de verdade.</div>
+              </div>
+              <label class="apu-check"><input type="checkbox" id="apu-dry"><span>Só simular (dry-run): calcula e mostra o resultado, mas nunca aplica.</span></label>
+            </div>
+          </details>
+          <div class="apu-actions">
+            <button type="button" class="btn btn-accent apu-btn" id="btn-apurar" onclick="runApuracao()">Apurar mês</button>
+          </div>
+          <div class="apu-progress" id="apu-progress" role="status"><span class="apu-spin"></span><span>Verificando os fornecedores e calculando o mês… isso pode levar mais de 1 minuto. Não feche esta tela.</span></div>
+          <div id="apu-result" style="margin-top:18px"></div>
+        </div>
       </div>
     </div>
 
@@ -1209,6 +1299,7 @@ function resetTenantState(){
   clearOverviewKpis();
   clearConversations();
   clearPlatformOverview();
+  clearApuracao();
   const apptDesc = document.getElementById('appt-count-desc');
   if(apptDesc) apptDesc.textContent = 'Agendamentos criados pelo agente via conversa';
 
@@ -1835,6 +1926,7 @@ function renderPlatformOverview(data){
   set('plat-rev-real-comp', compLabel);
   renderPlatRevenueCard('plat-rev-prev-body', r.prevista);
   renderPlatRevenueCard('plat-rev-real-body', r.realizada);
+  renderReminderBanner('plat-apu-banner', data.apuracao_custo, 'plat');
 
   // 1ª carga: o campo de mês vem vazio e o backend resolve pro mês corrente —
   // reflete de volta no seletor pra ficar coerente.
@@ -3921,7 +4013,9 @@ async function rejectCommercialClose(id){
 
 // ── CONFIGURAÇÃO DE PREÇOS (platform admin only, GET/PATCH /api/admin/pricing) ──
 const PRICING_FIELDS = ['base_plan_price','base_plan_messages_included','additional_professional_price','additional_professional_messages','overage_message_price','message_cost_internal','setup_fee'];
-const PRICING_INT_FIELDS = ['base_plan_messages_included','additional_professional_messages'];
+const PRICING_INT_FIELDS = ['base_plan_messages_included','additional_professional_messages','message_cost_min_sample'];
+// Só existe (e só é validado/enviado) quando o backend já traz a coluna message_cost_min_sample.
+const PRICING_MIN_SAMPLE = 'message_cost_min_sample';
 
 async function loadPricingConfig(){
   const loadingEl = document.getElementById('pricing-loading');
@@ -3938,9 +4032,18 @@ async function loadPricingConfig(){
       const el = document.getElementById('price-'+f);
       if(el && pricing[f] !== undefined && pricing[f] !== null) el.value = pricing[f];
     });
+    // Valores vigentes no banco: base do "omitir do PATCH se numericamente igual" (ver submitPricingConfig).
+    apuVigente = apuNum(pricing.message_cost_internal);
+    const minEl = document.getElementById('price-'+PRICING_MIN_SAMPLE);
+    const hasMin = apuNum(pricing.message_cost_min_sample) !== null;
+    apuMinLoaded = hasMin ? apuNum(pricing.message_cost_min_sample) : null;
+    if(minEl && hasMin) minEl.value = pricing.message_cost_min_sample;
+    const minGroup = document.getElementById('apu-minsample-group');
+    if(minGroup) minGroup.style.display = hasMin ? 'block' : 'none';
     if(loadingEl) loadingEl.style.display = 'none';
     if(fieldsEl) fieldsEl.style.display = 'block';
     validatePricingForm();
+    loadApuracaoStatus({ sync:true });
   }catch(e){
     console.error('[loadPricingConfig] erro:', e);
     if(loadingEl) loadingEl.textContent = 'Não foi possível carregar os valores atuais.';
@@ -3967,7 +4070,8 @@ function validatePricingField(field){
 }
 
 function validatePricingForm(){
-  const allOk = PRICING_FIELDS.map(f=>validatePricingField(f)).every(Boolean);
+  const fields = apuMinSampleVisible() ? PRICING_FIELDS.concat(PRICING_MIN_SAMPLE) : PRICING_FIELDS;
+  const allOk = fields.map(f=>validatePricingField(f)).every(Boolean);
   const btn = document.getElementById('btn-pricing-submit');
   if(btn) btn.disabled = !allOk;
   updatePricingMargin();
@@ -3998,6 +4102,13 @@ async function submitPricingConfig(e){
     const raw = document.getElementById('price-'+f).value.trim();
     payload[f] = PRICING_INT_FIELDS.includes(f) ? parseInt(raw, 10) : parseFloat(raw);
   });
+  // Digitar um custo DIFERENTE do vigente trava o modo manual no backend; reenviar o mesmo valor não deveria
+  // mexer em nada — então ele só vai no PATCH se mudou (comparação numérica, não de texto).
+  if(apuVigente !== null && payload.message_cost_internal === apuVigente) delete payload.message_cost_internal;
+  if(apuMinSampleVisible()){
+    const minVal = parseInt(document.getElementById('price-'+PRICING_MIN_SAMPLE).value.trim(), 10);
+    if(minVal !== apuMinLoaded) payload[PRICING_MIN_SAMPLE] = minVal;
+  }
   try{
     const res = await apiFetch('/api/admin/pricing', {
       method:'PATCH',
@@ -4011,6 +4122,12 @@ async function submitPricingConfig(e){
     }
     setFormAlert('pricing-alert', '✓ Preços atualizados com sucesso.', 'success');
     showToast('✓ Preços da plataforma atualizados');
+    const saved = data.pricing || {};
+    if(apuNum(saved.message_cost_internal) !== null) apuVigente = apuNum(saved.message_cost_internal);
+    else if(payload.message_cost_internal !== undefined) apuVigente = payload.message_cost_internal;
+    if(apuNum(saved.message_cost_min_sample) !== null) apuMinLoaded = apuNum(saved.message_cost_min_sample);
+    else if(payload[PRICING_MIN_SAMPLE] !== undefined) apuMinLoaded = payload[PRICING_MIN_SAMPLE];
+    loadApuracaoStatus(); // o modo pode ter virado manual
   }catch(err){
     console.error('[submitPricingConfig] erro:', err);
     setFormAlert('pricing-alert', 'Não foi possível conectar ao backend.', 'error');
@@ -4018,6 +4135,447 @@ async function submitPricingConfig(e){
     btn.textContent = 'Salvar preços';
     validatePricingForm();
   }
+}
+
+// ── APURAÇÃO DO CUSTO INTERNO POR MENSAGEM (platform admin only) ──
+// Rotas: GET /api/admin/message-cost/status, POST .../apurar, GET .../runs/:id,
+// POST .../runs/:id/apply e POST .../mode/automatic. Tudo dispara por botão (sem cron).
+// Estado de UI (não persiste): zerado no resetTenantState → clearApuracao().
+// renderApuracaoRun(run) é reutilizável (histórico de apurações, próxima etapa).
+let apuBusy = false;        // trava anti-duplo-clique: uma ação de apuração por vez
+let apuStatus = null;       // última resposta de /status
+let apuVigente = null;      // message_cost_internal vigente no banco (número)
+let apuMinLoaded = null;    // message_cost_min_sample vigente no banco (número)
+let apuShownRun = null;     // registro exibido no card de resultado
+let apuRetryFns = {};       // { card|cost: fn } — ação do botão "Tentar de novo"
+
+const APU_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const APU_RUN_STATUS = {
+  concluida: ['tag-green', 'Concluída'],
+  concluida_com_pendencias: ['tag-amber', 'Concluída com pendências'],
+  falhou: ['tag-red', 'Falhou'],
+};
+const APU_CONST_STATUS = {
+  confirmada: ['tag-green', 'Confirmada'],
+  divergente: ['tag-amber', 'DIVERGENTE'],
+  nao_confirmada: ['tag-red', 'NÃO CONFIRMADA'],
+};
+const APU_TOKEN_CAT = { input: 'entrada', output: 'saída', cache_write_5m: 'escrita de cache (5 min)', cache_write_1h: 'escrita de cache (1 h)', cache_read: 'leitura de cache' };
+
+const apuEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const apuNum = v => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v))) ? null : Number(v);
+const apuFmt = (v, min, max) => { const n = apuNum(v); return n === null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits:min, maximumFractionDigits:max }); };
+const apuBRL = v => apuNum(v) === null ? '—' : 'R$ ' + apuFmt(v, 4, 6);
+const apuUSD = v => apuNum(v) === null ? '—' : 'US$ ' + apuFmt(v, 4, 8);
+const apuInt = v => apuFmt(v, 0, 0);
+const apuPlain = v => apuFmt(v, 0, 10);
+// 'AAAA-MM' ou 'AAAA-MM-DD' → 'MM/AAAA'
+function apuMonth(v){ const m = /^(\d{4})-(\d{2})/.exec(String(v || '')); return m ? `${m[2]}/${m[1]}` : '—'; }
+// 'AAAA-MM-DD' → 'DD/MM/AAAA' (sem passar por Date: evita deslocar o dia pelo fuso)
+function apuDate(v){ const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : '—'; }
+function apuDateTime(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  return isNaN(d) ? '—' : d.toLocaleString('pt-BR', { timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function apuTag(map, key){ const t = map[key] || ['tag-gray', key || '—']; return `<span class="tag ${t[0]}">${apuEsc(t[1])}</span>`; }
+// Só http(s) vira link; qualquer outra coisa (texto de fonte) sai como texto.
+function apuSourceHtml(src){
+  const t = String(src || '').trim();
+  if(!t) return '—';
+  return /^https?:\/\//i.test(t) ? `<a href="${apuEsc(t)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">${apuEsc(t)}</a>` : apuEsc(t);
+}
+const apuRow = (label, valueHtml) => `<div class="apu-row"><span>${apuEsc(label)}</span><b>${valueHtml}</b></div>`;
+// "medido (…)" / "constante (…)" → selo + detalhe. É como a origem de cada número aparece na tela.
+function apuSrcTag(text){
+  const t = String(text || '');
+  const kind = /^medido/i.test(t) ? ['tag-green', 'medido'] : /^constante/i.test(t) ? ['tag-amber', 'constante'] : ['tag-gray', 'origem'];
+  const rest = t.replace(/^(medido|constante)\s*/i, '');
+  return `<span class="tag ${kind[0]}">${kind[1]}</span> <span class="apu-muted">${apuEsc(rest)}</span>`;
+}
+const apuSection = (title, body, open) => body ? `<details class="apu-det"${open ? ' open' : ''}><summary>${title}</summary><div class="apu-det-body">${body}</div></details>` : '';
+
+function apuComponentsHtml(c){
+  if(!c || typeof c !== 'object') return '';
+  const ia = c.ia || {}, tw = c.twilio || {}, me = c.meta || {};
+  const block = (title, usd, brl, inner) => `<div class="apu-block"><div class="apu-block-title"><span>${title}</span><b>${apuUSD(usd)} = ${apuBRL(brl)}</b></div>${inner}</div>`;
+
+  let iaHtml = apuRow('Tokens', apuSrcTag(ia.sources && ia.sources.tokens)) + apuRow('Preço por milhão de tokens', apuSrcTag(ia.sources && ia.sources.price));
+  (ia.by_model || []).forEach(m => {
+    iaHtml += `<div class="apu-sub">${apuRow(`${m.model} · ${apuInt(m.calls)} chamada(s)`, apuUSD(m.usd))}` +
+      Object.entries(m.by_category || {}).map(([cat, v]) =>
+        `<div class="apu-muted">${apuEsc(APU_TOKEN_CAT[cat] || cat)}: ${apuInt(v.tokens)} tokens × ${apuUSD(v.price_usd_per_mtok)}/Mtok = ${apuUSD(v.usd)}</div>`).join('') + `</div>`;
+  });
+
+  let twHtml = apuRow('Mensagens (linhas de WhatsApp)', `${apuInt(c.lines)} ${apuSrcTag(tw.sources && tw.sources.lines)}`) +
+    apuRow('Tarifa por mensagem', `${apuUSD(tw.per_message_usd)} ${apuSrcTag(tw.sources && tw.sources.price)}`);
+  if(tw.note) twHtml += `<div class="apu-warn">${apuEsc(tw.note)}</div>`;
+
+  let meHtml = apuRow('Cobrança ativa no período', me.active ? 'sim' : 'não') +
+    apuRow('Tarifa vigente desde', apuDateTime(me.cutoff)) +
+    apuRow('Tarifa de serviço por mensagem', `${apuUSD(me.rate_usd)} ${apuSrcTag(me.sources && me.sources.price_and_franchise)}`) +
+    apuRow('Franquia grátis por número/mês', apuInt(me.franchise_per_number)) +
+    apuRow('Mensagens enviadas pelo agente', `${apuInt(me.sent_total)} ${apuSrcTag(me.sources && me.sources.messages_sent)}`) +
+    apuRow('Mensagens cobráveis (acima da franquia)', apuInt(me.billable_total));
+  if(me.premise) meHtml += `<div class="apu-muted">Premissa: ${apuEsc(me.premise)}.</div>`;
+  if(me.note) meHtml += `<div class="apu-warn">${apuEsc(me.note)}</div>`;
+  (me.uncertain || []).forEach(u => { meHtml += `<div class="apu-warn">${apuEsc(u)}</div>`; });
+  const perClient = me.per_client || [];
+  if(perClient.length){
+    meHtml += `<div class="apu-muted" style="margin-top:6px">Por cliente:</div><div class="apu-sub">` +
+      perClient.map(r => apuRow(`cliente ${String(r.client_id || '').slice(0, 8)}`, `${apuInt(r.sent)} enviadas · ${apuInt(r.billable)} cobráveis · ${apuUSD(r.usd)}`)).join('') + `</div>`;
+  }
+
+  const p = c.ptax || {};
+  const totalHtml = apuRow('Câmbio (PTAX de venda)', `${apuFmt(p.rate, 4, 6)} · cotação de ${apuDate(p.quote_date)}`) +
+    apuRow('Linhas do cálculo', apuInt(c.lines)) +
+    apuRow('Resultado = total em R$ ÷ linhas', apuBRL(c.result_brl_per_line));
+
+  return block('IA (Anthropic)', ia.usd, ia.brl, iaHtml) +
+    block('Twilio', tw.usd, tw.brl, twHtml) +
+    block('Meta (WhatsApp)', me.usd, me.brl, meHtml) +
+    block('Total', c.total_usd, c.total_brl, totalHtml);
+}
+
+function apuInputsHtml(i){
+  if(!i || typeof i !== 'object') return '';
+  const w = i.window || {}, p = i.ptax || {};
+  const total = apuNum(i.lines_total_in_month), cov = apuNum(i.lines_covered);
+  const pct = total && cov !== null ? ` (${apuFmt(cov / total * 100, 0, 1)}% do mês)` : '';
+  let h = apuRow('Mês', apuMonth(i.month)) +
+    apuRow('Período do mês', `${apuDateTime(w.from)} até ${apuDateTime(w.to)}`) +
+    apuRow('Canais', apuEsc((i.channels || []).join(', ') || '—')) +
+    apuRow('Cobertura: 1º registro de tokens em', apuDateTime(i.coverage_start)) +
+    apuRow('Linhas de WhatsApp no mês', apuInt(i.lines_total_in_month)) +
+    apuRow('Linhas cobertas pelo cálculo', `${apuInt(i.lines_covered)}${pct}`) +
+    apuRow('Linhas que ficaram de fora', apuInt(i.lines_outside_coverage));
+  if(apuNum(i.lines_outside_coverage) > 0) h += `<div class="apu-warn">${apuInt(i.lines_outside_coverage)} linha(s) são anteriores ao 1º registro de tokens e não entram no cálculo.</div>`;
+  h += apuRow('PTAX de venda', apuFmt(p.rate, 4, 6)) +
+    apuRow('Data da cotação', apuDate(p.quote_date)) +
+    apuRow('Data pedida', apuDate(p.requested_date));
+  if(apuNum(p.days_back) > 0) h += `<div class="apu-muted">A cotação recuou ${apuInt(p.days_back)} dia(s) (dia sem cotação).</div>`;
+  if(typeof p.source === 'string' && p.source) h += apuRow('Fonte da PTAX', apuSourceHtml(p.source));
+  h += apuRow('Tarifa da Meta vigente desde', apuDateTime(i.meta_cutoff));
+  if(i.client_as_number_premise) h += `<div class="apu-muted">Premissa: cada cliente é tratado como um número de WhatsApp Business.</div>`;
+
+  const tok = i.tokens_by_model || [];
+  h += `<div class="apu-block-title" style="margin-top:12px">Tokens por modelo</div>`;
+  h += tok.length ? tok.map(t => `<div class="apu-sub">${apuRow(`${t.model || '—'} · ${apuInt(t.calls)} chamada(s)`, '')}` +
+    [['input_tokens', 'entrada'], ['output_tokens', 'saída'], ['cache_write_5m', 'escrita de cache (5 min)'], ['cache_write_1h', 'escrita de cache (1 h)'], ['cache_read', 'leitura de cache']]
+      .map(([k, l]) => `<div class="apu-muted">${l}: ${apuInt(t[k])} tokens</div>`).join('') + `</div>`).join('')
+    : `<div class="apu-muted">Sem registros.</div>`;
+
+  const sent = i.sent_by_client || [];
+  h += `<div class="apu-block-title" style="margin-top:12px">Mensagens enviadas por cliente</div>`;
+  h += sent.length ? `<div class="apu-sub">` + sent.map(r => apuRow(`cliente ${String(r.client_id || '').slice(0, 8)}`, apuInt(r.sent))).join('') + `</div>`
+    : `<div class="apu-muted">Sem registros.</div>`;
+  return h;
+}
+
+function apuConstantsHtml(list, verification){
+  const items = Array.isArray(list) ? list : [];
+  if(!items.length) return '';
+  let h = '';
+  if(verification && verification.verified_at) h += `<div class="apu-muted" style="margin-bottom:8px">Verificação dos fornecedores em ${apuDateTime(verification.verified_at)}.</div>`;
+  h += items.map(c => {
+    const notOk = c.status !== 'confirmada';
+    return `<div class="apu-const"><div class="apu-const-top"><code>${apuEsc(c.key)}</code>${apuTag(APU_CONST_STATUS, c.status)}` +
+      (c.used === false ? '<span class="tag tag-gray">não entra no cálculo</span>' : '') + `</div>` +
+      apuRow('Valor gravado', `${apuPlain(c.value)} ${apuEsc(c.unit || '')}`) +
+      (c.used_for ? apuRow('Usada em', apuEsc(c.used_for)) : '') +
+      (apuNum(c.value_found) !== null ? apuRow('Valor encontrado na fonte', apuPlain(c.value_found)) : '') +
+      (c.failure_reason ? apuRow('Motivo', apuEsc(c.failure_reason)) : '') +
+      apuRow('Fonte', apuSourceHtml(c.source_url)) +
+      (c.source_excerpt ? `<div class="apu-quote">${apuEsc(c.source_excerpt)}</div>` : '') +
+      apuRow('Verificada em', apuDateTime(c.checked_at)) +
+      (c.effective_from ? apuRow('Vigência desde', apuDate(c.effective_from)) : '') +
+      (notOk && c.used !== false ? `<div class="apu-warn">${c.status === 'nao_confirmada' ? 'NÃO CONFIRMADA' : 'DIVERGENTE'}: esta constante entrou no cálculo sem confirmação.</div>` : '') +
+      `</div>`;
+  }).join('');
+  return h;
+}
+
+function apuLimitationsHtml(list){
+  const items = Array.isArray(list) ? list : [];
+  if(!items.length) return '';
+  return `<ul class="apu-list">` + items.map(l => {
+    const text = typeof l === 'string' ? l : (l && l.text) || '';
+    return `<li${/N[ÃA]O CONFIRMAD/i.test(text) ? ' class="warn"' : ''}>${apuEsc(text)}</li>`;
+  }).join('') + `</ul>`;
+}
+
+// Registro completo de uma apuração (POST /apurar, GET /runs/:id) → HTML. Reutilizável.
+function renderApuracaoRun(run){
+  run = run || {};
+  const failed = run.status === 'falhou';
+  const canApply = !failed && !run.applied && apuNum(run.result_brl) !== null && !run.dry_run && !run.include_test && APU_UUID.test(String(run.id || ''));
+  let h = `<div class="apu-run-head">${apuTag(APU_RUN_STATUS, run.status)}` +
+    (run.dry_run ? '<span class="tag tag-gray">Simulação (dry-run)</span>' : '') +
+    (run.include_test ? '<span class="tag tag-gray">Teste</span>' : '') +
+    `<span class="apu-muted">Apuração de ${apuMonth(run.month)} · ${apuDateTime(run.finished_at)}</span></div>`;
+  if(failed){
+    h += `<div class="apu-fail"><b>A apuração falhou.</b> ${apuEsc(run.failure_reason || 'Sem motivo informado.')}</div>`;
+    if(run.applied_reason) h += `<div class="apu-muted">${apuEsc(run.applied_reason)}</div>`;
+  }else{
+    h += `<div class="apu-result-box"><div class="apu-result-val">${apuBRL(run.result_brl)} <span>por mensagem</span></div>` +
+      `<div>${run.applied ? '<span class="tag tag-green">Aplicada</span>' : '<span class="tag tag-amber">Sugestão — não aplicada</span>'}</div>` +
+      (run.applied_reason ? `<div class="apu-muted">${apuEsc(run.applied_reason)}</div>` : '') +
+      (apuNum(run.previous_value) !== null ? `<div class="apu-muted">Valor em uso antes da apuração: ${apuBRL(run.previous_value)}</div>` : '') +
+      (run.applied && run.applied_at ? `<div class="apu-muted">Aplicada em ${apuDateTime(run.applied_at)}</div>` : '') +
+      (canApply ? `<button type="button" class="btn btn-accent btn-sm apu-btn" onclick="applyApuracaoRun('${apuEsc(run.id)}','card')">Aplicar esta sugestão</button>` : '') +
+      `</div>`;
+  }
+  h += apuSection('Componentes do custo (IA, Twilio, Meta)', apuComponentsHtml(run.components), true) +
+    apuSection('Entradas da apuração', apuInputsHtml(run.inputs), false) +
+    apuSection('Constantes usadas', apuConstantsHtml(run.constants_used, run.verification), false) +
+    apuSection('Limitações e incertezas', apuLimitationsHtml(run.limitations), true);
+  return h;
+}
+
+function apuRenderResult(run){
+  apuShownRun = run;
+  const el = document.getElementById('apu-result');
+  if(el) el.innerHTML = renderApuracaoRun(run);
+}
+
+// ── Faixa de lembrete (Preços e Visão Geral da plataforma) ──
+// Só com lembrete === true; com lembrete false ou { indisponivel } não mostra nada.
+function renderReminderBanner(id, r, ctx){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(!r || r.indisponivel || r.lembrete !== true){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  const mes = apuMonth(typeof r.mes_pendente === 'string' && r.mes_pendente ? r.mes_pendente : r.mes_fechado);
+  const btn = ctx === 'plat'
+    ? `<button type="button" class="btn btn-accent btn-sm" onclick="setTab('precos')">Ir para Preços</button>`
+    : `<button type="button" class="btn btn-accent btn-sm" onclick="apuScrollToCard()">Ir para “Apurar mês”</button>`;
+  el.innerHTML = `<span class="apu-banner-text">⚠️ <b>O custo por mensagem de ${mes} ainda não foi apurado.</b>` +
+    (r.desde ? ` Lembrete ativo desde ${apuDate(r.desde)}.` : '') + (r.motivo ? ` ${apuEsc(r.motivo)}` : '') + `</span>${btn}`;
+  el.style.display = 'flex';
+}
+
+function apuScrollToCard(){
+  const c = document.getElementById('apu-card');
+  if(c) c.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ── Erros / migração / trava ──
+const apuErrEl = target => document.getElementById(target === 'cost' ? 'apu-cost-msg' : 'apu-error');
+function apuClearError(target){
+  const el = apuErrEl(target);
+  if(el){ el.style.display = 'none'; el.innerHTML = ''; el.className = 'form-alert'; }
+  delete apuRetryFns[target];
+}
+function apuShowError(target, msg, retry){
+  const el = apuErrEl(target);
+  if(!el) return;
+  if(target === 'cost'){ const box = document.getElementById('apu-costbox'); if(box) box.style.display = 'block'; }
+  el.className = 'form-alert error';
+  el.innerHTML = apuEsc(msg) + (retry ? ` <button type="button" class="btn btn-ghost btn-sm apu-btn" style="margin-left:6px" onclick="apuRetry('${target}')">Tentar de novo</button>` : '');
+  el.style.display = 'block';
+  if(retry) apuRetryFns[target] = retry; else delete apuRetryFns[target];
+}
+function apuRetry(target){
+  const fn = apuRetryFns[target];
+  apuClearError(target);
+  if(fn) fn();
+}
+function apuSetBusy(on){
+  apuBusy = on;
+  document.querySelectorAll('.apu-btn').forEach(b => { b.disabled = on; });
+}
+function apuSetMigration(on){
+  const n = document.getElementById('apu-migration'), c = document.getElementById('apu-card'), b = document.getElementById('apu-costbox');
+  if(n) n.style.display = on ? 'flex' : 'none';
+  if(c) c.style.display = on ? 'none' : 'block';
+  if(on){
+    if(b) b.style.display = 'none';
+    renderReminderBanner('apu-banner-precos', null);
+  }
+}
+// 503 migracao_pendente → aviso amarelo; 409 → mensagem + recarrega o status; demais → alerta.
+function apuHandleError(res, data, target, retry){
+  if(res.status === 401) return;
+  if(res.status === 503 && data && data.code === 'migracao_pendente'){ apuSetMigration(true); return; }
+  if(res.status === 409){
+    apuShowError(target, `${(data && data.error) || 'A apuração mudou.'} O status foi recarregado.`);
+    loadApuracaoStatus({ sync:true, keepMsg:true });
+    return;
+  }
+  apuShowError(target, (data && data.error) || `Erro ${res.status}`, res.status >= 500 ? retry : null);
+}
+
+// ── Status: valor em uso, origem, modo, sugestão e lembrete ──
+async function loadApuracaoStatus({ sync = false, keepMsg = false } = {}){
+  if(!isPlatformAdmin) return;
+  apuSetMigration(false);
+  if(!keepMsg){ apuClearError('card'); apuClearError('cost'); }
+  try{
+    const res = await apiFetch('/api/admin/message-cost/status');
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ apuHandleError(res, data, 'card', () => loadApuracaoStatus({ sync })); return; }
+    renderApuracaoStatus(data, sync);
+  }catch(e){
+    console.error('[loadApuracaoStatus] erro:', e);
+    apuShowError('card', 'Não foi possível conectar ao backend.', () => loadApuracaoStatus({ sync }));
+  }
+}
+
+function apuMinSampleVisible(){
+  const g = document.getElementById('apu-minsample-group');
+  return !!g && g.style.display !== 'none';
+}
+
+function renderApuracaoStatus(st, sync){
+  apuStatus = st = st || {};
+  const inUse = st.in_use || {};
+  renderReminderBanner('apu-banner-precos', st.reminder, 'precos');
+  if(apuNum(inUse.message_cost_internal) !== null) apuVigente = apuNum(inUse.message_cost_internal);
+  if(apuNum(inUse.min_sample) !== null && apuMinSampleVisible()) apuMinLoaded = apuNum(inUse.min_sample);
+  if(sync){
+    // Aplicar/voltar ao automático/recarregar mudou o valor no servidor: reflete no formulário.
+    const costEl = document.getElementById('price-message_cost_internal');
+    if(costEl && apuNum(inUse.message_cost_internal) !== null) costEl.value = inUse.message_cost_internal;
+    const minEl = document.getElementById('price-' + PRICING_MIN_SAMPLE);
+    if(minEl && apuMinSampleVisible() && apuNum(inUse.min_sample) !== null) minEl.value = inUse.min_sample;
+    validatePricingForm();
+  }
+
+  const manual = inUse.mode === 'manual';
+  const src = inUse.source;
+  let origem = { manual:'Manual', apuracao:'Apuração', inicial:'Inicial' }[src] || (src || '—');
+  const la = inUse.last_applied_run;
+  if(src === 'apuracao' && la) origem += ` (${apuMonth(la.month)}, aplicada em ${apuDateTime(la.applied_at)})`;
+  let h = apuRow('Em uso agora', apuBRL(inUse.message_cost_internal)) +
+    apuRow('Origem do valor', `<span class="tag ${src === 'manual' ? 'tag-amber' : 'tag-accent'}">${apuEsc(origem)}</span>`) +
+    apuRow('Modo', manual ? '<span class="tag tag-amber">Manual (valor travado)</span>' : '<span class="tag tag-green">Automático</span>');
+  h += manual
+    ? `<div class="apu-muted">No modo manual a apuração só sugere um valor; ela não aplica sozinha.</div>` +
+      `<div class="apu-actions"><button type="button" class="btn btn-ghost btn-sm apu-btn" onclick="switchToAutomaticMode()">Voltar ao automático</button></div>`
+    : `<div class="apu-muted">No modo automático a apuração aplica o resultado quando a amostra e as constantes permitem.</div>`;
+
+  const lr = st.last_concluded_run;
+  if(lr && lr.applied === false && apuNum(lr.result_brl) !== null && APU_UUID.test(String(lr.id || ''))){
+    h += `<div class="apu-warn" style="margin-top:10px"><b>Sugestão da apuração de ${apuMonth(lr.month)}: ${apuBRL(lr.result_brl)}</b> — não aplicada.` +
+      (lr.applied_reason ? `<br>${apuEsc(lr.applied_reason)}` : '') +
+      `<div class="apu-actions" style="margin-top:8px"><button type="button" class="btn btn-accent btn-sm apu-btn" onclick="applyApuracaoRun('${apuEsc(lr.id)}','cost')">Aplicar sugestão</button>` +
+      `<button type="button" class="btn btn-ghost btn-sm apu-btn" onclick="openApuracaoRun('${apuEsc(lr.id)}')">Ver detalhamento</button></div></div>`;
+  }
+  document.getElementById('apu-cost-info').innerHTML = h;
+  document.getElementById('apu-costbox').style.display = 'block';
+}
+
+// ── Ações ──
+async function runApuracao(){
+  if(apuBusy) return;
+  const body = {};
+  const month = (document.getElementById('apu-month').value || '').trim();
+  if(month) body.month = month;
+  if(document.getElementById('apu-dry').checked) body.dry_run = true;
+  const btn = document.getElementById('btn-apurar'), prog = document.getElementById('apu-progress');
+  apuClearError('card');
+  apuSetBusy(true);
+  btn.textContent = 'Apurando…';
+  prog.style.display = 'flex';
+  const result = document.getElementById('apu-result');
+  if(result) result.innerHTML = '';
+  apuShownRun = null;
+  try{
+    const res = await apiFetch('/api/admin/message-cost/apurar', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ apuHandleError(res, data, 'card', runApuracao); return; }
+    if(!data.run){ apuShowError('card', 'Resposta inesperada do backend.', runApuracao); return; }
+    apuRenderResult(data.run);
+    showToast(data.run.status === 'falhou' ? '⚠ A apuração falhou — veja o motivo abaixo'
+      : data.run.applied ? '✓ Apuração concluída e aplicada' : '✓ Apuração concluída — resultado como sugestão');
+    loadApuracaoStatus({ sync: !!data.run.applied, keepMsg:true });
+  }catch(e){
+    console.error('[runApuracao] erro:', e);
+    apuShowError('card', 'Não foi possível conectar ao backend.', runApuracao);
+  }finally{
+    apuSetBusy(false);
+    btn.textContent = 'Apurar mês';
+    prog.style.display = 'none';
+  }
+}
+
+async function applyApuracaoRun(id, target){
+  if(apuBusy || !APU_UUID.test(String(id || ''))) return;
+  target = target === 'card' ? 'card' : 'cost';
+  const run = (apuShownRun && apuShownRun.id === id) ? apuShownRun : (apuStatus && apuStatus.last_concluded_run && apuStatus.last_concluded_run.id === id ? apuStatus.last_concluded_run : null);
+  const cur = apuStatus && apuStatus.in_use ? apuBRL(apuStatus.in_use.message_cost_internal) : '—';
+  if(!confirm(`Aplicar ${run && apuNum(run.result_brl) !== null ? apuBRL(Math.round(run.result_brl * 1e4) / 1e4) : 'o valor sugerido'} como custo interno por mensagem?\n\nValor em uso agora: ${cur}. O valor é gravado com 4 casas decimais. Isso altera a margem exibida nesta tela.`)) return;
+  apuClearError(target);
+  apuSetBusy(true);
+  try{
+    const res = await apiFetch(`/api/admin/message-cost/runs/${encodeURIComponent(id)}/apply`, { method:'POST' });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ apuHandleError(res, data, target, () => applyApuracaoRun(id, target)); return; }
+    if(data.run && apuShownRun && apuShownRun.id === data.run.id) apuRenderResult(data.run);
+    showToast('✓ Sugestão aplicada como custo interno por mensagem');
+    loadApuracaoStatus({ sync:true, keepMsg:true });
+  }catch(e){
+    console.error('[applyApuracaoRun] erro:', e);
+    apuShowError(target, 'Não foi possível conectar ao backend.', () => applyApuracaoRun(id, target));
+  }finally{
+    apuSetBusy(false);
+  }
+}
+
+async function switchToAutomaticMode(){
+  if(apuBusy) return;
+  if(!confirm('Voltar ao modo automático?\n\nO valor deixa de ficar travado e as próximas apurações poderão aplicar o resultado sozinhas. Nada é alterado agora.')) return;
+  apuClearError('cost');
+  apuSetBusy(true);
+  try{
+    const res = await apiFetch('/api/admin/message-cost/mode/automatic', { method:'POST' });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ apuHandleError(res, data, 'cost', switchToAutomaticMode); return; }
+    showToast('✓ Modo automático reativado');
+    loadApuracaoStatus({ sync:true, keepMsg:true });
+  }catch(e){
+    console.error('[switchToAutomaticMode] erro:', e);
+    apuShowError('cost', 'Não foi possível conectar ao backend.', switchToAutomaticMode);
+  }finally{
+    apuSetBusy(false);
+  }
+}
+
+// Abre no card de resultado o registro completo de uma apuração (GET /runs/:id).
+async function openApuracaoRun(id){
+  if(apuBusy || !APU_UUID.test(String(id || ''))) return;
+  apuClearError('cost');
+  apuSetBusy(true);
+  try{
+    const res = await apiFetch(`/api/admin/message-cost/runs/${encodeURIComponent(id)}`);
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ apuHandleError(res, data, 'cost', () => openApuracaoRun(id)); return; }
+    apuRenderResult(data.run);
+    const el = document.getElementById('apu-result');
+    if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+  }catch(e){
+    console.error('[openApuracaoRun] erro:', e);
+    apuShowError('cost', 'Não foi possível conectar ao backend.', () => openApuracaoRun(id));
+  }finally{
+    apuSetBusy(false);
+  }
+}
+
+function clearApuracao(){
+  apuBusy = false; apuStatus = null; apuVigente = null; apuMinLoaded = null; apuShownRun = null; apuRetryFns = {};
+  ['plat-apu-banner', 'apu-banner-precos'].forEach(id => renderReminderBanner(id, null));
+  const r = document.getElementById('apu-result'); if(r) r.innerHTML = '';
+  const i = document.getElementById('apu-cost-info'); if(i) i.innerHTML = '';
+  const b = document.getElementById('apu-costbox'); if(b) b.style.display = 'none';
+  const p = document.getElementById('apu-progress'); if(p) p.style.display = 'none';
+  const btn = document.getElementById('btn-apurar'); if(btn){ btn.disabled = false; btn.textContent = 'Apurar mês'; }
+  const m = document.getElementById('apu-month'); if(m) m.value = '';
+  const d = document.getElementById('apu-dry'); if(d) d.checked = false;
+  apuClearError('card'); apuClearError('cost');
+  apuSetMigration(false);
 }
 
 // ── NOTIFICAÇÕES (sino da topbar) ──
