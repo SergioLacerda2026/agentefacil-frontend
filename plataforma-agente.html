@@ -289,6 +289,33 @@ textarea.field{resize:vertical;min-height:80px}
 .apu-const.bad-red{background:var(--red-l);border-color:#FCA5A5}
 .apu-need-attn{color:#92400E;font-weight:600}
 
+/* ── WHATSAPP (conexão do número do cliente) ── */
+.wa-badge{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;white-space:nowrap}
+.wa-b-ok{background:var(--green-l);color:#065F46}
+.wa-b-warn{background:var(--amber-l);color:#92400E}
+.wa-b-bad{background:var(--red-l);color:#991B1B}
+.wa-b-off{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+.wa-status-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-bottom:8px}
+.wa-status-text{font-size:13px;color:var(--ink2);line-height:1.5}
+.wa-note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:8px}
+.wa-kv{display:flex;justify-content:space-between;gap:12px;font-size:13px;line-height:1.5;padding:3px 0}
+.wa-kv span:first-child{color:var(--muted);flex-shrink:0}
+.wa-kv span:last-child{color:var(--ink);text-align:right;overflow-wrap:anywhere}
+.wa-check{display:flex;align-items:flex-start;gap:10px;padding:10px 0;font-size:13px;line-height:1.5;cursor:pointer}
+.wa-check input{margin-top:2px;width:18px;height:18px;flex-shrink:0}
+.wa-phone-row{display:flex;align-items:stretch;gap:8px}
+.wa-prefix{display:flex;align-items:center;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--muted);font-size:13px;font-weight:600}
+.wa-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.wa-actions .btn,.wa-btn-tall{min-height:44px}
+.wa-details summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--accent);padding:8px 0}
+.wa-details p{font-size:12px;color:var(--muted);line-height:1.55;margin:4px 0 8px}
+.wa-sim-banner{font-weight:600}
+label.field-label{display:block}
+.form-alert.info{background:var(--amber-l);color:#92400E}
+.wa-adm-box{border-top:1px solid var(--border);padding-top:16px}
+.wa-adm-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.wa-adm-reply{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.5;white-space:pre-wrap;margin-top:8px}
+
 @media(max-width:900px){
   .apu-result-val{font-size:22px}
   .grid-4{grid-template-columns:repeat(2,1fr)}
@@ -315,6 +342,7 @@ textarea.field{resize:vertical;min-height:80px}
 }
 @media(max-width:480px){
   .grid-4{grid-template-columns:1fr}
+  .wa-actions .btn{flex:1 1 100%}
 }
 
 /* Mascote do agente — mesma imagem embutida (data URI) reaproveitada via classe,
@@ -388,6 +416,7 @@ textarea.field{resize:vertical;min-height:80px}
     <div class="nav-item" data-view="conhecimento" onclick="setTab('conhecimento',this)"><span class="nav-ic">🧠</span><span>Base de Conhecimento</span></div>
     <div class="nav-item" data-view="profissionais" onclick="setTab('profissionais',this)"><span class="nav-ic">👥</span><span>Profissionais</span></div>
     <div class="nav-item" data-view="config" onclick="setTab('config',this)"><span class="nav-ic">⚙️</span><span>Configurações</span></div>
+    <div class="nav-item" data-view="whatsapp" onclick="setTab('whatsapp',this)"><span class="nav-ic">📱</span><span>WhatsApp</span></div>
     <div class="nav-item" data-view="fiscal" onclick="setTab('fiscal',this)"><span class="nav-ic">🧾</span><span>Dados fiscais</span></div>
     <div class="nav-item" data-view="testar" onclick="setTab('testar',this)"><span class="nav-ic">🧪</span><span>Testar Agente</span><span class="nav-badge green">NOVO</span></div>
     <div class="nav-item" data-view="agendamentos" onclick="setTab('agendamentos',this)"><span class="nav-ic">📅</span><span>Agendamentos</span></div>
@@ -441,6 +470,7 @@ textarea.field{resize:vertical;min-height:80px}
       <button class="tab" data-view="conhecimento" onclick="setTab('conhecimento',null,this)">🧠 Base de Conhecimento</button>
       <button class="tab" data-view="profissionais" onclick="setTab('profissionais',null,this)">👥 Profissionais</button>
       <button class="tab" data-view="config" onclick="setTab('config',null,this)">⚙️ Configurações</button>
+      <button class="tab" data-view="whatsapp" onclick="setTab('whatsapp',null,this)">📱 WhatsApp</button>
       <button class="tab" data-view="fiscal" onclick="setTab('fiscal',null,this)">🧾 Dados fiscais</button>
       <button class="tab" data-view="testar" onclick="setTab('testar',null,this)">🧪 Testar Agente</button>
       <button class="tab" data-view="agendamentos" onclick="setTab('agendamentos',null,this)">📅 Agendamentos</button>
@@ -452,6 +482,8 @@ textarea.field{resize:vertical;min-height:80px}
 
     <!-- ══ VISÃO GERAL ══ -->
     <div class="view active" id="view-visao">
+      <!-- Aviso de recarga do chip (só Administrador, só com connection.recharge.due === true) -->
+      <div id="wa-visao-banner" class="apu-banner" style="display:none"></div>
       <div class="admin-only" style="margin-bottom:24px">
         <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:12px">
           <label for="overview-period" style="font-size:14px;font-weight:700;color:var(--ink2);white-space:nowrap">Período</label>
@@ -836,6 +868,81 @@ textarea.field{resize:vertical;min-height:80px}
       </div>
     </div>
 
+    <!-- ══ WHATSAPP (admin do próprio cliente — conexão do número do agente) ══ -->
+    <div class="view" id="view-whatsapp">
+      <div id="wa-sim-banner" class="apu-banner wa-sim-banner" role="status" style="display:none">🧪 MODO DE SIMULAÇÃO: nenhuma conexão real com a Meta ou com o WhatsApp está sendo feita. Os dados abaixo são de teste.</div>
+      <div id="wa-recharge-banner" class="apu-banner" style="display:none"></div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head">
+          <div>
+            <div class="card-title">📱 WhatsApp do seu agente</div>
+            <div class="card-desc">O número em que seus clientes falam com o agente</div>
+          </div>
+        </div>
+        <div style="padding:16px 22px" id="wa-status-body" aria-live="polite"></div>
+      </div>
+
+      <!-- Passo a passo: só aparece enquanto não há conexão -->
+      <div id="wa-setup" style="display:none">
+        <div class="card" style="margin-bottom:16px">
+          <div class="cfg-section">
+            <div class="cfg-title">1 · Antes de começar</div>
+            <label class="wa-check" for="wa-chk-1"><input type="checkbox" id="wa-chk-1" onchange="waValidate()"><span>O chip é <b>novo</b> e vai ser usado <b>só pelo agente</b>.</span></label>
+            <label class="wa-check" for="wa-chk-2"><input type="checkbox" id="wa-chk-2" onchange="waValidate()"><span>Consigo receber <b>SMS ou ligação</b> neste número agora (a Meta envia um código).</span></label>
+            <label class="wa-check" for="wa-chk-3"><input type="checkbox" id="wa-chk-3" onchange="waValidate()"><span><b>Não instalei</b> o WhatsApp nem o WhatsApp Business neste número. Se já estiver instalado, a conta precisa ser <b>apagada</b> do aplicativo antes.</span></label>
+            <label class="wa-check" for="wa-chk-4"><input type="checkbox" id="wa-chk-4" onchange="waValidate()"><span>Vou avisar meus clientes de que o atendimento passa a ser por este número novo.</span></label>
+            <details class="wa-details">
+              <summary>Quero usar um número que eu já tenho</summary>
+              <p>Dá para usar um número que você já tem, mas ele <b>deixa de funcionar no aplicativo do WhatsApp</b>: é preciso apagar a conta do WhatsApp nesse número antes, e você não poderá mais usá-lo ali. Se tiver dúvida, use um chip novo.</p>
+            </details>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <div class="cfg-section">
+            <div class="cfg-title">2 · Número e nome</div>
+            <div class="field-group">
+              <label class="field-label" for="wa-phone">Número do WhatsApp</label>
+              <div class="wa-phone-row">
+                <span class="wa-prefix" aria-hidden="true">+55</span>
+                <input class="field" id="wa-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="(11) 91234-5678" maxlength="15" oninput="waOnPhoneInput()" onblur="waShowPhoneError(true)" aria-describedby="err-wa-phone">
+              </div>
+              <div class="field-error" id="err-wa-phone" role="alert"></div>
+              <div class="field-hint" id="wa-phone-hint">Só números do Brasil (DDD + número).</div>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="wa-name">Nome de exibição</label>
+              <input class="field" id="wa-name" type="text" maxlength="100" autocomplete="off" oninput="waValidate()" aria-describedby="err-wa-name">
+              <div class="field-error" id="err-wa-name" role="alert"></div>
+              <div class="field-hint">É o nome que seus clientes verão no WhatsApp, no lugar do número. Use o nome do seu negócio. A Meta analisa o nome e pode recusar.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <div class="cfg-section">
+            <div class="cfg-title">3 · Conectar</div>
+            <div id="wa-form-alert" class="form-alert" style="display:none" role="alert"></div>
+            <details class="wa-details">
+              <summary>O que acontece na conexão real</summary>
+              <p>Na conexão real, abrimos uma janela do <b>Facebook</b> (da Meta, dona do WhatsApp). Nela você vai: entrar com seu <b>perfil do Facebook</b> (precisa ter um; se não tiver, crie antes), escolher ou criar o <b>portfólio do negócio</b> e a conta do <b>WhatsApp Business</b>, informar o número e digitar o <b>código</b> que chega por SMS ou ligação. Não feche a janela até ela terminar sozinha.</p>
+            </details>
+            <div class="field-group" style="margin-top:8px">
+              <label class="field-label" for="wa-sim-result">Resultado do popup (simulação)</label>
+              <select class="field" id="wa-sim-result">
+                <option value="concluir">Concluir</option>
+                <option value="cancelar">Cancelar</option>
+                <option value="erro">Erro</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-accent wa-btn-tall" id="wa-btn-simulate" style="width:100%" disabled onclick="waSimulate()">Simular conexão (teste)</button>
+            <div class="field-hint" id="wa-sim-hint" style="margin-top:8px">Marque os 4 itens e preencha número e nome para continuar.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ TESTAR AGENTE ══ -->
     <div class="view" id="view-testar">
       <div class="test-layout">
@@ -952,7 +1059,19 @@ textarea.field{resize:vertical;min-height:80px}
             <div class="card-title">🏢 Clientes cadastrados na plataforma</div>
             <div class="card-desc">Cada cliente é uma instalação independente do AgenteFácil</div>
           </div>
-          <button class="btn btn-accent btn-sm" onclick="showAddClientForm()">+ Novo cliente</button>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+            <label for="wa-adm-filter" class="apu-muted">WhatsApp</label>
+            <select id="wa-adm-filter" class="field" style="width:auto" onchange="waAdminSetFilter(this.value)">
+              <option value="">Todos</option>
+              <option value="sem">Sem WhatsApp</option>
+              <option value="iniciando">Iniciando</option>
+              <option value="registrando">Em análise</option>
+              <option value="online">Conectado</option>
+              <option value="offline">Offline</option>
+              <option value="falhou">Falhou</option>
+            </select>
+            <button class="btn btn-accent btn-sm" onclick="showAddClientForm()">+ Novo cliente</button>
+          </div>
         </div>
         <div style="padding:8px 0" id="clients-list"></div>
       </div>
@@ -1302,6 +1421,7 @@ function doLogout(){
 // cada aba de novo (elas só recarregam do backend ao trocar de aba).
 function resetTenantState(){
   stopNotifications();
+  waReset();
   appointments = [];
   callbacks = [];
   profissionais = [];
@@ -1372,6 +1492,7 @@ function showApp(){
   loadSettingsFromServer();
   if(currentUser?.role === 'admin') loadProfessionalsFromServer();
   if(currentUser?.role === 'admin') loadOverviewFromServer();
+  if(currentUser?.role === 'admin') waLoadRechargeBanner();
   startNotifications();
 }
 
@@ -1504,13 +1625,13 @@ async function checkExistingSession(){
 }
 
 // ── NAVIGATION ──
-const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',fiscal:'Dados fiscais',testar:'Testar Agente',agendamentos:'Agendamentos','plat-visao':'Visão Geral da Plataforma',clientes:'Clientes da Plataforma',precos:'Configuração de Preços',comercial:'Fechamentos Comerciais'};
+const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',whatsapp:'WhatsApp',fiscal:'Dados fiscais',testar:'Testar Agente',agendamentos:'Agendamentos','plat-visao':'Visão Geral da Plataforma',clientes:'Clientes da Plataforma',precos:'Configuração de Preços',comercial:'Fechamentos Comerciais'};
 
 // Views de nível cliente liberadas por papel. As views de plataforma
 // ('clientes'/'precos') ficam de fora — continuam controladas só por
 // isPlatformAdmin, como já era antes disso existir.
 const ROLE_VIEWS = {
-  admin:        ['visao','conversas','conhecimento','profissionais','config','fiscal','testar','agendamentos'],
+  admin:        ['visao','conversas','conhecimento','profissionais','config','whatsapp','fiscal','testar','agendamentos'],
   colaborador:  ['visao','conversas','profissionais','agendamentos'],
   profissional: ['visao','agendamentos'],
 };
@@ -1536,6 +1657,7 @@ function applyRoleNav(){
 
 function setTab(id, navEl, tabEl){
   if(!isViewAllowed(id)){ id = 'visao'; navEl = null; tabEl = null; }
+  if(id !== 'whatsapp') waStopPolling();
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1545,7 +1667,8 @@ function setTab(id, navEl, tabEl){
   if(tabEl) tabEl.classList.add('active');
   else document.querySelectorAll('.tab').forEach(t=>{if(t.getAttribute('onclick')?.includes("'"+id+"'"))t.classList.add('active');});
   document.getElementById('page-title').textContent = titles[id]||'';
-  if(id==='visao') loadOverviewFromServer();
+  if(id==='visao'){ loadOverviewFromServer(); waLoadRechargeBanner(); }
+  if(id==='whatsapp') loadWhatsappFromServer();
   if(id==='conversas') loadConversationsFromServer();
   if(id==='testar') syncKbToTest();
   if(id==='conhecimento') loadKnowledgeFromServer();
@@ -3286,7 +3409,8 @@ let expandedClientId = null;
 
 async function loadPlatformClientsFromServer(){
   try{
-    const res = await apiFetch('/api/admin/clients');
+    // Estado do WhatsApp em paralelo; loadAdminWaConnections nunca lança.
+    const [res] = await Promise.all([apiFetch('/api/admin/clients'), loadAdminWaConnections()]);
     if(!res.ok) throw new Error(`Erro ${res.status}`);
     const data = await res.json();
     platformClients = data.clients || [];
@@ -3305,23 +3429,29 @@ function renderClientsList(){
     list.innerHTML='<div style="padding:20px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhum cliente cadastrado ainda.</div>';
     return;
   }
-  list.innerHTML = platformClients.map(c=>{
+  const shown = platformClients.filter(c => waAdminMatches(c.id));
+  if(shown.length===0){
+    list.innerHTML='<div style="padding:20px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhum cliente com este filtro de WhatsApp.</div>';
+    return;
+  }
+  list.innerHTML = shown.map(c=>{
     const open = c.id === expandedClientId;
     return `
     <div onclick="toggleClient('${c.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 22px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;background:${open?'var(--bg)':''}"
       onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='${open?'var(--bg)':''}'">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--ink)">${c.name}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">Cadastrado em ${c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Cadastrado em ${c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'}${waAdminPhoneSuffix(c.id)}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
+        ${waAdminBadgeHtml(c.id)}
         <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${c.active?'var(--green-l)':'var(--bg)'};color:${c.active?'var(--green)':'var(--muted)'}">${c.active?'Ativo':'Inativo'}</span>
         <span style="font-size:11px;color:var(--light)">${open?'▾':'→'}</span>
       </div>
     </div>
     ${open ? `<div style="padding:20px 22px;border-bottom:1px solid var(--border);background:var(--bg);border-left:3px solid var(--accent-l)">${clientDetailHtml(c)}</div>` : ''}`;
   }).join('');
-  if(expandedClientId && platformClients.some(c => c.id === expandedClientId)) loadClientBilling(expandedClientId);
+  if(expandedClientId && shown.some(c => c.id === expandedClientId)) loadClientBilling(expandedClientId);
 }
 
 // Acordeão: alterna o cliente aberto. Clicar no já aberto fecha; clicar em
@@ -3385,6 +3515,7 @@ function clientDetailHtml(c){
       </div>
       ${fiscalReadonlyBlockHtml(c)}
       ${financialReadonlyBlockHtml(id)}
+      ${waAdminDetailHtml(id)}
     </div>`;
 }
 
@@ -5270,6 +5401,671 @@ function showToast(msg, duration){
   t.onclick=()=>{ clearTimeout(toastTimer); t.classList.remove('show'); };
   t.onmouseenter=()=>clearTimeout(toastTimer);
   t.onmouseleave=()=>{ toastTimer=setTimeout(()=>t.classList.remove('show'),2500); };
+}
+
+// ── WHATSAPP: conexão do número do cliente ──
+// Fase 1 (modo simulado): não há popup da Meta nem SDK do Facebook. Com
+// config.enabled=false ou mode "real", a aba só mostra "ainda não disponível".
+// Tudo que vem da API é escapado (apuEsc) antes de ir pro innerHTML.
+const WA_STATUS_UI = {
+  iniciando:    { cls:'wa-b-warn', label:'Iniciando',    text:'Recebemos seus dados e estamos iniciando a conexão…' },
+  registrando:  { cls:'wa-b-warn', label:'Em análise',   text:'Seu número está em análise pela Meta. Esta tela atualiza sozinha enquanto estiver aberta.' },
+  online:       { cls:'wa-b-ok',   label:'Conectado',    text:'Conectado! Seu agente já atende por este número.' },
+  offline:      { cls:'wa-b-bad',  label:'Offline',      text:'O número saiu do ar e o agente não está recebendo mensagens.' },
+  falhou:       { cls:'wa-b-bad',  label:'Falhou',       text:'Não conseguimos concluir a conexão.' },
+  desconectado: { cls:'wa-b-off',  label:'Desconectado', text:'Este número foi desconectado do agente.' },
+};
+const WA_FAIL_TEXT = {
+  subconta_falhou:    'Não conseguimos preparar sua conta de WhatsApp. Tente de novo.',
+  sender_falhou:      'O registro deste número foi recusado. Confira se o número é novo e sem WhatsApp instalado e tente de novo.',
+  twilio_indisponivel:'O serviço de WhatsApp está instável agora. Tente de novo em instantes.',
+  sender_offline:     'O WhatsApp foi desconectado deste número. Causas comuns: o WhatsApp foi instalado no número, ou o chip ficou sem uso.',
+  sem_resposta:       'A Meta ainda não respondeu à análise do número. Fale com o suporte.',
+  erro_desconhecido:  'Ocorreu um erro inesperado na conexão. Tente de novo; se persistir, fale com o suporte.',
+};
+const WA_ERR_TEXT = {
+  somente_admin:                    'Só o administrador da conta pode conectar o WhatsApp.',
+  numero_em_uso:                    'Este número já está conectado a outra conta. Se ele é seu, fale com o suporte.',
+  conexao_existente_outro_numero:   'Sua conta já tem outro número conectado. Para trocar, fale com o suporte.',
+  em_andamento:                     'Já existe uma conexão em andamento.',
+  twilio_indisponivel:              'O serviço de WhatsApp está instável agora. Tente de novo em instantes.',
+  integracao_nao_configurada:       'A conexão de WhatsApp ainda não está liberada para sua conta. Fale com o suporte.',
+  migracao_pendente:                'Estamos atualizando o sistema. Tente de novo em alguns minutos.',
+  sem_conexao:                      'Não há conexão para tentar de novo. Faça o passo a passo.',
+  conexao_nao_pronta:               'A conexão ainda não está online.',
+  simulacao_sem_resposta:           'A simulação não respondeu a tempo. Tente de novo.',
+  erro_interno:                     'Erro interno. Tente de novo; se persistir, fale com o suporte.',
+  nao_suportado_neste_modo:         'Esta ação só existe no modo de simulação.',
+};
+
+let waConfig = null;       // config do GET /config
+let waConn = null;         // View da conexão (ou null)
+let waMode = null;         // 'simulado' | 'real' (do GET da conexão)
+let waAvailable = false;   // enabled && mode === 'simulado'
+let waState = 'idle';      // idle | loading | error | ready
+let waLoadError = '';
+let waBusy = false;        // alguma ação (POST) em andamento
+let waStatusMsg = null;    // { text, kind } mostrado no card de status
+let waSeq = 0;             // invalida respostas atrasadas (logout / recarga da aba)
+let waPhoneTouched = false;
+let waBannerFetchedAt = 0;
+let waPollTimer = null, waPollAbort = null, waPollInFlight = false;
+let waPollStatus = null, waPollStart = 0, waPollBackoff = 1, waPollFails = 0, waPollPaused = false;
+
+function waErrorText(r){
+  if(r.status === 0) return 'Sem conexão com o servidor. Verifique a internet e tente de novo.';
+  if(r.status === 429) return 'Muitas requisições em pouco tempo. Aguarde um minuto e tente de novo.';
+  if(r.code && WA_ERR_TEXT[r.code]) return WA_ERR_TEXT[r.code];
+  return 'Não foi possível concluir agora. Tente de novo em instantes.';
+}
+
+function waFailureText(f){
+  if(!f) return '';
+  if(f.code && WA_FAIL_TEXT[f.code]) return WA_FAIL_TEXT[f.code];
+  return f.message || 'Não foi possível concluir a conexão.';
+}
+
+// Wrapper de fetch: devolve sempre { ok, status, data | code, field } — nunca lança
+// (exceto abort, sinalizado por aborted:true). Corpo só em JSON, nunca em query string.
+async function waRequest(method, path, body, signal){
+  const init = { method };
+  if(signal) init.signal = signal;
+  if(body !== undefined){
+    init.headers = { 'Content-Type':'application/json' };
+    init.body = JSON.stringify(body);
+  }
+  let res;
+  try{
+    res = await apiFetch(path, init);
+  }catch(e){
+    if(e && e.name === 'AbortError') return { ok:false, status:0, aborted:true };
+    return { ok:false, status:0, code:null };
+  }
+  let data = null;
+  try{ data = await res.json(); }catch(e){}
+  if(res.ok) return { ok:true, status:res.status, data };
+  return { ok:false, status:res.status, code:(data && data.code) || null, field:(data && data.field) || null };
+}
+
+function waFmtPhone(e164){
+  const m = /^\+55(\d{2})(\d{4,5})(\d{4})$/.exec(e164 || '');
+  return m ? `+55 (${m[1]}) ${m[2]}-${m[3]}` : (e164 || '—');
+}
+
+function waFmtDate(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  return isNaN(d) ? '—' : d.toLocaleString('pt-BR', { dateStyle:'short', timeStyle:'short' });
+}
+
+function waViewActive(){
+  const v = document.getElementById('view-whatsapp');
+  return !!(authToken && v && v.classList.contains('active'));
+}
+
+function waBadgeHtml(status, simulated){
+  const ui = WA_STATUS_UI[status] || { cls:'wa-b-off', label:String(status || '—') };
+  return `<span class="wa-badge ${ui.cls}">${apuEsc(ui.label)}${simulated ? ' (simulado)' : ''}</span>`;
+}
+
+const waKv = (label, valueHtml) => `<div class="wa-kv"><span>${label}</span><span>${valueHtml}</span></div>`;
+
+// Zera tudo que pertence ao login anterior (chamado por resetTenantState).
+function waReset(){
+  waStopPolling();
+  waSeq++;
+  waConfig = null; waConn = null; waMode = null; waAvailable = false;
+  waState = 'idle'; waLoadError = ''; waBusy = false; waStatusMsg = null;
+  waPhoneTouched = false; waBannerFetchedAt = 0;
+  waAdmin = { mode:null, byClient:{}, filter:'', error:false };
+  ['wa-status-body'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
+  ['wa-sim-banner','wa-recharge-banner','wa-visao-banner','wa-setup'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.style.display = 'none';
+  });
+  ['wa-chk-1','wa-chk-2','wa-chk-3','wa-chk-4'].forEach(id => { const el = document.getElementById(id); if(el) el.checked = false; });
+  ['wa-phone','wa-name'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  const sel = document.getElementById('wa-sim-result'); if(sel) sel.value = 'concluir';
+  const f = document.getElementById('wa-adm-filter'); if(f) f.value = '';
+  setFormAlert('wa-form-alert', '', '');
+}
+
+// ── Carga da aba ──
+async function loadWhatsappFromServer(){
+  if(currentUser?.role !== 'admin') return;
+  const seq = ++waSeq;
+  waSetFormBusy(false);
+  waStopPolling();
+  waState = 'loading'; waStatusMsg = null;
+  renderWaAll();
+  const cfg = await waRequest('GET', '/api/whatsapp-connection/config');
+  if(seq !== waSeq) return;
+  if(!cfg.ok && cfg.code === 'integracao_nao_configurada'){
+    waAvailable = false; waConn = null; waState = 'ready'; renderWaAll(); return;
+  }
+  if(!cfg.ok){ waState = 'error'; waLoadError = waErrorText(cfg); renderWaAll(); return; }
+  waConfig = (cfg.data && cfg.data.config) || null;
+  waAvailable = !!(waConfig && waConfig.enabled === true && waConfig.mode === 'simulado');
+  if(!waAvailable){ waConn = null; waState = 'ready'; renderWaAll(); return; }
+  const con = await waRequest('GET', '/api/whatsapp-connection');
+  if(seq !== waSeq) return;
+  if(!con.ok){ waState = 'error'; waLoadError = waErrorText(con); renderWaAll(); return; }
+  waMode = (con.data && con.data.mode) || waConfig.mode;
+  waConn = (con.data && con.data.connection) || null;
+  waState = 'ready';
+  renderWaAll();
+  waStartPolling();
+}
+
+// Só atualiza a View em memória e limpa a mensagem de status; NÃO renderiza.
+// Quem chama deve chamar renderWaAll() (ou renderWaRechargeBanners() para as faixas).
+function waApplyConnection(c){
+  waConn = c || null;
+  waStatusMsg = null;
+}
+
+// ── Render ──
+function renderWaAll(){
+  const sim = document.getElementById('wa-sim-banner');
+  if(sim) sim.style.display = (waState === 'ready' && waAvailable) ? 'flex' : 'none';
+  renderWaStatus();
+  renderWaSetup();
+  renderWaRechargeBanners();
+}
+
+function renderWaStatus(){
+  const el = document.getElementById('wa-status-body');
+  if(!el) return;
+  if(waState === 'idle'){ el.innerHTML = ''; return; }
+  if(waState === 'loading'){ el.innerHTML = '<div class="apu-muted">Carregando…</div>'; return; }
+  if(waState === 'error'){
+    el.innerHTML = `<div style="color:var(--red);font-size:13px;line-height:1.5">⚠ Não foi possível carregar o status do WhatsApp.<br><span style="color:var(--muted)">${apuEsc(waLoadError)}</span></div>
+      <div class="wa-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="loadWhatsappFromServer()">Tentar de novo</button></div>`;
+    return;
+  }
+  if(!waAvailable){
+    el.innerHTML = '<div class="wa-status-text">A conexão de WhatsApp ainda não está disponível para sua conta.</div>';
+    return;
+  }
+  const msg = waStatusMsg
+    ? `<div class="form-alert ${waStatusMsg.kind}" role="alert" style="margin:12px 0 0">${apuEsc(waStatusMsg.text)}</div>` : '';
+  if(!waConn){
+    el.innerHTML = `<div class="wa-status-head"><span class="wa-badge wa-b-off">Não conectado</span></div>
+      <div class="wa-status-text">Seu agente ainda não está conectado a um número de WhatsApp.</div>${msg}`;
+    return;
+  }
+  const c = waConn;
+  const ui = WA_STATUS_UI[c.status] || { text:'' };
+  let html = `<div class="wa-status-head">${waBadgeHtml(c.status, waMode === 'simulado')}</div>
+    <div class="wa-status-text">${apuEsc(ui.text)}</div>`;
+  if(c.failure){
+    html += `<div class="wa-note"><b>${c.status === 'registrando' ? 'Aviso' : 'Motivo'}:</b> ${apuEsc(waFailureText(c.failure))}</div>`;
+  }
+  html += `<div style="margin-top:12px">` +
+    waKv('Número', apuEsc(waFmtPhone(c.phone_e164))) +
+    waKv('Nome de exibição', apuEsc(c.display_name || '—')) +
+    (c.connected_at ? waKv('Conectado em', apuEsc(waFmtDate(c.connected_at))) : '') +
+    waKv('Atualizado em', apuEsc(waFmtDate(c.updated_at))) + `</div>`;
+  if(waPollPaused && (c.status === 'iniciando' || c.status === 'registrando')){
+    html += `<div class="wa-note">A atualização automática foi pausada. Use “Atualizar” para ver o status mais recente.</div>`;
+  }
+  html += msg;
+  html += `<div class="wa-actions">
+      <button type="button" class="btn btn-ghost btn-sm" ${waBusy ? 'disabled' : ''} onclick="waRefreshNow()">Atualizar</button>
+      ${c.can_retry === true ? `<button type="button" class="btn btn-accent btn-sm" ${waBusy ? 'disabled' : ''} onclick="waRetry()">Tentar de novo</button>` : ''}
+    </div>
+    <div class="wa-note">Para trocar o número ou desconectar, fale com o suporte.</div>`;
+  el.innerHTML = html;
+}
+
+function renderWaSetup(){
+  const el = document.getElementById('wa-setup');
+  if(!el) return;
+  el.style.display = (waState === 'ready' && waAvailable && !waConn) ? 'block' : 'none';
+  waValidate();
+}
+
+function waRechargeBannerHtml(){
+  const c = waConn;
+  if(!(currentUser?.role === 'admin' && c && c.recharge && c.recharge.due === true)) return '';
+  return `<span class="apu-banner-text">⚠️ <b>Faz mais de 60 dias desde a última recarga do chip.</b> Recarregue para o número não ser cancelado pela operadora.</span>
+    <button type="button" class="btn btn-accent btn-sm" ${waBusy ? 'disabled' : ''} onclick="waRecharge('confirm-recharge')">Já recarreguei</button>
+    <button type="button" class="btn btn-ghost btn-sm" ${waBusy ? 'disabled' : ''} onclick="waRecharge('snooze-recharge')">Lembrar em 3 dias</button>`;
+}
+
+function renderWaRechargeBanners(){
+  const html = waRechargeBannerHtml();
+  const visao = document.getElementById('wa-visao-banner');
+  if(visao){ visao.innerHTML = html; visao.style.display = html ? 'flex' : 'none'; }
+  const tab = document.getElementById('wa-recharge-banner');
+  if(tab){
+    const show = html && waState === 'ready' && waAvailable;
+    tab.innerHTML = show ? html : '';
+    tab.style.display = show ? 'flex' : 'none';
+  }
+}
+
+// Banner da Visão Geral: só Administrador; falha em silêncio (a Visão Geral não depende disso).
+async function waLoadRechargeBanner(){
+  if(currentUser?.role !== 'admin') return;
+  if(Date.now() - waBannerFetchedAt < 30000){ renderWaRechargeBanners(); return; }
+  waBannerFetchedAt = Date.now();
+  const seq = waSeq;
+  const r = await waRequest('GET', '/api/whatsapp-connection');
+  if(seq !== waSeq || !r.ok) return;
+  waConn = (r.data && r.data.connection) || null;
+  renderWaRechargeBanners();
+}
+
+async function waRecharge(action){
+  if(waBusy) return;
+  waBusy = true; renderWaRechargeBanners(); renderWaStatus();
+  const seq = waSeq;
+  const r = await waRequest('POST', `/api/whatsapp-connection/${action}`);
+  if(seq !== waSeq) return;
+  waBusy = false;
+  if(r.ok){
+    if(r.data && r.data.connection) waConn = r.data.connection;
+    showToast(action === 'confirm-recharge' ? 'Recarga confirmada. Obrigado!' : 'Certo, vamos lembrar de novo em 3 dias.');
+  }else{
+    showToast('⚠ ' + waErrorText(r));
+  }
+  renderWaRechargeBanners(); renderWaStatus();
+}
+
+// ── Polling do status (limite de 30 req/min por IP, dividido com todas as telas) ──
+function waStopPolling(){
+  clearTimeout(waPollTimer); waPollTimer = null;
+  if(waPollAbort){ waPollAbort.abort(); waPollAbort = null; }
+  waPollInFlight = false;
+}
+
+function waStartPolling(){
+  waPollStatus = null; waPollPaused = false;
+  waSchedulePoll();
+}
+
+function waSchedulePoll(){
+  clearTimeout(waPollTimer); waPollTimer = null;
+  if(!waViewActive() || !waConn) return;
+  const st = waConn.status;
+  if(st !== 'iniciando' && st !== 'registrando'){ waPollPaused = false; return; }
+  if(waPollStatus !== st){
+    waPollStatus = st; waPollStart = Date.now(); waPollBackoff = 1; waPollFails = 0; waPollPaused = false;
+  }
+  const el = Date.now() - waPollStart;
+  let base = null;
+  if(st === 'iniciando') base = el < 120000 ? 5000 : null;
+  else base = el < 300000 ? 10000 : (el < 900000 ? 30000 : null);
+  if(base === null){ waPollPaused = true; renderWaStatus(); return; }
+  waPollTimer = setTimeout(waPollTick, base * waPollBackoff);
+}
+
+async function waPollTick(){
+  waPollTimer = null;
+  if(!waViewActive() || waPollInFlight) return;
+  if(document.hidden) return; // retomado pelo visibilitychange
+  waPollInFlight = true;
+  const seq = waSeq;
+  waPollAbort = new AbortController();
+  const r = await waRequest('GET', '/api/whatsapp-connection', undefined, waPollAbort.signal);
+  waPollInFlight = false; waPollAbort = null;
+  if(seq !== waSeq || r.aborted) return;
+  if(r.ok){
+    waPollBackoff = 1; waPollFails = 0;
+    waApplyConnection((r.data && r.data.connection) || null);
+    renderWaAll();
+  }else if(r.status === 401){
+    return; // apiFetch já cuidou da sessão expirada
+  }else{
+    waPollFails++;
+    waPollBackoff = Math.min(waPollBackoff * 2, 8);
+    if(waPollFails >= 3){
+      waPollPaused = true;
+      waStatusMsg = { text: waErrorText(r) + ' A atualização automática foi pausada.', kind:'error' };
+      renderWaStatus();
+      return;
+    }
+  }
+  waSchedulePoll();
+}
+
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden || !waViewActive() || waPollTimer || waPollInFlight || waPollPaused || !waConn) return;
+  if(waConn.status === 'iniciando' || waConn.status === 'registrando') waPollTick();
+});
+
+async function waRefreshNow(){
+  if(waBusy) return;
+  waBusy = true; renderWaStatus();
+  const seq = waSeq;
+  const r = await waRequest('GET', '/api/whatsapp-connection');
+  if(seq !== waSeq) return;
+  waBusy = false;
+  if(r.ok){
+    waApplyConnection((r.data && r.data.connection) || null);
+    renderWaAll();
+    waStartPolling();
+  }else{
+    waStatusMsg = { text: waErrorText(r), kind:'error' };
+    renderWaStatus();
+  }
+}
+
+async function waRetry(){
+  if(waBusy) return;
+  waBusy = true; waStatusMsg = null; renderWaStatus();
+  const seq = waSeq;
+  const r = await waRequest('POST', '/api/whatsapp-connection/retry');
+  if(seq !== waSeq) return;
+  waBusy = false;
+  if(r.ok){
+    waApplyConnection(r.data && r.data.connection);
+    renderWaAll();
+    waStartPolling();
+  }else if(r.code === 'sem_conexao'){
+    waApplyConnection(null);
+    renderWaAll();
+    setFormAlert('wa-form-alert', waErrorText(r), 'error');
+  }else if(r.code === 'em_andamento'){
+    waStatusMsg = { text: waErrorText(r), kind:'info' };
+    renderWaStatus();
+    waStartPolling();
+  }else{
+    waStatusMsg = { text: waErrorText(r), kind:'error' };
+    renderWaStatus();
+  }
+}
+
+// ── Formulário (passo a passo) ──
+function waMaskPhone(raw){
+  const d = String(raw).replace(/\D/g, '').slice(0, 11);
+  if(!d) return '';
+  if(d.length <= 2) return `(${d}`;
+  if(d.length <= 6) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+  if(d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+}
+
+function waPhoneDigits(){
+  const el = document.getElementById('wa-phone');
+  return el ? el.value.replace(/\D/g, '') : '';
+}
+
+// 10 dígitos (fixo) ou 11 (celular, começa com 9) com DDD de 11 a 99.
+function waPhoneValid(d){
+  if(!/^[1-9][1-9]\d{8,9}$/.test(d)) return false;
+  return d.length === 10 || d[2] === '9';
+}
+
+function waOnPhoneInput(){
+  const el = document.getElementById('wa-phone');
+  el.value = waMaskPhone(el.value);
+  waValidate();
+  if(waPhoneTouched) waShowPhoneError(false);
+}
+
+function waShowPhoneError(touch){
+  if(touch) waPhoneTouched = true;
+  const d = waPhoneDigits();
+  const err = document.getElementById('err-wa-phone');
+  const hint = document.getElementById('wa-phone-hint');
+  if(err) err.textContent = (d && !waPhoneValid(d)) ? 'Confira o número (DDD + número).' : '';
+  if(hint) hint.textContent = (d.length === 10 && waPhoneValid(d))
+    ? 'Telefone fixo só recebe o código por ligação.' : 'Só números do Brasil (DDD + número).';
+}
+
+function waFormValid(){
+  const checks = ['wa-chk-1','wa-chk-2','wa-chk-3','wa-chk-4'].every(id => { const el = document.getElementById(id); return el && el.checked; });
+  const name = document.getElementById('wa-name');
+  return checks && waPhoneValid(waPhoneDigits()) && !!(name && name.value.trim());
+}
+
+function waValidate(){
+  const btn = document.getElementById('wa-btn-simulate');
+  const hint = document.getElementById('wa-sim-hint');
+  const ok = waFormValid();
+  if(btn) btn.disabled = !ok || waBusy;
+  if(hint) hint.style.display = ok ? 'none' : 'block';
+  const en = document.getElementById('err-wa-name'); if(en) en.textContent = '';
+}
+
+function waSetFormBusy(b){
+  waBusy = b;
+  const btn = document.getElementById('wa-btn-simulate');
+  const sel = document.getElementById('wa-sim-result');
+  if(btn) btn.textContent = b ? 'Enviando…' : 'Simular conexão (teste)';
+  if(sel) sel.disabled = b;
+  waValidate();
+}
+
+// Simula o popup: dispara o MESMO tratador que o listener real da Meta usará.
+async function waSimulate(){
+  if(waBusy || !waFormValid()) return;
+  const choice = document.getElementById('wa-sim-result').value;
+  const digits = '55' + waPhoneDigits();
+  let ev;
+  if(choice === 'cancelar') ev = { event:'CANCEL', data:{ current_step:'simulado' } };
+  else if(choice === 'erro') ev = { event:'ERROR', data:{ error_message:'Erro simulado pelo teste.' } };
+  else ev = { event:'FINISH', data:{ waba_id:'99' + digits, phone_number_id:'99' + digits } };
+  await waHandleSignupEvent(ev);
+}
+
+async function waHandleSignupEvent(ev){
+  setFormAlert('wa-form-alert', '', '');
+  const d = ev.data || {};
+  if(ev.event === 'FINISH'){
+    if(!/^\d{5,30}$/.test(String(d.waba_id || '')) || !/^\d{5,30}$/.test(String(d.phone_number_id || ''))){
+      setFormAlert('wa-form-alert', 'Não recebemos os dados da Meta. Refaça o passo 3.', 'error');
+      return;
+    }
+    await waSubmitConnection(String(d.waba_id), String(d.phone_number_id));
+  }else if(ev.event === 'ERROR' || (ev.event === 'CANCEL' && d.error_message)){
+    setFormAlert('wa-form-alert', `A Meta informou um problema: ${String(d.error_message || 'erro não informado').replace(/[.\s]+$/, '')}. Você pode tentar de novo.`, 'error');
+  }else if(ev.event === 'CANCEL'){
+    setFormAlert('wa-form-alert', 'Você fechou a janela antes de terminar. Nada foi cadastrado. Quando quiser, é só tentar de novo.', 'info');
+  }
+}
+
+async function waSubmitConnection(wabaId, phoneNumberId){
+  waSetFormBusy(true);
+  const seq = waSeq;
+  const body = {
+    waba_id: wabaId,
+    phone_number_id: phoneNumberId,
+    phone_e164: '+55' + waPhoneDigits(),
+    display_name: document.getElementById('wa-name').value.trim(),
+  };
+  const r = await waRequest('POST', '/api/whatsapp-connection', body);
+  if(seq !== waSeq) return;
+  waSetFormBusy(false);
+  if(r.ok){
+    waApplyConnection(r.data && r.data.connection);
+    renderWaAll();
+    waStartPolling();
+    return;
+  }
+  if(r.code === 'em_andamento'){
+    showToast(waErrorText(r));
+    loadWhatsappFromServer();
+    return;
+  }
+  if(r.code === 'dados_invalidos'){
+    if(r.field === 'phone_e164'){
+      document.getElementById('err-wa-phone').textContent = 'Confira o número (DDD + número).';
+    }else if(r.field === 'display_name'){
+      document.getElementById('err-wa-name').textContent = 'Confira o nome de exibição.';
+    }else if(r.field === 'waba_id' || r.field === 'phone_number_id'){
+      setFormAlert('wa-form-alert', 'Não recebemos os dados da Meta. Refaça o passo 3.', 'error');
+    }else{
+      setFormAlert('wa-form-alert', 'Confira os dados informados.', 'error');
+    }
+    return;
+  }
+  setFormAlert('wa-form-alert', waErrorText(r), 'error');
+}
+
+// ── Plataforma: estado da conexão de cada cliente (aba "Clientes da Plataforma") ──
+let waAdmin = { mode:null, byClient:{}, filter:'', error:false };
+
+// Nunca lança: erro vira waAdmin.error (a lista de clientes continua funcionando).
+async function loadAdminWaConnections(){
+  const r = await waRequest('GET', '/api/admin/whatsapp-connections');
+  if(!r.ok){ waAdmin.error = true; return; }
+  const byClient = {};
+  ((r.data && r.data.connections) || []).forEach(c => { byClient[c.client_id] = c; });
+  waAdmin = { mode:(r.data && r.data.mode) || null, byClient, filter:waAdmin.filter, error:false };
+}
+
+function waAdminSetFilter(v){
+  waAdmin.filter = v;
+  renderClientsList();
+}
+
+function waAdminMatches(clientId){
+  const f = waAdmin.filter;
+  if(!f || waAdmin.error) return true;
+  const c = waAdmin.byClient[clientId];
+  if(f === 'sem') return !c;
+  return !!c && c.status === f;
+}
+
+function waAdminBadgeHtml(id){
+  if(waAdmin.error) return '';
+  const c = waAdmin.byClient[id];
+  const inner = c ? waBadgeHtml(c.status, false) : '<span class="wa-badge wa-b-off">Sem WhatsApp</span>';
+  return `<span id="wa-adm-badge-${id}">${inner}</span>`;
+}
+
+function waAdminPhoneSuffix(id){
+  const c = waAdmin.byClient[id];
+  return c && c.phone_e164 ? ` · 📱 ${apuEsc(waFmtPhone(c.phone_e164))}` : '';
+}
+
+function waFmtAny(v){
+  if(v === null || v === undefined || v === '') return '—';
+  if(Array.isArray(v)) return v.length ? v.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join('; ') : '—';
+  if(typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+function waAdminDetailHtml(id){
+  return `<div class="wa-adm-box" id="wa-adm-block-${id}">${waAdminBlockInner(id)}</div>`;
+}
+
+function waAdminBlockInner(id){
+  const title = '<div class="wa-adm-label">WhatsApp</div>';
+  if(waAdmin.error){
+    return title + `<div style="font-size:13px;color:var(--red)">⚠ Não foi possível carregar o WhatsApp dos clientes.</div>
+      <div class="wa-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="waAdminReload()">Tentar de novo</button></div>`;
+  }
+  const c = waAdmin.byClient[id];
+  if(!c) return title + '<div style="font-size:13px;color:var(--muted)">Sem WhatsApp.</div>';
+  const f = c.failure;
+  const failTxt = f ? `${f.code || '—'}${f.step ? ' (' + f.step + ')' : ''}${f.message ? ': ' + f.message : ''}` : '—';
+  const sim = waAdmin.mode === 'simulado';
+  let h = title + `<div id="wa-adm-alert-${id}" class="form-alert" style="display:none" role="alert"></div>` +
+    waKv('Status', waBadgeHtml(c.status, sim)) +
+    waKv('Número', apuEsc(waFmtPhone(c.phone_e164))) +
+    waKv('Nome de exibição', apuEsc(c.display_name || '—')) +
+    waKv('Status do sender', apuEsc(c.sender_status || '—')) +
+    waKv('Em análise pela Meta', c.in_review ? 'Sim' : 'Não') +
+    waKv('Falha', apuEsc(failTxt)) +
+    waKv('Motivos de offline', apuEsc(waFmtAny(c.offline_reasons))) +
+    waKv('Tentativas', apuEsc(waFmtAny(c.attempts))) +
+    waKv('Última checagem', apuEsc(waFmtDate(c.last_status_check_at))) +
+    waKv('Status mudou em', apuEsc(waFmtDate(c.status_changed_at))) +
+    waKv('Atualizado em', apuEsc(waFmtDate(c.updated_at))) +
+    waKv('Criado em', apuEsc(waFmtDate(c.created_at))) +
+    waKv('waba_id', apuEsc(waFmtAny(c.waba_id))) +
+    waKv('phone_number_id', apuEsc(waFmtAny(c.phone_number_id))) +
+    waKv('Subconta Twilio', apuEsc(waFmtAny(c.twilio_subaccount_sid))) +
+    waKv('Sender Twilio', apuEsc(waFmtAny(c.twilio_sender_sid)));
+  h += `<div class="wa-actions">
+      <button type="button" class="btn btn-ghost btn-sm" id="wa-adm-refresh-${id}" onclick="waAdminRefresh('${id}')">Atualizar agora</button>
+      ${sim ? `<button type="button" class="btn btn-ghost btn-sm" id="wa-adm-disc-${id}" onclick="waAdminDisconnect('${id}')">Marcar como desconectado</button>` : ''}
+    </div>`;
+  if(sim){
+    h += `<div style="margin-top:16px">
+        <div class="wa-adm-label">Simular mensagem recebida</div>
+        <input class="field" id="wa-adm-from-${id}" type="text" autocomplete="off" placeholder="De (opcional)" aria-label="De (opcional)" style="margin-bottom:8px">
+        <input class="field" id="wa-adm-body-${id}" type="text" autocomplete="off" placeholder="Mensagem" aria-label="Mensagem" style="margin-bottom:8px">
+        <button type="button" class="btn btn-accent btn-sm wa-btn-tall" id="wa-adm-sim-${id}" onclick="waAdminSimulate('${id}')">Simular mensagem</button>
+        <div id="wa-adm-reply-${id}"></div>
+      </div>`;
+  }
+  return h;
+}
+
+function waAdminRerender(id){
+  const blk = document.getElementById(`wa-adm-block-${id}`);
+  if(blk) blk.innerHTML = waAdminBlockInner(id);
+  const badge = document.getElementById(`wa-adm-badge-${id}`);
+  if(badge){
+    const c = waAdmin.byClient[id];
+    badge.innerHTML = c ? waBadgeHtml(c.status, false) : '<span class="wa-badge wa-b-off">Sem WhatsApp</span>';
+  }
+}
+
+function waAdminAlert(id, text){
+  setFormAlert(`wa-adm-alert-${id}`, text, text ? 'error' : '');
+}
+
+async function waAdminReload(){
+  await loadAdminWaConnections();
+  renderClientsList();
+}
+
+async function waAdminRefresh(id){
+  const btn = document.getElementById(`wa-adm-refresh-${id}`);
+  if(btn){ btn.disabled = true; btn.textContent = 'Atualizando…'; }
+  const r = await waRequest('POST', `/api/admin/whatsapp-connections/${encodeURIComponent(id)}/refresh`);
+  if(r.ok && r.data && r.data.connection){
+    if(r.data.mode) waAdmin.mode = r.data.mode;
+    waAdmin.byClient[id] = Object.assign({}, waAdmin.byClient[id], r.data.connection, { client_id:id });
+    waAdminRerender(id);
+    showToast('Status atualizado.');
+  }else{
+    if(btn){ btn.disabled = false; btn.textContent = 'Atualizar agora'; }
+    waAdminAlert(id, waErrorText(r));
+  }
+}
+
+async function waAdminSimulate(id){
+  const bodyEl = document.getElementById(`wa-adm-body-${id}`);
+  const fromEl = document.getElementById(`wa-adm-from-${id}`);
+  const out = document.getElementById(`wa-adm-reply-${id}`);
+  const text = bodyEl ? bodyEl.value.trim() : '';
+  waAdminAlert(id, '');
+  if(!text){ waAdminAlert(id, 'Escreva a mensagem a simular.'); return; }
+  const payload = { body: text };
+  const from = fromEl ? fromEl.value.trim() : '';
+  if(from) payload.from = from;
+  const btn = document.getElementById(`wa-adm-sim-${id}`);
+  if(btn){ btn.disabled = true; btn.textContent = 'Enviando…'; }
+  const r = await waRequest('POST', `/api/admin/whatsapp-connections/${encodeURIComponent(id)}/simulate-inbound`, payload);
+  if(btn){ btn.disabled = false; btn.textContent = 'Simular mensagem'; }
+  if(r.ok){
+    if(out) out.innerHTML = `<div class="wa-adm-reply"><b>Resposta do agente:</b><br>${apuEsc(r.data && r.data.reply != null ? r.data.reply : '—')}</div>`;
+  }else{
+    if(out) out.innerHTML = '';
+    waAdminAlert(id, r.code === 'conexao_nao_pronta' ? 'A conexão precisa estar online para simular uma mensagem.' : waErrorText(r));
+  }
+}
+
+async function waAdminDisconnect(id){
+  if(!confirm('Marcar este número como desconectado? Isto só existe no modo de simulação.')) return;
+  const btn = document.getElementById(`wa-adm-disc-${id}`);
+  if(btn){ btn.disabled = true; btn.textContent = 'Desconectando…'; }
+  const r = await waRequest('POST', `/api/admin/whatsapp-connections/${encodeURIComponent(id)}/disconnect`);
+  if(r.ok && r.data && r.data.connection){
+    if(r.data.mode) waAdmin.mode = r.data.mode;
+    waAdmin.byClient[id] = Object.assign({}, waAdmin.byClient[id], r.data.connection, { client_id:id });
+    waAdminRerender(id);
+    showToast('Número marcado como desconectado.');
+  }else{
+    if(btn){ btn.disabled = false; btn.textContent = 'Marcar como desconectado'; }
+    waAdminAlert(id, waErrorText(r));
+  }
 }
 
 // ── INIT ──
