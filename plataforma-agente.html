@@ -329,7 +329,7 @@ label.field-label{display:block}
   .sb-nav{scrollbar-width:none}
   .sb-nav::-webkit-scrollbar{display:none}
   .sb-brand-full{display:none}
-  .sb-brand-mini{display:flex;margin:0 auto;width:40px;height:40px;align-items:center;justify-content:center;background:var(--accent);color:#fff;border-radius:9px;font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:18px;line-height:1;border:2px solid #fff;background-size:26px}
+  .sb-brand-mini{display:flex;margin:0 auto;width:40px;height:40px;align-items:center;justify-content:center;background:var(--accent);color:#fff;border-radius:9px;font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:18px;line-height:1;border:1px solid #fff;background-size:26px}
   .sb-logo .sb-tagline,.nav-item span:not(.nav-ic),.nav-badge,.nav-section,.sb-foot .plan-name,.sb-foot .plan-sub,.sb-foot .plan-bar,.sb-foot .user-label,.sb-foot .user-text{display:none}
   .nav-item{justify-content:center}
   .sb-foot{padding:16px 8px}
@@ -476,7 +476,7 @@ label.field-label{display:block}
       <button class="tab" data-view="conhecimento" onclick="setTab('conhecimento',null,this)">🧠 Base de Conhecimento</button>
       <button class="tab" data-view="profissionais" onclick="setTab('profissionais',null,this)">👥 Profissionais</button>
       <button class="tab" data-view="config" onclick="setTab('config',null,this)">⚙️ Configurações</button>
-      <button class="tab" data-view="whatsapp" onclick="setTab('whatsapp',null,this)">📱 WhatsApp</button>
+      <button class="tab" data-view="whatsapp" onclick="setTab('whatsapp',null,this)"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="vertical-align:middle;margin:-3px 3px -3px 0"><rect x="6" y="1.5" width="12" height="21" rx="2.8" fill="#1D3557"/><rect x="7.6" y="4.2" width="8.8" height="14" rx="1" fill="#EEF2F6"/><circle cx="12" cy="11.2" r="2.7" fill="#25D366"/><rect x="10.2" y="2.7" width="3.6" height="0.8" rx="0.4" fill="#8FA0B5"/><rect x="10.4" y="19.8" width="3.2" height="0.9" rx="0.45" fill="#8FA0B5"/></svg>WhatsApp</button>
       <button class="tab" data-view="fiscal" onclick="setTab('fiscal',null,this)">🧾 Dados fiscais</button>
       <button class="tab" data-view="testar" onclick="setTab('testar',null,this)">🧪 Testar Agente</button>
       <button class="tab" data-view="agendamentos" onclick="setTab('agendamentos',null,this)">📅 Agendamentos</button>
@@ -884,7 +884,7 @@ label.field-label{display:block}
       <div class="card" style="margin-bottom:16px">
         <div class="card-head">
           <div>
-            <div class="card-title">📱 WhatsApp do seu agente</div>
+            <div class="card-title"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="vertical-align:middle;margin:-3px 3px -3px 0"><rect x="6" y="1.5" width="12" height="21" rx="2.8" fill="#1D3557"/><rect x="7.6" y="4.2" width="8.8" height="14" rx="1" fill="#EEF2F6"/><circle cx="12" cy="11.2" r="2.7" fill="#25D366"/><rect x="10.2" y="2.7" width="3.6" height="0.8" rx="0.4" fill="#8FA0B5"/><rect x="10.4" y="19.8" width="3.2" height="0.9" rx="0.45" fill="#8FA0B5"/></svg>WhatsApp do seu agente</div>
             <div class="card-desc">O número em que seus clientes falam com o agente</div>
           </div>
         </div>
@@ -5965,7 +5965,7 @@ function waAdminBadgeHtml(id){
 
 function waAdminPhoneSuffix(id){
   const c = waAdmin.byClient[id];
-  return c && c.phone_e164 ? ` · 📱 ${apuEsc(waFmtPhone(c.phone_e164))}` : '';
+  return c && c.phone_e164 ? ` · <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style="vertical-align:-3px;margin:0 2px 0 0"><rect x="6" y="1.5" width="12" height="21" rx="2.8" fill="#1D3557"/><rect x="7.6" y="4.2" width="8.8" height="14" rx="1" fill="#EEF2F6"/><circle cx="12" cy="11.2" r="2.7" fill="#25D366"/><rect x="10.2" y="2.7" width="3.6" height="0.8" rx="0.4" fill="#8FA0B5"/><rect x="10.4" y="19.8" width="3.2" height="0.9" rx="0.45" fill="#8FA0B5"/></svg>${apuEsc(waFmtPhone(c.phone_e164))}` : '';
 }
 
 function waFmtAny(v){
