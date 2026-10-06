@@ -3987,11 +3987,11 @@ function renderCommercialCloseList(){
     return;
   }
   list.innerHTML = commercialCloseRequests.map(r=>`
-    <div onclick="selectCommercialCloseRequest('${r.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 22px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s"
+    <div onclick="selectCommercialCloseRequest(${convJsArg(r.id)})" style="display:flex;align-items:center;gap:14px;padding:14px 22px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s"
       onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;color:var(--ink)">${r.business_name||'—'}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">${r.contact_name||'—'} · ${r.lead_source||'—'}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--ink)">${apuEsc(r.business_name||'—')}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${apuEsc(r.contact_name||'—')} · ${apuEsc(r.lead_source||'—')}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--bg);color:var(--muted);border:1px solid var(--border)">${r.paid_at ? new Date(r.paid_at).toLocaleDateString('pt-BR') : '—'}</span>
@@ -4008,27 +4008,27 @@ function selectCommercialCloseRequest(id){
   document.getElementById('comercial-detail-title').textContent = r.business_name || 'Pedido';
   document.getElementById('comercial-detail-body').innerHTML = `
     <div style="display:flex;flex-direction:column;gap:16px">
-      <div id="comercial-detail-alert-${id}" class="form-alert" style="display:none"></div>
+      <div id="comercial-detail-alert-${apuEsc(id)}" class="form-alert" style="display:none"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div>
           <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Contato</div>
-          <div style="font-size:13px;color:var(--ink)">${r.contact_name||'—'}</div>
+          <div style="font-size:13px;color:var(--ink)">${apuEsc(r.contact_name||'—')}</div>
         </div>
         <div>
           <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Telefone</div>
-          <div style="font-size:13px;color:var(--ink)">${r.contact_phone||'—'}</div>
+          <div style="font-size:13px;color:var(--ink)">${apuEsc(r.contact_phone||'—')}</div>
         </div>
         <div>
           <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">E-mail</div>
-          <div style="font-size:13px;color:var(--ink)">${r.contact_email||'—'}</div>
+          <div style="font-size:13px;color:var(--ink)">${apuEsc(r.contact_email||'—')}</div>
         </div>
         <div>
           <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Origem</div>
-          <div style="font-size:13px;color:var(--ink)">${r.lead_source||'—'}${r.origin ? ` · ${r.origin}` : ''}${r.origin_seller_name ? ` (${r.origin_seller_name})` : ''}</div>
+          <div style="font-size:13px;color:var(--ink)">${apuEsc(r.lead_source||'—')}${r.origin ? ` · ${apuEsc(r.origin)}` : ''}${r.origin_seller_name ? ` (${apuEsc(r.origin_seller_name)})` : ''}</div>
         </div>
         <div>
           <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Profissionais pretendidos</div>
-          <div style="font-size:13px;color:var(--ink)">${r.intended_professionals ?? '—'}</div>
+          <div style="font-size:13px;color:var(--ink)">${apuEsc(r.intended_professionals ?? '—')}</div>
         </div>
         <div>
           <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pago em</div>
@@ -4038,7 +4038,7 @@ function selectCommercialCloseRequest(id){
       ${r.notes ? `
       <div>
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Observações</div>
-        <div style="font-size:13px;color:var(--ink);white-space:pre-wrap">${r.notes}</div>
+        <div style="font-size:13px;color:var(--ink);white-space:pre-wrap">${apuEsc(r.notes)}</div>
       </div>` : ''}
       <div style="font-size:11px;color:var(--light)">Pedido criado em ${notifFmtDate(r.requested_at) || '—'}</div>
 
@@ -4046,28 +4046,28 @@ function selectCommercialCloseRequest(id){
         <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">✅ Aprovar</div>
         <div class="field-group">
           <div class="field-label">E-mail de login do admin</div>
-          <input class="field" id="comercial-email-${id}" type="email" value="${r.contact_email||''}" autocomplete="off" oninput="validateCommercialApproveForm('${id}')">
-          <div class="field-error" id="err-comercial-email-${id}"></div>
+          <input class="field" id="comercial-email-${apuEsc(id)}" type="email" value="${apuEsc(r.contact_email||'')}" autocomplete="off" oninput="validateCommercialApproveForm(${convJsArg(id)})">
+          <div class="field-error" id="err-comercial-email-${apuEsc(id)}"></div>
         </div>
         <div class="field-group">
           <div class="field-label">Senha provisória</div>
           <div class="password-wrap">
-            <input class="field" id="comercial-password-${id}" type="password" autocomplete="new-password" oninput="validateCommercialApproveForm('${id}')">
-            <button type="button" class="password-toggle" id="comercial-password-toggle-${id}" onclick="togglePwd('comercial-password-${id}', this)" aria-label="Mostrar/ocultar senha">👁</button>
+            <input class="field" id="comercial-password-${apuEsc(id)}" type="password" autocomplete="new-password" oninput="validateCommercialApproveForm(${convJsArg(id)})">
+            <button type="button" class="password-toggle" id="comercial-password-toggle-${apuEsc(id)}" onclick="togglePwd(${convJsArg('comercial-password-' + id)}, this)" aria-label="Mostrar/ocultar senha">👁</button>
           </div>
-          <div class="field-error" id="err-comercial-password-${id}"></div>
-          <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="fillGeneratedPassword('${id}')">🎲 Gerar senha forte</button>
+          <div class="field-error" id="err-comercial-password-${apuEsc(id)}"></div>
+          <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="fillGeneratedPassword(${convJsArg(id)})">🎲 Gerar senha forte</button>
         </div>
-        <button type="button" class="btn btn-accent btn-sm" id="btn-comercial-approve-${id}" disabled style="width:100%" onclick="approveCommercialClose('${id}')">Aprovar e criar cliente</button>
+        <button type="button" class="btn btn-accent btn-sm" id="btn-comercial-approve-${apuEsc(id)}" disabled style="width:100%" onclick="approveCommercialClose(${convJsArg(id)})">Aprovar e criar cliente</button>
       </div>
 
       <div style="border-top:1px solid var(--border);padding-top:16px">
         <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">🚫 Rejeitar</div>
         <div class="field-group">
           <div class="field-label">Motivo <span style="font-weight:400;color:var(--muted)">(opcional)</span></div>
-          <input class="field" id="comercial-reason-${id}" type="text" autocomplete="off">
+          <input class="field" id="comercial-reason-${apuEsc(id)}" type="text" autocomplete="off">
         </div>
-        <button type="button" class="btn btn-ghost btn-sm" style="width:100%;color:var(--red)" id="btn-comercial-reject-${id}" onclick="rejectCommercialClose('${id}')">Rejeitar pedido</button>
+        <button type="button" class="btn btn-ghost btn-sm" style="width:100%;color:var(--red)" id="btn-comercial-reject-${apuEsc(id)}" onclick="rejectCommercialClose(${convJsArg(id)})">Rejeitar pedido</button>
       </div>
     </div>`;
   validateCommercialApproveForm(id);
@@ -5229,8 +5229,8 @@ function notifRowHtml(source, it){
   }
   if(source.id === 'newClientContact'){
     return `<div class="notif-row">
-      <div class="notif-row-text"><span class="muted">${it.business_name || 'Cliente'}</span> — ${it.contact_name || '—'}<br>${it.contact_phone || 'sem telefone'}${it.contact_email ? ` <span class="muted">· ${it.contact_email}</span>` : ''}</div>
-      <div class="notif-row-actions"><span class="notif-row-time">${it.paid_at ? 'Pago '+notifFmtDate(it.paid_at) : ''}</span><button class="notif-dismiss" onclick="markOneSeen('newClientContact','${it.id}')">Marcar contatado</button></div>
+      <div class="notif-row-text"><span class="muted">${apuEsc(it.business_name || 'Cliente')}</span> — ${apuEsc(it.contact_name || '—')}<br>${apuEsc(it.contact_phone || 'sem telefone')}${it.contact_email ? ` <span class="muted">· ${apuEsc(it.contact_email)}</span>` : ''}</div>
+      <div class="notif-row-actions"><span class="notif-row-time">${it.paid_at ? 'Pago '+notifFmtDate(it.paid_at) : ''}</span><button class="notif-dismiss" onclick="markOneSeen('newClientContact',${convJsArg(it.id)})">Marcar contatado</button></div>
     </div>`;
   }
   return `<div class="notif-row">
