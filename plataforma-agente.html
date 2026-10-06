@@ -1337,19 +1337,214 @@ function handleSessionExpired(){
   if(errEl) errEl.textContent = 'Sua sessão expirou. Entre novamente.';
 }
 
+// ── SESSÃO: renovação silenciosa do token ──
+// O login do Supabase devolve um refresh_token, guardado em localStorage ao lado do
+// access_token. Com o painel aberto, o access_token é renovado antes de vencer (timer +
+// checagem ao voltar a aba / a rede), e uma chamada que dê 401 por token vencido é
+// renovada e repetida uma vez. Só vai ao login se o refresh token for recusado de vez
+// (ou ficar sem rede por muito tempo depois do vencimento). Tokens nunca vão para log,
+// URL ou toast: os erros abaixo registram só o status HTTP.
+const AUTH_REFRESH_KEY = 'agentefacil_refresh';
+const TOKEN_REFRESH_LEAD_MS = 5 * 60 * 1000;   // renova até 5 min antes de vencer
+const TOKEN_NEAR_EXPIRY_MS = 60 * 1000;        // "quase vencido": renova antes de chamar
+const TOKEN_NET_GRACE_MS = 10 * 60 * 1000;     // sem rede além disso depois de vencer → login
+const TOKEN_RETRY_MS = 30 * 1000;              // nova tentativa se a renovação falhar por rede
+let tokenRefreshTimer = null;
+let refreshPromise = null;                     // uma renovação por vez nesta aba
+let lastRefreshNetFailAt = 0;
+
+function jwtPayload(token){
+  try{
+    let b64 = String(token).split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    while(b64.length % 4) b64 += '=';
+    return JSON.parse(atob(b64));
+  }catch(e){ return null; }
+}
+function jwtExpMs(token){
+  const p = jwtPayload(token);
+  return p && typeof p.exp === 'number' ? p.exp * 1000 : null;
+}
+function jwtSub(token){
+  const p = jwtPayload(token);
+  return p ? (p.sub || null) : null;
+}
+
+// refresh: string = grava; null = apaga; undefined = mantém o que já está guardado.
+function saveSession(access, refresh){
+  authToken = access;
+  localStorage.setItem('agentefacil_token', access);
+  if(refresh) localStorage.setItem(AUTH_REFRESH_KEY, refresh);
+  else if(refresh === null) localStorage.removeItem(AUTH_REFRESH_KEY);
+  scheduleTokenRefresh();
+}
+
+function clearStoredSession(){
+  clearTimeout(tokenRefreshTimer);
+  tokenRefreshTimer = null;
+  localStorage.removeItem('agentefacil_token');
+  localStorage.removeItem(AUTH_REFRESH_KEY);
+}
+
+// Outra aba (mesmo navegador, mesmo localStorage) pode já ter renovado: usa o token novo
+// dela em vez de gastar o refresh token de novo. Se for outro usuário, recarrega a página
+// (volta pelo checkExistingSession já como o usuário novo) em vez de misturar dados.
+function adoptNewerStoredToken(){
+  const stored = localStorage.getItem('agentefacil_token');
+  if(!stored || stored === authToken) return false;
+  const exp = jwtExpMs(stored);
+  if(!exp || exp - Date.now() < TOKEN_NEAR_EXPIRY_MS) return false;
+  if(authToken && jwtSub(stored) !== jwtSub(authToken)){ location.reload(); return false; }
+  authToken = stored;
+  scheduleTokenRefresh();
+  return true;
+}
+
+// 'ok' | 'invalid' (refresh token recusado ou ausente) | 'network' (sem rede / servidor instável)
+async function refreshOnce(){
+  if(adoptNewerStoredToken()) return 'ok';
+  const rt = localStorage.getItem(AUTH_REFRESH_KEY);
+  if(!rt) return 'invalid';
+  let res;
+  try{
+    res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ refresh_token: rt })
+    });
+  }catch(e){
+    lastRefreshNetFailAt = Date.now();
+    return 'network';
+  }
+  if(res.ok){
+    const data = await res.json().catch(() => null);
+    if(data && data.access_token){
+      saveSession(data.access_token, data.refresh_token || undefined);
+      return 'ok';
+    }
+    lastRefreshNetFailAt = Date.now();
+    return 'network';
+  }
+  if(res.status === 400 || res.status === 401 || res.status === 403){
+    // Pode ter perdido a corrida para outra aba que rotacionou o refresh token agora.
+    if(adoptNewerStoredToken()) return 'ok';
+    // Sem Web Locks (navegador antigo) a outra aba pode ainda estar gravando o token novo:
+    // espera um pouco antes de concluir que o refresh token é inválido.
+    if(!(navigator.locks && navigator.locks.request)){
+      for(let i = 0; i < 8; i++){
+        await new Promise(r => setTimeout(r, 250));
+        if(adoptNewerStoredToken()) return 'ok';
+      }
+    }
+    console.error('[refreshSession] refresh token recusado:', res.status);
+    return 'invalid';
+  }
+  console.error('[refreshSession] falha temporária:', res.status);
+  lastRefreshNetFailAt = Date.now();
+  return 'network';
+}
+
+// Uma renovação por vez: dentro da aba pela promessa compartilhada; entre abas pelo
+// Web Locks (quando o navegador tem), e o refreshOnce relê o localStorage já com o lock.
+function refreshSession(){
+  if(!refreshPromise){
+    let p;
+    try{
+      p = (navigator.locks && navigator.locks.request)
+        ? navigator.locks.request('agentefacil_refresh', () => refreshOnce())
+        : refreshOnce();
+    }catch(e){ p = refreshOnce(); }
+    refreshPromise = Promise.resolve(p).finally(() => { refreshPromise = null; });
+  }
+  return refreshPromise;
+}
+
+function scheduleTokenRefresh(delayMs){
+  clearTimeout(tokenRefreshTimer);
+  tokenRefreshTimer = null;
+  if(!authToken) return;
+  let delay = delayMs;
+  if(delay == null){
+    const exp = jwtExpMs(authToken);
+    if(!exp) return;
+    const left = exp - Date.now();
+    delay = Math.max(left - Math.min(TOKEN_REFRESH_LEAD_MS, left / 2), 5000);
+  }
+  tokenRefreshTimer = setTimeout(tokenRefreshTick, delay);
+}
+
+async function tokenRefreshTick(){
+  tokenRefreshTimer = null;
+  if(!authToken) return;
+  const r = await refreshSession();
+  if(r === 'ok') return;                    // saveSession/adopt já reagendou
+  if(r === 'invalid'){ handleSessionExpired(); return; }
+  const exp = jwtExpMs(authToken);
+  if(exp && Date.now() - exp > TOKEN_NET_GRACE_MS){ handleSessionExpired(); return; }
+  scheduleTokenRefresh(TOKEN_RETRY_MS);
+}
+
+// Timers de aba oculta são atrasados pelo navegador: ao voltar à aba ou à rede, confere na hora.
+function tokenCheckNow(){
+  if(!authToken) return;
+  const exp = jwtExpMs(authToken);
+  if(exp && exp - Date.now() < TOKEN_REFRESH_LEAD_MS) tokenRefreshTick();
+}
+document.addEventListener('visibilitychange', () => { if(!document.hidden) tokenCheckNow(); });
+window.addEventListener('online', tokenCheckNow);
+// Outra aba renovou (token novo na storage) ou saiu (token removido).
+window.addEventListener('storage', ev => {
+  if(ev.key !== 'agentefacil_token') return;
+  if(!ev.newValue){ if(authToken) doLogout(); return; }
+  if(authToken && ev.newValue !== authToken) adoptNewerStoredToken();
+});
+
+async function ensureFreshToken(){
+  if(!authToken) return;
+  const exp = jwtExpMs(authToken);
+  if(!exp || exp - Date.now() > TOKEN_NEAR_EXPIRY_MS) return;
+  if(Date.now() - lastRefreshNetFailAt < 15000) return;
+  await refreshSession();
+}
+
+// 401 por token vencido (ou ilegível) — e não 401 "esperado" por papel do usuário.
+async function tokenLooksExpired(res, token){
+  if(!token) return false;
+  const exp = jwtExpMs(token);
+  if(!exp || exp - Date.now() < TOKEN_NEAR_EXPIRY_MS) return true;
+  try{
+    const d = await res.clone().json();
+    return !!d && d.code === 'sessao_expirada';
+  }catch(e){ return false; }
+}
+
 // Helper: toda chamada ao backend passa por aqui, garantindo que o token
 // de sessão nunca seja esquecido em algum fetch novo. Chamadas que esperam
 // 401/403 pelo papel do usuário (checkPlatformAdmin, polling do sino) passam
 // { skipAuthGuard:true } e não disparam o logout.
+// Token vencido: renova antes de chamar; se mesmo assim vier 401 por vencimento, renova e
+// repete a chamada uma vez. Sem rede na renovação, devolve o 401 sem derrubar a sessão.
 async function apiFetch(path, options = {}) {
   const { skipAuthGuard = false, ...init } = options;
-  const res = await fetch(`${BACKEND_URL}${path}`, {
+  await ensureFreshToken();
+  const send = () => fetch(`${BACKEND_URL}${path}`, {
     ...init,
     headers: {
       ...(init.headers || {}),
       'Authorization': `Bearer ${authToken}`,
     },
   });
+  const used = authToken;
+  let res = await send();
+  if(res.status === 401 && await tokenLooksExpired(res, used)){
+    if(authToken !== used){
+      res = await send();                      // outra chamada/aba já renovou
+    }else{
+      const r = await refreshSession();
+      if(r === 'ok') res = await send();
+      else if(r === 'invalid'){ if(!skipAuthGuard) handleSessionExpired(); return res; }
+      else return res;
+    }
+  }
   if(res.status === 401 && !skipAuthGuard) handleSessionExpired();
   return res;
 }
@@ -1384,8 +1579,7 @@ async function doLogin(){
       errEl.textContent = 'E-mail ou senha incorretos.';
       return;
     }
-    authToken = data.access_token;
-    localStorage.setItem('agentefacil_token', authToken);
+    saveSession(data.access_token, data.refresh_token || null);
     await loadCurrentUser();
     if(!currentUser){
       errEl.textContent = 'Login ok, mas este usuário não está vinculado a nenhuma instalação. Fale com o administrador.';
@@ -1406,7 +1600,7 @@ async function doLogin(){
 function doLogout(){
   authToken = null;
   currentUser = null;
-  localStorage.removeItem('agentefacil_token');
+  clearStoredSession();
   resetTenantState();
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app-shell').style.display = 'none';
@@ -1613,17 +1807,23 @@ async function checkExistingSession(){
     document.getElementById('login-screen').style.display = 'flex';
     return;
   }
-  // Fast path: o token é um JWT. Se o exp já passou, nem tenta a rede —
-  // volta direto pro login. Token malformado (payload não decodificável)
-  // cai no fluxo normal abaixo.
-  try{
-    const b64 = authToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(atob(b64));
-    if(payload && typeof payload.exp === 'number' && Date.now() >= payload.exp * 1000 - 5000){
-      handleSessionExpired();
+  // Fast path: o token é um JWT. Se o exp já passou, tenta renovar em silêncio com o
+  // refresh token; sem refresh token (sessão antiga) ou com ele recusado, volta pro login.
+  // Sem rede na renovação: mostra o login sem apagar a sessão (recarregar tenta de novo).
+  // Token malformado (payload não decodificável) cai no fluxo normal abaixo.
+  const exp = jwtExpMs(authToken);
+  if(exp !== null && Date.now() >= exp - 5000){
+    const r = await refreshSession();
+    if(r === 'invalid'){ handleSessionExpired(); return; }
+    if(r === 'network'){
+      document.getElementById('login-screen').style.display = 'flex';
+      const errEl = document.getElementById('login-error');
+      if(errEl) errEl.textContent = 'Não foi possível conectar. Verifique sua internet e recarregue a página.';
       return;
     }
-  }catch(e){ /* token malformado — segue o fluxo normal */ }
+  }else{
+    scheduleTokenRefresh();
+  }
   await loadCurrentUser();
   if(currentUser){
     afterLoginSuccess();
