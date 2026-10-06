@@ -5208,12 +5208,16 @@ function notifRowHtml(source, it){
     const ch = it.channel || 'whatsapp';
     const key = convRefKey(it.conversation_id, it.customer_phone, ch);
     const open = key === expandedHandoffKey;
-    const canal = it.channel ? ` <span class="muted">· ${it.channel}</span>` : '';
-    const motivo = it.reason ? `<div class="notif-row-text muted">Motivo: ${it.reason}</div>` : '';
+    // Tudo que vem do servidor (nome/telefone do contato de WhatsApp, motivo, canal, ids) é
+    // escapado: no texto com apuEsc; nos argumentos do onclick como literal JSON dentro do
+    // atributo (apuEsc(JSON.stringify(v))), que o navegador decodifica de volta num literal JS válido.
+    const arg = v => apuEsc(JSON.stringify(String(v == null ? '' : v)));
+    const canal = it.channel ? ` <span class="muted">· ${apuEsc(it.channel)}</span>` : '';
+    const motivo = it.reason ? `<div class="notif-row-text muted">Motivo: ${apuEsc(it.reason)}</div>` : '';
     return `<div class="notif-row">
-      <div class="notif-row-text"><span class="muted">${it.customer_name || 'Cliente'}</span> pediu transferência para atendimento humano.<br>${formatApptPhone(it.customer_phone) || 'sem telefone'}${canal}</div>
+      <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu transferência para atendimento humano.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
       ${motivo}
-      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span><button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory('${it.conversation_id || ''}','${it.customer_phone}','${ch}')">${open ? 'Ocultar histórico' : 'Ver histórico'}</button><button class="notif-dismiss" onclick="markOneSeen('handoffs','${it.id}')">Marcar atendida</button></div>
+      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span><button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${arg(it.conversation_id)},${arg(it.customer_phone)},${arg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button><button class="notif-dismiss" onclick="markOneSeen('handoffs',${arg(it.id)})">Marcar atendida</button></div>
       ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px;margin-top:4px">${convHistoryHtml(key)}</div>` : ''}
     </div>`;
   }
