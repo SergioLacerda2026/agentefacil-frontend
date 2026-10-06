@@ -3325,14 +3325,14 @@ function apptRowHtml(a){
   return `
     <div style="display:flex;flex-direction:column;gap:10px;padding:14px 22px;border-bottom:1px solid var(--border)">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
-        <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Cliente:</span> ${a.customer_name || 'Cliente'} <span style="color:var(--muted)">· ${formatApptPhone(a.customer_phone)}</span></div>
+        <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Cliente:</span> ${apuEsc(a.customer_name || 'Cliente')} <span style="color:var(--muted)">· ${apuEsc(formatApptPhone(a.customer_phone))}</span></div>
         <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Data:</span> ${formatApptDateOnly(a.start_time)}</div>
         <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Hora:</span> ${formatApptTimeOnly(a.start_time)} – ${formatApptTimeOnly(a.end_time)}</div>
-        ${a.professional_name ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Profissional:</span> ${a.professional_name}${a.professional_specialty ? ` (${a.professional_specialty})` : ''}</div>` : ''}
+        ${a.professional_name ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Profissional:</span> ${apuEsc(a.professional_name)}${a.professional_specialty ? ` (${apuEsc(a.professional_specialty)})` : ''}</div>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${apptStatusColor[a.status]||'var(--muted)'}22;color:${apptStatusColor[a.status]||'var(--muted)'}">${apptStatusLabel[a.status]||a.status}</span>
-        ${a.status==='confirmado' ? `<button class="btn btn-ghost btn-sm" onclick="cancelAppointmentFromPanel('${a.id}')">Cancelar</button>` : ''}
+        <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${apptStatusColor[a.status]||'var(--muted)'}22;color:${apptStatusColor[a.status]||'var(--muted)'}">${apuEsc(apptStatusLabel[a.status]||a.status)}</span>
+        ${a.status==='confirmado' ? `<button class="btn btn-ghost btn-sm" onclick="cancelAppointmentFromPanel(${convJsArg(a.id)})">Cancelar</button>` : ''}
       </div>
     </div>`;
 }
@@ -3344,13 +3344,13 @@ function callbackRowHtml(c){
     <div style="display:flex;flex-direction:column;gap:10px;padding:14px 22px;border-bottom:1px solid var(--border);border-left:3px solid var(--amber)">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
         <div style="font-size:12px;font-weight:700;color:var(--amber);letter-spacing:.04em;text-transform:uppercase">📞 Retorno de ligação</div>
-        <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Cliente:</span> ${c.customer_name || 'Cliente'} <span style="color:var(--muted)">· ${formatApptPhone(c.customer_phone)}</span></div>
-        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Dia:</span> ${formatCallbackDate(c.preferred_date)}${per ? ` <span style="color:var(--muted)">·</span> <span style="font-weight:600;color:var(--muted)">Período:</span> ${per}` : ''}</div>
-        ${c.reason ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Motivo:</span> ${c.reason}</div>` : ''}
+        <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Cliente:</span> ${apuEsc(c.customer_name || 'Cliente')} <span style="color:var(--muted)">· ${apuEsc(formatApptPhone(c.customer_phone))}</span></div>
+        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Dia:</span> ${formatCallbackDate(c.preferred_date)}${per ? ` <span style="color:var(--muted)">·</span> <span style="font-weight:600;color:var(--muted)">Período:</span> ${apuEsc(per)}` : ''}</div>
+        ${c.reason ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Motivo:</span> ${apuEsc(c.reason)}</div>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${done?'var(--muted)':'var(--amber)'}22;color:${done?'var(--muted)':'var(--amber)'}">${done?'Concluído':'Pendente'}</span>
-        ${done ? '' : `<button class="btn btn-ghost btn-sm" onclick="markCallbackDone('${c.id}')">Marcar como concluído</button>`}
+        ${done ? '' : `<button class="btn btn-ghost btn-sm" onclick="markCallbackDone(${convJsArg(c.id)})">Marcar como concluído</button>`}
       </div>
     </div>`;
 }
@@ -5215,15 +5215,13 @@ function notifRowHtml(source, it){
     const key = convRefKey(it.conversation_id, it.customer_phone, ch);
     const open = key === expandedHandoffKey;
     // Tudo que vem do servidor (nome/telefone do contato de WhatsApp, motivo, canal, ids) é
-    // escapado: no texto com apuEsc; nos argumentos do onclick como literal JSON dentro do
-    // atributo (apuEsc(JSON.stringify(v))), que o navegador decodifica de volta num literal JS válido.
-    const arg = v => apuEsc(JSON.stringify(String(v == null ? '' : v)));
+    // escapado: no texto com apuEsc; nos argumentos do onclick com convJsArg.
     const canal = it.channel ? ` <span class="muted">· ${apuEsc(it.channel)}</span>` : '';
     const motivo = it.reason ? `<div class="notif-row-text muted">Motivo: ${apuEsc(it.reason)}</div>` : '';
     return `<div class="notif-row">
       <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu transferência para atendimento humano.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
       ${motivo}
-      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span><button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${arg(it.conversation_id)},${arg(it.customer_phone)},${arg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button><button class="notif-dismiss" onclick="markOneSeen('handoffs',${arg(it.id)})">Marcar atendida</button></div>
+      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span><button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${convJsArg(it.conversation_id || '')},${convJsArg(it.customer_phone)},${convJsArg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button><button class="notif-dismiss" onclick="markOneSeen('handoffs',${convJsArg(it.id)})">Marcar atendida</button></div>
       ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px;margin-top:4px">${convHistoryHtml(key)}</div>` : ''}
     </div>`;
   }
@@ -5234,8 +5232,8 @@ function notifRowHtml(source, it){
     </div>`;
   }
   return `<div class="notif-row">
-    <div class="notif-row-text"><span class="muted">${it.customer_name || 'Cliente'}</span> cancelou o agendamento de ${notifFmtDate(it.start_time)}.</div>
-    <div class="notif-row-actions"><span class="notif-row-time">Cancelado ${notifFmtDate(it.cancelled_at)}</span><button class="notif-dismiss" onclick="markOneSeen('proCancellations','${it.id}')">Marcar visto</button></div>
+    <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> cancelou o agendamento de ${notifFmtDate(it.start_time)}.</div>
+    <div class="notif-row-actions"><span class="notif-row-time">Cancelado ${notifFmtDate(it.cancelled_at)}</span><button class="notif-dismiss" onclick="markOneSeen('proCancellations',${convJsArg(it.id)})">Marcar visto</button></div>
   </div>`;
 }
 
