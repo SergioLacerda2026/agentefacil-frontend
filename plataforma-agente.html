@@ -93,6 +93,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .ho-btn-main:hover{background:#FEE2E2}
 .ho-btn:disabled{opacity:.6;cursor:default}
 .ho-more{font-size:12px;opacity:.9}
+.ho-conclude{border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.ho-conclude-title{font-size:12px;font-weight:700;color:var(--ink)}
+.ho-opts{display:flex;flex-direction:column;gap:4px}
+.ho-opt{font-size:12px;color:var(--ink);display:flex;align-items:center;gap:6px;cursor:pointer}
+.ho-conclude textarea{width:100%;resize:vertical;min-height:60px;font-size:12px}
+.ho-note-count{font-size:11px;color:var(--muted);text-align:right}
 .call-light{display:flex;align-items:center;gap:6px;border:none;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer}
 .call-light .cl-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .call-light[data-state="ok"]{background:var(--green-l);color:var(--green)}
@@ -5486,7 +5492,15 @@ function renderNotifPanel(){
     html += `<div class="notif-section-title">${s.title}</div>`;
     html += s.kind === 'link' ? notifLinkRowHtml(s, items) : items.map(it => notifRowHtml(s, it)).join('');
   });
+  const ae = document.activeElement;
+  const keepNote = ae && ae.id === 'ho-note' ? { s: ae.selectionStart, e: ae.selectionEnd } : null;
+  const prevTop = body.scrollTop;      // redesenhar o sino não pode levar a rolagem de volta ao topo
   body.innerHTML = html;
+  if(keepNote){
+    const n = document.getElementById('ho-note');
+    if(n){ n.focus({ preventScroll: true }); try{ n.setSelectionRange(keepNote.s, keepNote.e); }catch(e){} }
+  }
+  body.scrollTop = prevTop;
   if(empty) empty.hidden = sources.some(s => (notifCache[s.id] || []).length > 0);
   if(markAllBtn) markAllBtn.hidden = !hasSeenItems;
 }
@@ -5870,6 +5884,7 @@ function handoffApplyResponse(data, askedPresence){
   const before = new Set(handoffPendingForMe().map(h => h.id));
   handoffList = data.handoffs;
   const arrived = handoffPendingForMe().some(h => !before.has(h.id));
+  if(handoffConclude && !handoffCanConclude(handoffList.find(x => x.id === handoffConclude.id))) handoffConclude = null;
 
   if(askedPresence && data.presence_recorded === false){
     handoffSetFail();                  // pedimos presença e o servidor não gravou: não estamos "online"
@@ -5948,6 +5963,8 @@ function stopHandoffs(){
   handoffList = [];
   handoffListSig = null;
   handoffClaimBusy = new Set();
+  handoffConclude = null;
+  handoffConcludeBusy = new Set();
   handoffPollFails = 0;
   handoffConnBad = false;
   handoffStopAlert();
@@ -6011,6 +6028,145 @@ async function claimHandoff(id){
   }
 }
 
+// ── Concluir atendimento (F2) ──
+// PATCH /api/handoffs/:id/conclude, corpo { result, note? }. Só em transferência ASSUMIDA, por
+// quem assumiu ou pelo admin (a mesma permissão de "Vou atender" + o que o backend exige).
+// O resultado "agendou_consulta" entra com a fatia de agendamento e "retorno_agendado" fica
+// fora da lista do painel (decisão do proprietário).
+const HANDOFF_NOTE_MAX = 500;
+const HANDOFF_RESULT_OPTIONS = [
+  ['resolvido', 'Resolvido'],
+  ['cliente_vai_retornar', 'Cliente vai retornar'],
+  ['nao_consegui_falar', 'Não consegui falar'],
+  ['outro', 'Outro'],
+];
+let handoffConclude = null;            // formulário aberto: { id, result, note }
+let handoffConcludeBusy = new Set();
+
+function handoffCanConclude(h){
+  return !!h && h.status === 'assumido' && handoffCanAssume() &&
+    (currentUser.role === 'admin' || h.mine === true);
+}
+
+// Redesenha o sino sem perder o que está sendo digitado (renderNotifPanel preserva o foco da nota).
+function handoffRenderPanel(){
+  handoffListSig = null;
+  if(notifOpen) renderNotifPanel();
+}
+
+function handoffOpenConclude(id){
+  const h = handoffList.find(x => x.id === id);
+  if(!handoffCanConclude(h)) return;
+  handoffConclude = { id, result: '', note: '' };
+  handoffRenderPanel();
+}
+
+function handoffCancelConclude(){
+  if(handoffConclude && handoffConcludeBusy.has(handoffConclude.id)) return;
+  handoffConclude = null;
+  handoffRenderPanel();
+}
+
+function handoffPickResult(value){
+  if(!handoffConclude || !HANDOFF_RESULT_OPTIONS.some(o => o[0] === value)) return;
+  handoffConclude.result = value;
+  handoffRenderPanel();
+}
+
+function handoffNoteInput(el){
+  if(!handoffConclude) return;
+  handoffConclude.note = el.value;
+  const c = document.getElementById('ho-note-count');
+  if(c) c.textContent = `${el.value.length}/${HANDOFF_NOTE_MAX}`;
+}
+
+function handoffConcludeFormHtml(it){
+  const f = handoffConclude;
+  if(!f || f.id !== it.id) return '';
+  const busy = handoffConcludeBusy.has(it.id);
+  const opts = HANDOFF_RESULT_OPTIONS.map(([val, label]) =>
+    `<label class="ho-opt"><input type="radio" name="ho-result" value="${apuEsc(val)}" ${f.result === val ? 'checked' : ''} ${busy ? 'disabled' : ''} onchange="handoffPickResult(this.value)"> ${apuEsc(label)}</label>`
+  ).join('');
+  return `<div class="ho-conclude">
+      <div class="ho-conclude-title">Como terminou o atendimento?</div>
+      <div class="ho-opts">${opts}</div>
+      <textarea id="ho-note" class="field" maxlength="${HANDOFF_NOTE_MAX}" rows="3" placeholder="Observação (opcional)" ${busy ? 'disabled' : ''} oninput="handoffNoteInput(this)">${apuEsc(f.note)}</textarea>
+      <div class="ho-note-count" id="ho-note-count">${f.note.length}/${HANDOFF_NOTE_MAX}</div>
+      <div class="notif-row-actions">
+        <button type="button" class="btn btn-accent btn-sm" ${(!f.result || busy) ? 'disabled' : ''} onclick="concludeHandoff(${convJsArg(it.id)})">${busy ? 'Concluindo…' : 'Confirmar'}</button>
+        <button type="button" class="btn btn-ghost btn-sm" ${busy ? 'disabled' : ''} onclick="handoffCancelConclude()">Cancelar</button>
+      </div>
+    </div>`;
+}
+
+async function concludeHandoff(id){
+  const f = handoffConclude;
+  if(!f || f.id !== id || handoffConcludeBusy.has(id)) return;
+  if(!HANDOFF_RESULT_OPTIONS.some(o => o[0] === f.result)){ showToast('ℹ️ Escolha como o atendimento terminou.'); return; }
+  const note = f.note.trim();
+  if(note.length > HANDOFF_NOTE_MAX){ showToast(`ℹ️ A observação deve ter até ${HANDOFF_NOTE_MAX} caracteres.`); return; }
+  const h = handoffList.find(x => x.id === id);
+  const nome = (h && h.customer_name) || 'o cliente';
+  const body = { result: f.result };
+  if(note) body.note = note;
+  handoffConcludeBusy.add(id);
+  handoffRenderPanel();
+  let done = false;
+  try{
+    const res = await apiFetch(`/api/handoffs/${encodeURIComponent(id)}/conclude`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    const st = data && data.handoff;
+    if(res.ok && data && data.concluded){
+      done = true;
+      showToast(`✓ Atendimento de ${nome} concluído.`);
+    }else if(res.status === 400){
+      showToast(data && data.code === 'observacao_longa'
+        ? `ℹ️ A observação deve ter até ${HANDOFF_NOTE_MAX} caracteres.`
+        : 'ℹ️ Escolha como o atendimento terminou.');
+    }else if(res.status === 403){
+      if(data && data.code === 'so_quem_assumiu'){
+        if(st) handoffMerge(id, st);
+        handoffConclude = null;
+        showToast(`ℹ️ Só quem assumiu pode concluir. Este atendimento está com ${(st && st.claimed_by_name) || (h && h.claimed_by_name) || 'outra pessoa'}.`);
+      }else{
+        handoffConclude = null;
+        showToast('⚠ Você não tem permissão para concluir transferências.');
+      }
+    }else if(res.status === 404){
+      done = true;                     // já não existe: tira da lista
+      showToast('ℹ️ Esta transferência não existe mais (já foi resolvida).');
+    }else if(res.status === 409){
+      if(st && st.status === 'atendido'){
+        done = true;
+        showToast('ℹ️ Este atendimento já foi concluído.');
+      }else{
+        if(st) handoffMerge(id, st);
+        handoffConclude = null;
+        showToast(st && st.status === 'pendente'
+          ? 'ℹ️ Ninguém assumiu este atendimento ainda. Clique em "Vou atender" primeiro.'
+          : 'ℹ️ Este atendimento não pode mais ser concluído por você agora.');
+      }
+    }else if(res.status !== 401){
+      showToast('⚠ Não foi possível concluir agora. Tente de novo.');
+    }
+  }catch(e){
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }finally{
+    handoffConcludeBusy.delete(id);
+    if(done){
+      handoffConclude = null;
+      handoffRemove(id);               // sai da lista e do alerta
+    }else{
+      handoffRenderAll();
+    }
+    handoffPollSoon();                 // confirma com o servidor
+  }
+}
+
 // Linha da transferência no sino.
 function handoffRowHtml(it){
   const ch = it.channel || 'whatsapp';
@@ -6029,11 +6185,15 @@ function handoffRowHtml(it){
     ? `<button class="btn btn-accent btn-sm" ${busy ? 'disabled' : ''} onclick="claimHandoff(${convJsArg(it.id)})">${busy ? 'Assumindo…' : 'Vou atender'}</button>` : '';
   const marcar = pendente
     ? `<button class="notif-dismiss" onclick="markOneSeen('handoffs',${convJsArg(it.id)})">Marcar atendida</button>` : '';
+  const formAberto = !!handoffConclude && handoffConclude.id === it.id;
+  const concluir = handoffCanConclude(it) && !formAberto
+    ? `<button class="btn btn-accent btn-sm" onclick="handoffOpenConclude(${convJsArg(it.id)})">Concluir atendimento</button>` : '';
   return `<div class="notif-row">
       <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu transferência para atendimento humano.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
       ${motivo}
       ${estado}
-      <div class="notif-row-actions">${assumir}${handoffContactHtml(it, 'btn btn-ghost btn-sm')}</div>
+      <div class="notif-row-actions">${assumir}${concluir}${handoffContactHtml(it, 'btn btn-ghost btn-sm')}</div>
+      ${handoffCanConclude(it) ? handoffConcludeFormHtml(it) : ''}
       <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span>${prazo}<button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${convJsArg(it.conversation_id || '')},${convJsArg(it.customer_phone)},${convJsArg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button>${marcar}</div>
       ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px;margin-top:4px">${convHistoryHtml(key)}</div>` : ''}
     </div>`;
