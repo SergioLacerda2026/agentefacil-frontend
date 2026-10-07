@@ -99,6 +99,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .ho-opt{font-size:12px;color:var(--ink);display:flex;align-items:center;gap:6px;cursor:pointer}
 .ho-conclude textarea{width:100%;resize:vertical;min-height:60px;font-size:12px}
 .ho-note-count{font-size:11px;color:var(--muted);text-align:right}
+.ho-book-label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--ink)}
+.ho-book select,.ho-book input[type=date]{width:100%;font-size:12px}
+.ho-book-note{font-size:12px;color:var(--muted)}
+.ho-book-err{font-size:12px;color:var(--red);font-weight:600}
+.ho-book-info{font-size:12px;color:#92400E;background:var(--amber-l);border-radius:8px;padding:6px 8px;font-weight:600}
+.ho-slots{display:flex;flex-wrap:wrap;gap:6px}
+.ho-slot{border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.ho-slot:hover{border-color:var(--accent)}
+.ho-slot.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .call-light{display:flex;align-items:center;gap:6px;border:none;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer}
 .call-light .cl-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .call-light[data-state="ok"]{background:var(--green-l);color:var(--green)}
@@ -5493,12 +5502,16 @@ function renderNotifPanel(){
     html += s.kind === 'link' ? notifLinkRowHtml(s, items) : items.map(it => notifRowHtml(s, it)).join('');
   });
   const ae = document.activeElement;
-  const keepNote = ae && ae.id === 'ho-note' ? { s: ae.selectionStart, e: ae.selectionEnd } : null;
+  const keepId = ae && /^ho-(note|book-prof|book-date)$/.test(ae.id || '') ? ae.id : null;
+  const keepSel = keepId === 'ho-note' ? { s: ae.selectionStart, e: ae.selectionEnd } : null;
   const prevTop = body.scrollTop;      // redesenhar o sino não pode levar a rolagem de volta ao topo
   body.innerHTML = html;
-  if(keepNote){
-    const n = document.getElementById('ho-note');
-    if(n){ n.focus({ preventScroll: true }); try{ n.setSelectionRange(keepNote.s, keepNote.e); }catch(e){} }
+  if(keepId){
+    const n = document.getElementById(keepId);
+    if(n){
+      n.focus({ preventScroll: true });
+      if(keepSel){ try{ n.setSelectionRange(keepSel.s, keepSel.e); }catch(e){} }
+    }
   }
   body.scrollTop = prevTop;
   if(empty) empty.hidden = sources.some(s => (notifCache[s.id] || []).length > 0);
@@ -5885,6 +5898,7 @@ function handoffApplyResponse(data, askedPresence){
   handoffList = data.handoffs;
   const arrived = handoffPendingForMe().some(h => !before.has(h.id));
   if(handoffConclude && !handoffCanConclude(handoffList.find(x => x.id === handoffConclude.id))) handoffConclude = null;
+  if(handoffBook && !handoffCanConclude(handoffList.find(x => x.id === handoffBook.id))) handoffBook = null;
 
   if(askedPresence && data.presence_recorded === false){
     handoffSetFail();                  // pedimos presença e o servidor não gravou: não estamos "online"
@@ -5965,6 +5979,10 @@ function stopHandoffs(){
   handoffClaimBusy = new Set();
   handoffConclude = null;
   handoffConcludeBusy = new Set();
+  handoffBook = null;
+  handoffBookBusy = new Set();
+  handoffBookProfs = null;
+  handoffBooked = {};
   handoffPollFails = 0;
   handoffConnBad = false;
   handoffStopAlert();
@@ -6031,11 +6049,11 @@ async function claimHandoff(id){
 // ── Concluir atendimento (F2) ──
 // PATCH /api/handoffs/:id/conclude, corpo { result, note? }. Só em transferência ASSUMIDA, por
 // quem assumiu ou pelo admin (a mesma permissão de "Vou atender" + o que o backend exige).
-// O resultado "agendou_consulta" entra com a fatia de agendamento e "retorno_agendado" fica
-// fora da lista do painel (decisão do proprietário).
+// "retorno_agendado" fica fora da lista do painel (decisão do proprietário).
 const HANDOFF_NOTE_MAX = 500;
 const HANDOFF_RESULT_OPTIONS = [
   ['resolvido', 'Resolvido'],
+  ['agendou_consulta', 'Agendou consulta'],
   ['cliente_vai_retornar', 'Cliente vai retornar'],
   ['nao_consegui_falar', 'Não consegui falar'],
   ['outro', 'Outro'],
@@ -6057,7 +6075,8 @@ function handoffRenderPanel(){
 function handoffOpenConclude(id){
   const h = handoffList.find(x => x.id === id);
   if(!handoffCanConclude(h)) return;
-  handoffConclude = { id, result: '', note: '' };
+  handoffBook = null;                  // um formulário por vez na linha
+  handoffConclude = { id, result: (handoffBooked[id] || []).length ? 'agendou_consulta' : '', note: '' };
   handoffRenderPanel();
 }
 
@@ -6122,7 +6141,12 @@ async function concludeHandoff(id){
     const st = data && data.handoff;
     if(res.ok && data && data.concluded){
       done = true;
-      showToast(`✓ Atendimento de ${nome} concluído.`);
+      let aviso = '';
+      if(f.result === 'agendou_consulta' && Array.isArray(data.appointments)){
+        if(!data.appointments.length) aviso = ' ⚠ Nenhuma consulta ligada a esta transferência.';
+        else if(data.appointments.every(a => a && a.status === 'cancelado')) aviso = ' ⚠ As consultas ligadas a esta transferência estão canceladas.';
+      }
+      showToast(`✓ Atendimento de ${nome} concluído.${aviso}`);
     }else if(res.status === 400){
       showToast(data && data.code === 'observacao_longa'
         ? `ℹ️ A observação deve ter até ${HANDOFF_NOTE_MAX} caracteres.`
@@ -6167,6 +6191,293 @@ async function concludeHandoff(id){
   }
 }
 
+// ── Agendar consulta durante a ligação ──
+// Botão "Agendar" na linha de uma transferência ASSUMIDA, para quem pode concluí-la (mesma regra
+// do "Concluir atendimento"). Escolhe profissional e data, vê a grade de horários livres do dia
+// (horário de Brasília) e confirma. Nome e telefone do cliente vêm da transferência
+// (handoff_request_id): o painel não pede nem normaliza telefone, o backend decide.
+//   GET  /api/appointments/availability?professional_id=&date=AAAA-MM-DD
+//   POST /api/appointments { professional_id, date, time, handoff_request_id } → 201 { appointment, professional }
+const HANDOFF_BOOK_ERRORS = {
+  dados_invalidos: 'Confira o profissional, a data e o horário.',
+  telefone_invalido: 'O telefone desta transferência não é válido para agendar.',
+  sem_permissao: 'Você não tem permissão para agendar pelo painel.',
+  transferencia_de_outra_pessoa: 'Esta transferência foi assumida por outra pessoa.',
+  profissional_nao_encontrado: 'Profissional não encontrado. Escolha outro.',
+  transferencia_nao_encontrada: 'Esta transferência não existe mais.',
+  horario_ocupado: 'Horário ocupado. Escolha outro.',
+  transferencia_nao_assumida: 'Assuma a transferência antes de agendar a consulta.',
+  transferencia_ja_concluida: 'Esta transferência já foi concluída.',
+  profissional_inativo: 'Esse profissional está inativo e não pode receber agendamentos.',
+  profissional_nao_aceita_agendamento: 'Esse profissional não está aceitando agendamentos no momento.',
+  profissional_perfil_incompleto: 'Esse profissional ainda não completou o cadastro de atuação.',
+  horario_no_passado: 'Esse horário já passou. Escolha um horário futuro.',
+  fora_do_expediente: 'O profissional não atende nesse dia/horário.',
+  migracao_pendente: 'Estamos atualizando o sistema. Tente de novo em alguns minutos.',
+  erro_interno: 'Erro interno. Tente de novo; se persistir, fale com o suporte.',
+};
+let handoffBook = null;                // formulário aberto: { id, professionalId, date, slots, slot, ... }
+let handoffBookBusy = new Set();
+let handoffBookProfs = null;           // profissionais que aceitam agendamento: [{ id, name, especialidade }]
+let handoffBooked = {};                // consultas marcadas nesta sessão do painel, por transferência
+
+function handoffBookErrorText(status, data){
+  const code = data && data.code;
+  if(code && HANDOFF_BOOK_ERRORS[code]) return HANDOFF_BOOK_ERRORS[code];
+  if(status === 429) return 'Muitas requisições em pouco tempo. Aguarde um minuto e tente de novo.';
+  if(data && typeof data.error === 'string' && data.error) return data.error;
+  return 'Não foi possível concluir agora. Tente de novo em instantes.';
+}
+
+// Hoje em Brasília (AAAA-MM-DD) — a data mínima do seletor, igual ao relógio da clínica.
+function handoffBrtToday(){
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+
+// "qua., 07/10 às 14:30", sempre no horário de Brasília.
+function handoffFmtWhen(iso){
+  const d = new Date(iso);
+  if(!iso || isNaN(d)) return '';
+  const dia = d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit' });
+  const hora = d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+  return `${dia} às ${hora}`;
+}
+
+function handoffFmtDateKey(key){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || ''));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(key || '');
+}
+
+function handoffOpenBook(id){
+  const h = handoffList.find(x => x.id === id);
+  if(!handoffCanConclude(h)) return;
+  handoffConclude = null;              // um formulário por vez na linha
+  handoffBook = { id, professionalId: '', date: handoffBrtToday(), slots: null, slot: '', duration: null, works: true,
+                  loading: false, profsLoading: false, profsError: '', err: '', info: '', seq: 0 };
+  handoffRenderPanel();
+  handoffBookLoadProfs();
+}
+
+function handoffCancelBook(){
+  if(handoffBook && handoffBookBusy.has(handoffBook.id)) return;
+  handoffBook = null;
+  handoffRenderPanel();
+}
+
+// A lista vem pronta do backend (GET /api/appointments/professionals), já filtrada pelas mesmas regras
+// da criação da consulta: o painel não filtra de novo.
+async function handoffBookLoadProfs(){
+  const b = handoffBook;
+  if(!b) return;
+  b.profsLoading = true;
+  b.profsError = '';
+  handoffRenderPanel();
+  try{
+    const res = await apiFetch('/api/appointments/professionals');
+    const d = await res.json().catch(() => null);
+    if(handoffBook !== b) return;
+    if(res.ok && d && Array.isArray(d.professionals)){
+      handoffBookProfs = d.professionals.map(p => ({ id: p.id, name: p.name || 'Profissional', especialidade: p.especialidade || '' }));
+    }else if(res.status === 403){
+      // Sem permissão: aviso informativo (sem derrubar a sessão) e o formulário fecha.
+      showToast(`ℹ️ ${handoffBookErrorText(res.status, d)}`);
+      handoffBook = null;
+      return;
+    }else if(res.status !== 401){
+      b.profsError = handoffBookErrorText(res.status, d);
+    }
+  }catch(e){
+    if(handoffBook === b) b.profsError = 'Não foi possível conectar ao backend.';
+  }finally{
+    if(handoffBook === b){
+      b.profsLoading = false;
+      handoffRenderPanel();
+    }else{
+      handoffRenderPanel();            // o formulário foi fechado (403): redesenha a linha sem ele
+    }
+  }
+}
+
+function handoffBookSetProf(value){
+  const b = handoffBook;
+  if(!b) return;
+  b.professionalId = String(value || '');
+  b.slots = null; b.slot = ''; b.err = ''; b.info = '';
+  b.seq++;                             // descarta a resposta de uma grade anterior ainda em voo
+  b.loading = false;
+  if(b.professionalId && b.date) handoffBookLoadSlots(); else handoffRenderPanel();
+}
+
+function handoffBookSetDate(value){
+  const b = handoffBook;
+  if(!b) return;
+  b.date = String(value || '');
+  b.slots = null; b.slot = ''; b.err = ''; b.info = '';
+  b.seq++;
+  b.loading = false;
+  if(b.professionalId && b.date) handoffBookLoadSlots(); else handoffRenderPanel();
+}
+
+function handoffBookPickSlot(time){
+  const b = handoffBook;
+  if(!b || !b.slots || !b.slots.some(s => s.time === time)) return;
+  b.slot = time;
+  b.info = '';
+  handoffRenderPanel();
+}
+
+async function handoffBookLoadSlots(){
+  const b = handoffBook;
+  if(!b || !b.professionalId || !b.date) return;
+  const seq = ++b.seq;
+  b.loading = true;
+  b.err = '';
+  b.slots = null;
+  b.slot = '';
+  handoffRenderPanel();
+  try{
+    const qs = new URLSearchParams({ professional_id: b.professionalId, date: b.date });
+    const res = await apiFetch(`/api/appointments/availability?${qs}`);
+    const data = await res.json().catch(() => ({}));
+    if(handoffBook !== b || seq !== b.seq) return;
+    if(res.ok && data && Array.isArray(data.slots)){
+      b.slots = data.slots;
+      b.duration = Number(data.duration_minutes) || null;
+      b.works = data.works_this_day !== false;
+    }else if(res.status !== 401){
+      b.err = handoffBookErrorText(res.status, data);
+    }
+  }catch(e){
+    if(handoffBook === b && seq === b.seq) b.err = 'Não foi possível conectar ao backend.';
+  }finally{
+    if(handoffBook === b && seq === b.seq){
+      b.loading = false;
+      handoffRenderPanel();
+    }
+  }
+}
+
+function handoffBookGridHtml(b){
+  if(!b.professionalId) return '';
+  if(b.loading) return '<div class="ho-book-note">Carregando horários…</div>';
+  if(b.err) return `<div class="ho-book-err">${apuEsc(b.err)}</div>`;
+  if(!b.slots) return '';
+  if(!b.works) return '<div class="ho-book-note">Este profissional não atende neste dia da semana.</div>';
+  if(!b.slots.length) return '<div class="ho-book-note">Sem horários livres neste dia.</div>';
+  const dur = b.duration ? ` · consulta de ${apuEsc(b.duration)} min` : '';
+  const btns = b.slots.map(s => `<button type="button" class="ho-slot${b.slot === s.time ? ' on' : ''}" onclick="handoffBookPickSlot(${convJsArg(s.time)})">${apuEsc(s.time)}</button>`).join('');
+  return `<div class="ho-book-note">Horários livres (horário de Brasília)${dur}</div><div class="ho-slots">${btns}</div>`;
+}
+
+function handoffBookFormHtml(it){
+  const b = handoffBook;
+  if(!b || b.id !== it.id) return '';
+  const busy = handoffBookBusy.has(it.id);
+  const profs = handoffBookProfs || [];
+  let profField;
+  if(b.profsLoading && !profs.length){
+    profField = '<div class="ho-book-note">Carregando profissionais…</div>';
+  }else if(b.profsError){
+    profField = `<div class="ho-book-err">${apuEsc(b.profsError)} <button type="button" class="notif-dismiss" onclick="handoffBookLoadProfs()">Tentar de novo</button></div>`;
+  }else if(!profs.length){
+    profField = '<div class="ho-book-note">Nenhum profissional disponível para agendar no momento. Só aparecem os ativos, aceitando agendamento e com cadastro completo.</div>';
+  }else{
+    const opts = profs.map(p => `<option value="${apuEsc(p.id)}"${b.professionalId === p.id ? ' selected' : ''}>${apuEsc(p.name)}${p.especialidade ? ' — ' + apuEsc(p.especialidade) : ''}</option>`).join('');
+    profField = `<select id="ho-book-prof" class="field" ${busy ? 'disabled' : ''} onchange="handoffBookSetProf(this.value)"><option value="">Escolha o profissional…</option>${opts}</select>`;
+  }
+  const info = b.info ? `<div class="ho-book-info">${apuEsc(b.info)}</div>` : '';
+  const quem = `${apuEsc(it.customer_name || 'Cliente')}${it.customer_phone && !/teste/i.test(String(it.customer_phone)) && it.channel !== 'painel_teste' ? ' · ' + apuEsc(it.customer_phone) : ''}`;
+  return `<div class="ho-conclude ho-book">
+      <div class="ho-conclude-title">Agendar consulta</div>
+      <div class="ho-book-note">Cliente: <b>${quem}</b> (vem da transferência)</div>
+      <label class="ho-book-label">Profissional ${profField}</label>
+      <label class="ho-book-label">Data <input id="ho-book-date" class="field" type="date" min="${apuEsc(handoffBrtToday())}" value="${apuEsc(b.date)}" ${busy ? 'disabled' : ''} onchange="handoffBookSetDate(this.value)"></label>
+      ${handoffBookGridHtml(b)}
+      ${info}
+      <div class="notif-row-actions">
+        <button type="button" class="btn btn-accent btn-sm" ${(!b.professionalId || !b.date || !b.slot || busy) ? 'disabled' : ''} onclick="handoffConfirmBook(${convJsArg(it.id)})">${busy ? 'Agendando…' : 'Confirmar agendamento'}</button>
+        <button type="button" class="btn btn-ghost btn-sm" ${busy ? 'disabled' : ''} onclick="handoffCancelBook()">Cancelar</button>
+      </div>
+    </div>`;
+}
+
+// "Consulta marcada: dia, horário e profissional" — uma linha por consulta marcada nesta transferência.
+function handoffBookedHtml(it){
+  const list = handoffBooked[it.id] || [];
+  return list.map(a => {
+    const quando = a.start_time ? handoffFmtWhen(a.start_time) : `${handoffFmtDateKey(a.date)} às ${a.time}`;
+    return `<div class="notif-row-text" style="color:var(--green);font-weight:600">📅 Consulta marcada: ${apuEsc(quando)}${a.professional_name ? ' · ' + apuEsc(a.professional_name) : ''}</div>`;
+  }).join('');
+}
+
+async function handoffConfirmBook(id){
+  const b = handoffBook;
+  if(!b || b.id !== id || handoffBookBusy.has(id)) return;
+  if(!b.professionalId || !b.date || !b.slot){ showToast('ℹ️ Escolha o profissional, a data e um horário.'); return; }
+  const { professionalId, date, slot: time } = b;
+  handoffBookBusy.add(id);
+  handoffRenderPanel();
+  let fechar = false, recarregarGrade = false, reconsultar = false, remover = false, recarregarProfs = false;
+  try{
+    const res = await apiFetch('/api/appointments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ professional_id: professionalId, date, time, handoff_request_id: id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    const code = data && data.code;
+    if(res.ok && data && data.appointment){
+      const ap = data.appointment;
+      const pr = data.professional || {};
+      (handoffBooked[id] = handoffBooked[id] || []).push({
+        id: ap.id || null, start_time: ap.start_time || null, end_time: ap.end_time || null,
+        professional_name: pr.name || '', date, time,
+      });
+      fechar = true;
+      const quando = ap.start_time ? handoffFmtWhen(ap.start_time) : `${handoffFmtDateKey(date)} às ${time}`;
+      showToast(`✓ Consulta marcada: ${quando}${pr.name ? ' com ' + pr.name : ''}.`);
+    }else if(res.status === 401){
+      /* o apiFetch já cuidou da sessão */
+    }else if(code === 'horario_ocupado'){
+      // Ocupado no meio-tempo: aviso informativo e grade recarregada, com o atendente ainda na tela.
+      recarregarGrade = true;
+      b.info = 'Esse horário foi ocupado. Escolha outro.';
+      showToast('ℹ️ Horário ocupado, escolha outro.');
+    }else if(code === 'horario_no_passado' || code === 'fora_do_expediente'){
+      recarregarGrade = true;
+      b.info = handoffBookErrorText(res.status, data);
+      showToast(`ℹ️ ${b.info}`);
+    }else if(code === 'transferencia_nao_assumida' || code === 'transferencia_ja_concluida' || code === 'transferencia_de_outra_pessoa'){
+      fechar = true; reconsultar = true;
+      showToast(`ℹ️ ${handoffBookErrorText(res.status, data)}`);
+    }else if(code === 'transferencia_nao_encontrada'){
+      fechar = true; remover = true;
+      showToast(`ℹ️ ${handoffBookErrorText(res.status, data)}`);
+    }else if(code === 'profissional_nao_encontrado' || code === 'profissional_inativo' ||
+             code === 'profissional_nao_aceita_agendamento' || code === 'profissional_perfil_incompleto'){
+      b.professionalId = ''; b.slots = null; b.slot = '';
+      b.info = handoffBookErrorText(res.status, data);
+      recarregarProfs = true;
+      showToast(`ℹ️ ${b.info}`);
+    }else{
+      showToast(`${res.status >= 500 ? '⚠' : 'ℹ️'} ${handoffBookErrorText(res.status, data)}`);
+    }
+  }catch(e){
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }finally{
+    handoffBookBusy.delete(id);
+    if(fechar && handoffBook === b) handoffBook = null;
+    if(remover){
+      handoffRemove(id);
+    }else{
+      handoffRenderAll();
+    }
+    if(recarregarGrade && handoffBook === b) handoffBookLoadSlots();
+    if(recarregarProfs && handoffBook === b) handoffBookLoadProfs();
+    if(reconsultar) handoffPollSoon();
+  }
+}
+
 // Linha da transferência no sino.
 function handoffRowHtml(it){
   const ch = it.channel || 'whatsapp';
@@ -6188,12 +6499,17 @@ function handoffRowHtml(it){
   const formAberto = !!handoffConclude && handoffConclude.id === it.id;
   const concluir = handoffCanConclude(it) && !formAberto
     ? `<button class="btn btn-accent btn-sm" onclick="handoffOpenConclude(${convJsArg(it.id)})">Concluir atendimento</button>` : '';
+  const agendarAberto = !!handoffBook && handoffBook.id === it.id;
+  const agendar = handoffCanConclude(it) && !agendarAberto
+    ? `<button class="btn btn-ghost btn-sm" onclick="handoffOpenBook(${convJsArg(it.id)})">Agendar</button>` : '';
   return `<div class="notif-row">
       <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu transferência para atendimento humano.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
       ${motivo}
       ${estado}
-      <div class="notif-row-actions">${assumir}${concluir}${handoffContactHtml(it, 'btn btn-ghost btn-sm')}</div>
+      ${handoffBookedHtml(it)}
+      <div class="notif-row-actions">${assumir}${concluir}${agendar}${handoffContactHtml(it, 'btn btn-ghost btn-sm')}</div>
       ${handoffCanConclude(it) ? handoffConcludeFormHtml(it) : ''}
+      ${handoffCanConclude(it) ? handoffBookFormHtml(it) : ''}
       <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span>${prazo}<button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${convJsArg(it.conversation_id || '')},${convJsArg(it.customer_phone)},${convJsArg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button>${marcar}</div>
       ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px;margin-top:4px">${convHistoryHtml(key)}</div>` : ''}
     </div>`;
