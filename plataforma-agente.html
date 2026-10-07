@@ -80,6 +80,27 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .notif-dismiss:hover{color:var(--ink)}
 .notif-panel-empty{padding:26px 14px;text-align:center;font-size:12px;color:var(--muted)}
 .notif-panel-empty[hidden]{display:none}
+.ho-banner{background:#B91C1C;color:#fff;padding:10px 28px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;font-size:13px;font-weight:600}
+.ho-banner[hidden]{display:none}
+.ho-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.ho-main{flex:1 1 260px;min-width:0}
+.ho-deadline{font-variant-numeric:tabular-nums;background:rgba(255,255,255,.18);border-radius:8px;padding:2px 8px;font-size:12px}
+.ho-deadline[hidden]{display:none}
+.ho-actions{display:flex;flex-wrap:wrap;gap:6px}
+.ho-btn{display:inline-block;border:1px solid rgba(255,255,255,.7);background:transparent;color:#fff;border-radius:8px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none}
+.ho-btn:hover{background:rgba(255,255,255,.15)}
+.ho-btn-main{background:#fff;color:#B91C1C;border-color:#fff}
+.ho-btn-main:hover{background:#FEE2E2}
+.ho-btn:disabled{opacity:.6;cursor:default}
+.ho-more{font-size:12px;opacity:.9}
+.call-light{display:flex;align-items:center;gap:6px;border:none;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer}
+.call-light .cl-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.call-light[data-state="ok"]{background:var(--green-l);color:var(--green)}
+.call-light[data-state="ok"] .cl-dot{background:var(--green)}
+.call-light[data-state="warn"]{background:var(--amber-l);color:#92400E}
+.call-light[data-state="warn"] .cl-dot{background:var(--amber)}
+.call-light[data-state="bad"]{background:var(--red-l);color:var(--red)}
+.call-light[data-state="bad"] .cl-dot{background:var(--red)}
 
 .content{flex:1;overflow-y:auto;padding:28px}
 .content::-webkit-scrollbar{width:4px}
@@ -338,6 +359,9 @@ label.field-label{display:block}
   .topbar{padding:0 16px;gap:8px}
   .topbar-title{font-size:14px}
   .agent-pill-text{display:none}
+  .call-light .cl-text{display:none}
+  .call-light{padding:7px}
+  .ho-banner{padding:10px 16px}
   .agent-pill{padding:7px}
   .template-card{flex-wrap:wrap}
   .template-card .btn{width:100%}
@@ -451,9 +475,11 @@ label.field-label{display:block}
 
 <!-- MAIN -->
 <main class="main">
+  <div class="ho-banner" id="handoff-banner" role="alert" hidden></div>
   <div class="topbar">
     <div class="topbar-title" id="page-title">Visão Geral</div>
     <div class="topbar-right">
+      <button type="button" class="call-light" id="call-light" data-state="warn" style="display:none" onclick="handoffLightClick()"><span class="cl-dot"></span><span class="cl-text"></span></button>
       <div class="agent-pill"><div class="agent-dot"></div><span class="agent-pill-text">Agente ativo</span></div>
       <div class="notif-wrap" id="notif-wrap">
         <button class="icon-btn" id="notif-btn" title="Notificações" aria-haspopup="true" aria-expanded="false" onclick="toggleNotifPanel()">🔔<span class="notif-count" id="notif-count" style="display:none">0</span></button>
@@ -5281,15 +5307,15 @@ const NOTIF_SOURCES = [
     // Agendamentos: admin, colaborador e profissional com permissão ampla.
     id: 'handoffs',
     kind: 'seen',
+    custom: true,   // consultada por handoffPollNow (v2, ritmo do servidor), não pelo refreshNotifications
     title: 'Transferências pendentes',
     applies: () => !!currentUser && (
       currentUser.role === 'admin' ||
       currentUser.role === 'colaborador' ||
       (currentUser.role === 'profissional' && ['todas_ver','todas_assumir'].includes(currentUser.permissao))
     ),
-    load: () => apiFetch('/api/handoffs', { skipAuthGuard: true }),
-    pick: d => notifAsArray(d, 'handoffs'),
-    markAll: () => apiFetch('/api/handoffs/seen', { method:'PATCH' }),
+    // Sem markAll: "Marcar tudo como visto" não pode dispensar as transferências dos colegas.
+    count: items => items.filter(h => h.status === 'pendente' || h.mine).length,
     markOne: id => apiFetch(`/api/handoffs/${id}/seen`, { method:'PATCH' }),
   },
   {
@@ -5326,10 +5352,12 @@ function startNotifications(){
   if(notifPollTimer) return;
   refreshNotifications();
   notifPollTimer = setInterval(refreshNotifications, 120000);
+  if(NOTIF_SOURCES.find(s => s.id === 'handoffs').applies()) startHandoffs();
 }
 
 function stopNotifications(){
   if(notifPollTimer){ clearInterval(notifPollTimer); notifPollTimer = null; }
+  stopHandoffs();
   closeNotifPanel();
   notifCache = {};
   notifBusy = false;
@@ -5339,7 +5367,7 @@ function stopNotifications(){
 
 async function refreshNotifications(){
   const sources = activeNotifSources();
-  await Promise.all(sources.map(async s => {
+  await Promise.all(sources.filter(s => !s.custom).map(async s => {
     try{
       const res = await s.load();
       if(!res || !res.ok) return;   // 401/403 pra quem não tem acesso é esperado — silencioso
@@ -5365,7 +5393,10 @@ async function refreshNotifications(){
 }
 
 function notifTotalCount(){
-  return activeNotifSources().reduce((n, s) => n + ((notifCache[s.id] || []).length), 0);
+  return activeNotifSources().reduce((n, s) => {
+    const items = notifCache[s.id] || [];
+    return n + (s.count ? s.count(items) : items.length);
+  }, 0);
 }
 
 function renderNotifBadge(){
@@ -5410,21 +5441,7 @@ function notifRowHtml(source, it){
       <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.resolved_at || it.requested_at)}</span><button class="notif-dismiss" onclick="markOneSeen('clientFranchise','${it.id}')">Marcar visto</button></div>
     </div>`;
   }
-  if(source.id === 'handoffs'){
-    const ch = it.channel || 'whatsapp';
-    const key = convRefKey(it.conversation_id, it.customer_phone, ch);
-    const open = key === expandedHandoffKey;
-    // Tudo que vem do servidor (nome/telefone do contato de WhatsApp, motivo, canal, ids) é
-    // escapado: no texto com apuEsc; nos argumentos do onclick com convJsArg.
-    const canal = it.channel ? ` <span class="muted">· ${apuEsc(it.channel)}</span>` : '';
-    const motivo = it.reason ? `<div class="notif-row-text muted">Motivo: ${apuEsc(it.reason)}</div>` : '';
-    return `<div class="notif-row">
-      <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu transferência para atendimento humano.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
-      ${motivo}
-      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span><button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${convJsArg(it.conversation_id || '')},${convJsArg(it.customer_phone)},${convJsArg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button><button class="notif-dismiss" onclick="markOneSeen('handoffs',${convJsArg(it.id)})">Marcar atendida</button></div>
-      ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px;margin-top:4px">${convHistoryHtml(key)}</div>` : ''}
-    </div>`;
-  }
+  if(source.id === 'handoffs') return handoffRowHtml(it);
   if(source.id === 'newClientContact'){
     return `<div class="notif-row">
       <div class="notif-row-text"><span class="muted">${apuEsc(it.business_name || 'Cliente')}</span> — ${apuEsc(it.contact_name || '—')}<br>${apuEsc(it.contact_phone || 'sem telefone')}${it.contact_email ? ` <span class="muted">· ${apuEsc(it.contact_email)}</span>` : ''}</div>
@@ -5470,7 +5487,7 @@ function renderNotifPanel(){
     html += s.kind === 'link' ? notifLinkRowHtml(s, items) : items.map(it => notifRowHtml(s, it)).join('');
   });
   body.innerHTML = html;
-  if(empty) empty.hidden = notifTotalCount() > 0;
+  if(empty) empty.hidden = sources.some(s => (notifCache[s.id] || []).length > 0);
   if(markAllBtn) markAllBtn.hidden = !hasSeenItems;
 }
 
@@ -5532,7 +5549,8 @@ async function markOneSeen(sourceId, id){
   try{
     const res = await source.markOne(id);
     if(!res.ok){ const d = await res.json().catch(() => ({})); showToast(`⚠ ${d.error || 'Não foi possível marcar como visto.'}`, 7000); return; }
-    if(notifCache[sourceId]) notifCache[sourceId] = notifCache[sourceId].filter(x => x.id !== id);
+    if(sourceId === 'handoffs'){ handoffRemove(id); handoffPollSoon(); }
+    else if(notifCache[sourceId]) notifCache[sourceId] = notifCache[sourceId].filter(x => x.id !== id);
     renderNotifBadge();
     renderNotifPanel();
     refreshNotifications();
@@ -5577,6 +5595,7 @@ function openNotifPanel(){
   if(btn) btn.setAttribute('aria-expanded', 'true');
   renderNotifPanel();
   refreshNotifications();
+  handoffPollSoon();
   notifOutsideHandler = (e) => {
     if(e.type === 'keydown'){ if(e.key === 'Escape') closeNotifPanel(); return; }
     const wrap = document.getElementById('notif-wrap');
@@ -5601,6 +5620,423 @@ function closeNotifPanel(){
     document.removeEventListener('keydown', notifOutsideHandler);
     notifOutsideHandler = null;
   }
+}
+
+// ── TRANSFERÊNCIAS PARA HUMANO: aviso na hora e "Vou atender" ──
+// Quem pode atender (admin, colaborador, profissional com todas_assumir) consulta
+// GET /api/handoffs?v=2 no ritmo que o servidor manda (poll_interval_seconds) e é avisado
+// de transferência pendente com som (bipe a cada 8 s), título da aba piscando e faixa
+// vermelha, até alguém assumir. Quem tem só todas_ver vê a lista no sino, sem som, sem
+// faixa e sem luz, e não conta como "alguém online". A presença só é gravada com o painel
+// visível E o som liberado: sem poder tocar, o painel não finge estar disponível.
+const HANDOFF_BEEP_EVERY_MS = 8000;
+const HANDOFF_DEFAULT_POLL_S = 15;
+const HANDOFF_MIN_GAP_MS = 5000;       // folga para o limite do servidor (20/min por usuário)
+const HANDOFF_BANNER_MAX_ROWS = 3;
+const HANDOFF_BASE_TITLE = document.title;
+
+let handoffList = [];                  // transferências abertas (pendente e assumido)
+let handoffRunning = false;
+let handoffPollTimer = null;
+let handoffPollInFlight = false;
+let handoffPollAt = 0;
+let handoffPollSeconds = HANDOFF_DEFAULT_POLL_S;
+let handoffPollFails = 0;
+let handoffConnBad = false;            // luz vermelha
+let handoffServerOffset = 0;           // server_time - relógio local, para a contagem do prazo
+let handoffClaimBusy = new Set();
+let handoffBeepTimer = null, handoffTitleTimer = null, handoffTickTimer = null;
+let handoffTitleOn = false;
+let handoffBannerKey = null;          // assinatura do que a faixa mostra (só redesenha se mudar)
+let handoffListSig = null;             // idem para a lista do sino
+let audioCtx = null;
+let soundUnlocked = false;
+
+// Mesma regra do backend (canAssumeHandoff): quem pode ASSUMIR é quem recebe o aviso.
+function handoffCanAssume(){
+  return !!currentUser && (
+    currentUser.role === 'admin' ||
+    currentUser.role === 'colaborador' ||
+    currentUser.permissao === 'todas_assumir'
+  );
+}
+
+// ── Som: o navegador só libera áudio depois de um gesto do usuário na página ──
+function onAudioState(){
+  const was = soundUnlocked;
+  soundUnlocked = !!audioCtx && audioCtx.state === 'running';
+  if(was === soundUnlocked) return;
+  handoffRenderLight();
+  if(soundUnlocked && handoffRunning){
+    handoffPollAt = 0;
+    handoffPollSoon();                 // grava a presença agora que pode tocar
+    if(handoffPendingForMe().length) handoffBeep();
+  }
+}
+
+function unlockSound(){
+  if(soundUnlocked) return;
+  try{
+    if(!audioCtx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      audioCtx = new AC();
+      audioCtx.onstatechange = onAudioState;
+    }
+    Promise.resolve(audioCtx.resume()).then(onAudioState, onAudioState);
+  }catch(e){ /* sem áudio neste navegador: a luz fica âmbar */ }
+}
+['pointerdown', 'keydown', 'touchend'].forEach(evt => document.addEventListener(evt, unlockSound, true));
+
+function handoffBeep(){
+  if(!soundUnlocked || !audioCtx || document.hidden) return;
+  try{
+    const t0 = audioCtx.currentTime;
+    [[880, 0], [660, 0.22]].forEach(([freq, off]) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t0 + off);
+      gain.gain.exponentialRampToValueAtTime(0.35, t0 + off + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + off + 0.2);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(t0 + off);
+      osc.stop(t0 + off + 0.21);
+    });
+  }catch(e){ /* áudio indisponível agora */ }
+}
+
+// ── Telefone do cliente final: só dígitos, para tel: e wa.me ──
+// Sem número real (teste do painel, telefone curto/longo demais) → sem os botões.
+function handoffPhoneDigits(h){
+  if(!h || h.channel === 'painel_teste' || !h.customer_phone) return '';
+  if(/teste/i.test(String(h.customer_phone))) return '';
+  let d = String(h.customer_phone).replace(/\D/g, '');
+  if(d.length < 10 || d.length > 15) return '';
+  if(d.length <= 11) d = '55' + d;     // DDD + número, sem código do país
+  return d;
+}
+
+function handoffContactHtml(h, cls){
+  const d = handoffPhoneDigits(h);
+  if(!d) return '';
+  return `<a class="${cls}" href="tel:+${apuEsc(d)}">Ligar</a>` +
+    `<a class="${cls}" href="https://wa.me/${apuEsc(d)}" target="_blank" rel="noopener noreferrer">Chamar no WhatsApp</a>`;
+}
+
+function handoffDeadlineText(h){
+  // Sem prazo (nulo, ausente, não-texto ou ilegível) ou absurdo (> 6 h; o servidor limita a 15 min): sem contagem.
+  if(!h || typeof h.deadline_at !== 'string' || !h.deadline_at) return '';
+  const end = Date.parse(h.deadline_at);
+  if(!Number.isFinite(end)) return '';
+  const ms = end - (Date.now() + handoffServerOffset);
+  if(ms > 6 * 60 * 60 * 1000) return '';
+  if(ms <= 0) return 'prazo vencido';
+  const s = Math.ceil(ms / 1000);
+  return `prazo ${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function handoffPendingForMe(){
+  return handoffCanAssume() ? handoffList.filter(h => h.status === 'pendente') : [];
+}
+
+// ── Faixa vermelha ──
+function handoffBannerRowHtml(h){
+  const busy = handoffClaimBusy.has(h.id);
+  const tel = h.customer_phone && !/teste/i.test(String(h.customer_phone)) && h.channel !== 'painel_teste'
+    ? ` · ${apuEsc(h.customer_phone)}` : '';
+  const dl = handoffDeadlineText(h);
+  return `<div class="ho-row">
+    <span class="ho-main">🔴 <b>${apuEsc(h.customer_name || 'Cliente')}</b> pediu atendimento humano${tel}</span>
+    <span class="ho-deadline" data-deadline="${apuEsc(h.deadline_at || '')}"${dl ? '' : ' hidden'}>${apuEsc(dl)}</span>
+    <span class="ho-actions">
+      <button type="button" class="ho-btn ho-btn-main" ${busy ? 'disabled' : ''} onclick="claimHandoff(${convJsArg(h.id)})">${busy ? 'Assumindo…' : 'Vou atender'}</button>
+      ${handoffContactHtml(h, 'ho-btn')}
+    </span>
+  </div>`;
+}
+
+function handoffRenderBanner(){
+  const el = document.getElementById('handoff-banner');
+  if(!el) return;
+  const pend = handoffPendingForMe();
+  if(!pend.length){ el.hidden = true; el.innerHTML = ''; handoffBannerKey = null; return; }
+  // Redesenhar a cada consulta trocaria os botões debaixo do clique: só redesenha se algo mudou.
+  const key = JSON.stringify(pend.slice(0, HANDOFF_BANNER_MAX_ROWS + 1).map(x => [x.id, x.customer_name, x.customer_phone, x.deadline_at, handoffClaimBusy.has(x.id)]));
+  if(key === handoffBannerKey && !el.hidden) return;
+  handoffBannerKey = key;
+  const rows = pend.slice(0, HANDOFF_BANNER_MAX_ROWS).map(handoffBannerRowHtml).join('');
+  const more = pend.length > HANDOFF_BANNER_MAX_ROWS
+    ? `<div class="ho-more">+${pend.length - HANDOFF_BANNER_MAX_ROWS} no sino 🔔</div>` : '';
+  el.innerHTML = rows + more;
+  el.hidden = false;
+}
+
+// Atualiza só os textos do prazo (sem re-renderizar, para não piscar nem perder o clique).
+function handoffTickCountdown(){
+  document.querySelectorAll('[data-deadline]').forEach(el => {
+    const iso = el.getAttribute('data-deadline');
+    const t = handoffDeadlineText({ deadline_at: iso });
+    el.textContent = t;
+    el.hidden = !t;
+  });
+}
+
+// ── Luz "Você está recebendo chamadas" ──
+const HANDOFF_LIGHT_TEXT = {
+  ok:   'Você está recebendo chamadas',
+  warn: 'Som desligado — toque para ativar',
+  bad:  'Sem receber chamadas — verifique a conexão',
+};
+function handoffRenderLight(){
+  const el = document.getElementById('call-light');
+  if(!el) return;
+  if(!handoffRunning || !handoffCanAssume()){ el.style.display = 'none'; return; }
+  const st = handoffConnBad ? 'bad' : (soundUnlocked ? 'ok' : 'warn');
+  el.dataset.state = st;
+  el.title = HANDOFF_LIGHT_TEXT[st];
+  const txt = el.querySelector('.cl-text');
+  if(txt) txt.textContent = HANDOFF_LIGHT_TEXT[st];
+  el.style.display = '';
+}
+
+function handoffLightClick(){
+  if(handoffConnBad){ handoffPollAt = 0; handoffPollSoon(); return; }
+  unlockSound();
+}
+
+// ── Alerta: som repetido + título piscando + faixa, enquanto houver pendente ──
+function handoffStopAlert(){
+  clearInterval(handoffBeepTimer); handoffBeepTimer = null;
+  clearInterval(handoffTitleTimer); handoffTitleTimer = null;
+  clearInterval(handoffTickTimer); handoffTickTimer = null;
+  handoffTitleOn = false;
+  handoffBannerKey = null;
+  document.title = HANDOFF_BASE_TITLE;
+}
+
+function handoffSyncAlert(newArrived){
+  handoffRenderBanner();
+  const pend = handoffPendingForMe();
+  if(!pend.length){ handoffStopAlert(); return; }
+  if(!handoffTitleTimer){
+    handoffTitleTimer = setInterval(() => {
+      handoffTitleOn = !handoffTitleOn;
+      const n = handoffPendingForMe().length;
+      document.title = handoffTitleOn ? `🔴 (${n}) Transferência!` : HANDOFF_BASE_TITLE;
+    }, 1000);
+  }
+  if(!handoffBeepTimer){
+    handoffBeep();
+    handoffBeepTimer = setInterval(handoffBeep, HANDOFF_BEEP_EVERY_MS);
+  }else if(newArrived){
+    handoffBeep();
+  }
+  if(!handoffTickTimer) handoffTickTimer = setInterval(handoffTickCountdown, 1000);
+}
+
+function handoffRenderAll(){
+  notifCache.handoffs = handoffList;
+  renderNotifBadge();
+  handoffListSig = null;
+  if(notifOpen) renderNotifPanel();
+  handoffSyncAlert(false);
+  handoffRenderLight();
+}
+
+function handoffMerge(id, patch){
+  const h = handoffList.find(x => x.id === id);
+  if(h && patch) Object.assign(h, patch);
+}
+function handoffRemove(id){
+  handoffList = handoffList.filter(x => x.id !== id);
+  handoffRenderAll();
+}
+
+// ── Consulta (polling) ──
+function handoffSetFail(){
+  handoffPollFails++;
+  if(handoffPollFails >= 2) handoffConnBad = true;   // duas falhas seguidas
+}
+
+function handoffApplyResponse(data, askedPresence){
+  const t = Date.parse(data.server_time);
+  if(Number.isFinite(t)) handoffServerOffset = t - Date.now();
+  const secs = Number(data.poll_interval_seconds);
+  handoffPollSeconds = Number.isFinite(secs) && secs > 0 ? Math.min(Math.max(secs, 5), 120) : HANDOFF_DEFAULT_POLL_S;
+
+  const before = new Set(handoffPendingForMe().map(h => h.id));
+  handoffList = data.handoffs;
+  const arrived = handoffPendingForMe().some(h => !before.has(h.id));
+
+  if(askedPresence && data.presence_recorded === false){
+    handoffSetFail();                  // pedimos presença e o servidor não gravou: não estamos "online"
+  }else{
+    handoffPollFails = 0;
+    handoffConnBad = false;
+  }
+  notifCache.handoffs = handoffList;
+  renderNotifBadge();
+  const sig = JSON.stringify(handoffList.map(x => [x.id, x.status, x.claimed_by_name, x.mine, x.deadline_at, x.customer_name, handoffClaimBusy.has(x.id)]));
+  if(notifOpen && sig !== handoffListSig) renderNotifPanel();
+  handoffListSig = sig;
+  handoffSyncAlert(arrived);
+}
+
+function handoffScheduleNext(ms){
+  clearTimeout(handoffPollTimer);
+  handoffPollTimer = null;
+  if(handoffRunning) handoffPollTimer = setTimeout(handoffPollNow, ms);
+}
+
+// Consulta de novo respeitando a folga mínima entre consultas (limite 20/min por usuário).
+function handoffPollSoon(){
+  if(!handoffRunning) return;
+  handoffScheduleNext(Math.max(0, HANDOFF_MIN_GAP_MS - (Date.now() - handoffPollAt)));
+}
+
+async function handoffPollNow(){
+  handoffPollTimer = null;
+  if(!handoffRunning || handoffPollInFlight) return;
+  handoffPollInFlight = true;
+  handoffPollAt = Date.now();
+  // Presença só com o painel visível e o som liberado (e só para quem pode atender).
+  const askPresence = handoffCanAssume() && !document.hidden && soundUnlocked;
+  let nextMs = null;                   // null = no ritmo que o servidor acabar de indicar
+  try{
+    // skipAuthGuard: um 401 residual do polling não derruba a sessão (vira luz vermelha abaixo)
+    const res = await apiFetch(`/api/handoffs?v=2${askPresence ? '' : '&presence=0'}`, { skipAuthGuard: true });
+    if(!handoffRunning) return;
+    if(res.ok){
+      const data = await res.json().catch(() => null);
+      if(data && Array.isArray(data.handoffs)) handoffApplyResponse(data, askPresence);
+      else handoffSetFail();
+    }else if(res.status === 401){
+      handoffConnBad = true;           // sessão caiu: o apiFetch já levou ao login, se for o caso
+    }else if(res.status === 429){
+      handoffConnBad = true;
+      nextMs = 60000;                  // limite do servidor: espera um minuto
+    }else{
+      handoffSetFail();
+    }
+  }catch(e){
+    if(handoffRunning) handoffSetFail();
+  }finally{
+    handoffPollInFlight = false;
+    if(handoffRunning){
+      handoffRenderLight();
+      handoffScheduleNext(nextMs == null ? handoffPollSeconds * 1000 : nextMs);
+    }
+  }
+}
+
+function startHandoffs(){
+  if(handoffRunning) return;
+  handoffRunning = true;
+  handoffPollFails = 0;
+  handoffConnBad = false;
+  handoffRenderLight();
+  handoffPollNow();
+}
+
+function stopHandoffs(){
+  handoffRunning = false;
+  clearTimeout(handoffPollTimer);
+  handoffPollTimer = null;
+  handoffList = [];
+  handoffListSig = null;
+  handoffClaimBusy = new Set();
+  handoffPollFails = 0;
+  handoffConnBad = false;
+  handoffStopAlert();
+  const banner = document.getElementById('handoff-banner');
+  if(banner){ banner.hidden = true; banner.innerHTML = ''; }
+  handoffRenderLight();
+}
+
+// Aba oculta não conta como disponível (a próxima consulta já vai com presence=0); ao voltar,
+// consulta de novo e, se ainda houver pendente, toca na hora.
+document.addEventListener('visibilitychange', () => {
+  if(!handoffRunning) return;
+  if(!document.hidden){
+    handoffPollSoon();
+    if(handoffPendingForMe().length) handoffBeep();
+  }
+});
+
+// ── "Vou atender" ──
+async function claimHandoff(id){
+  if(handoffClaimBusy.has(id)) return;
+  const h = handoffList.find(x => x.id === id);
+  const nome = (h && h.customer_name) || 'o cliente';
+  handoffClaimBusy.add(id);
+  handoffRenderAll();
+  try{
+    const res = await apiFetch(`/api/handoffs/${encodeURIComponent(id)}/claim`, { method:'PATCH' });
+    const data = await res.json().catch(() => ({}));
+    if(res.ok && data && data.claimed){
+      handoffMerge(id, data.handoff);
+      showToast(`✓ Você assumiu o atendimento de ${nome}.`);
+    }else if(res.status === 409){
+      // Perdeu a corrida (ou já concluída): não é erro — mostra quem está atendendo e atualiza a lista.
+      const st = data && data.handoff;
+      if(data && data.code === 'ja_concluida'){
+        handoffRemove(id);
+        showToast('ℹ️ Este atendimento já foi concluído.');
+      }else{
+        if(st) handoffMerge(id, st);
+        if(data && data.code === 'ja_assumida'){
+          showToast(st && st.mine ? '✓ Você já assumiu este atendimento.'
+            : `ℹ️ ${(st && st.claimed_by_name) || 'Outra pessoa'} já assumiu este atendimento.`);
+        }else{
+          showToast('ℹ️ Não foi possível assumir agora. Tente novamente.');
+        }
+      }
+    }else if(res.status === 403){
+      showToast('⚠ Você não tem permissão para assumir transferências.');
+    }else if(res.status === 404){
+      handoffRemove(id);
+      showToast('ℹ️ Esta transferência não existe mais (já foi resolvida).');
+    }else if(res.status !== 401){
+      showToast('⚠ Não foi possível assumir agora. Tente de novo.');
+    }
+  }catch(e){
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }finally{
+    handoffClaimBusy.delete(id);
+    handoffRenderAll();
+    handoffPollSoon();                 // confirma com o servidor e atualiza quem assumiu
+  }
+}
+
+// Linha da transferência no sino.
+function handoffRowHtml(it){
+  const ch = it.channel || 'whatsapp';
+  const key = convRefKey(it.conversation_id, it.customer_phone, ch);
+  const open = key === expandedHandoffKey;
+  const pendente = !it.status || it.status === 'pendente';
+  const canal = it.channel ? ` <span class="muted">· ${apuEsc(it.channel)}</span>` : '';
+  const motivo = it.reason ? `<div class="notif-row-text muted">Motivo: ${apuEsc(it.reason)}</div>` : '';
+  const dl = pendente ? handoffDeadlineText(it) : '';
+  const prazo = pendente
+    ? `<span class="notif-row-time" data-deadline="${apuEsc(it.deadline_at || '')}"${dl ? '' : ' hidden'}>${apuEsc(dl)}</span>` : '';
+  const estado = it.status !== 'assumido' ? '' : `<div class="notif-row-text" style="color:var(--green);font-weight:600">${
+    it.mine ? '✅ Você assumiu este atendimento' : `✅ Assumido por ${apuEsc(it.claimed_by_name || 'outra pessoa')}`}</div>`;
+  const busy = handoffClaimBusy.has(it.id);
+  const assumir = pendente && handoffCanAssume()
+    ? `<button class="btn btn-accent btn-sm" ${busy ? 'disabled' : ''} onclick="claimHandoff(${convJsArg(it.id)})">${busy ? 'Assumindo…' : 'Vou atender'}</button>` : '';
+  const marcar = pendente
+    ? `<button class="notif-dismiss" onclick="markOneSeen('handoffs',${convJsArg(it.id)})">Marcar atendida</button>` : '';
+  return `<div class="notif-row">
+      <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu transferência para atendimento humano.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
+      ${motivo}
+      ${estado}
+      <div class="notif-row-actions">${assumir}${handoffContactHtml(it, 'btn btn-ghost btn-sm')}</div>
+      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span>${prazo}<button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${convJsArg(it.conversation_id || '')},${convJsArg(it.customer_phone)},${convJsArg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button>${marcar}</div>
+      ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px;margin-top:4px">${convHistoryHtml(key)}</div>` : ''}
+    </div>`;
 }
 
 // ── TOAST ──
