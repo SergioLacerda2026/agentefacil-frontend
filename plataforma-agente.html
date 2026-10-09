@@ -67,8 +67,19 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .notif-markall:hover{text-decoration:underline}
 .notif-markall[hidden]{display:none}
 .notif-panel-body{overflow-y:auto;flex:1}
-.notif-panel-body::-webkit-scrollbar{width:4px}
-.notif-panel-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+/* Barra de rolagem bem visível só aqui (o formulário de agendar/concluir fica abaixo das seções): Chrome/Safari/Edge. */
+.notif-panel-body::-webkit-scrollbar{width:10px}
+.notif-panel-body::-webkit-scrollbar-track{background:#E2E8F0;border-radius:6px}
+.notif-panel-body::-webkit-scrollbar-thumb{background:#94A3B8;border-radius:6px;border:2px solid #E2E8F0}
+.notif-panel-body::-webkit-scrollbar-thumb:hover{background:#64748B}
+/* Firefox: scrollbar-width/-color. Só onde não há ::-webkit-scrollbar (no Chrome 121+ eles anulariam o estilo acima). */
+@supports not selector(::-webkit-scrollbar){
+  .notif-panel-body{scrollbar-width:auto;scrollbar-color:#94A3B8 #E2E8F0}
+}
+/* Botão desabilitado do sino: cinza claro, texto apagado e cursor not-allowed (antes parecia habilitado). */
+.notif-panel .btn:disabled{background:#E2E8F0;color:#94A3B8;border:1px solid #CBD5E1;cursor:not-allowed;opacity:1}
+.notif-panel .btn:disabled:hover{background:#E2E8F0;color:#94A3B8}
+.notif-panel .notif-dismiss:disabled,.notif-panel .notif-markall:disabled{color:var(--light);cursor:not-allowed;text-decoration:none}
 .notif-section-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 14px 4px}
 .notif-row{display:flex;flex-direction:column;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)}
 .notif-row:last-child{border-bottom:none}
@@ -91,7 +102,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .ho-btn:hover{background:rgba(255,255,255,.15)}
 .ho-btn-main{background:#fff;color:#B91C1C;border-color:#fff}
 .ho-btn-main:hover{background:#FEE2E2}
-.ho-btn:disabled{opacity:.6;cursor:default}
+.ho-btn:disabled{opacity:.6;cursor:not-allowed}
+.ho-btn-main:disabled{background:rgba(255,255,255,.35);border-color:transparent;color:rgba(255,255,255,.9);opacity:1}
 .ho-more{font-size:12px;opacity:.9}
 .ho-conclude{border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .ho-conclude-title{font-size:12px;font-weight:700;color:var(--ink)}
@@ -6072,12 +6084,28 @@ function handoffRenderPanel(){
   if(notifOpen) renderNotifPanel();
 }
 
+// Rola o corpo do sino o mínimo para o formulário aberto (com Confirmar e Cancelar) caber na janela; se for
+// maior que a janela, alinha o topo dele. Chamado só ao abrir o formulário e quando uma ação do usuário o faz
+// crescer (profissionais/horários carregados) — nunca nos redesenhos do polling.
+function handoffRevealForm(){
+  const body = document.getElementById('notif-panel-body');
+  const form = body && body.querySelector('.ho-conclude');
+  if(!form) return;
+  const b = body.getBoundingClientRect();
+  const f = form.getBoundingClientRect();
+  const m = 8;
+  if(f.height + 2 * m > b.height) body.scrollTop += f.top - b.top - m;
+  else if(f.bottom + m > b.bottom) body.scrollTop += f.bottom + m - b.bottom;
+  else if(f.top - m < b.top) body.scrollTop -= (b.top + m) - f.top;
+}
+
 function handoffOpenConclude(id){
   const h = handoffList.find(x => x.id === id);
   if(!handoffCanConclude(h)) return;
   handoffBook = null;                  // um formulário por vez na linha
   handoffConclude = { id, result: (handoffBooked[id] || []).length ? 'agendou_consulta' : '', note: '' };
   handoffRenderPanel();
+  handoffRevealForm();
 }
 
 function handoffCancelConclude(){
@@ -6280,6 +6308,7 @@ function handoffOpenBook(id){
   handoffBook = { id, professionalId: '', date: handoffBrtToday(), name: ((handoffBooked[id] || []).slice(-1)[0] || {}).customer_name || '', slots: null, slot: '', duration: null, works: true,
                   loading: false, profsLoading: false, profsError: '', err: '', info: '', seq: 0 };
   handoffRenderPanel();
+  handoffRevealForm();
   handoffBookLoadProfs();
 }
 
@@ -6317,6 +6346,7 @@ async function handoffBookLoadProfs(){
     if(handoffBook === b){
       b.profsLoading = false;
       handoffRenderPanel();
+      handoffRevealForm();
     }else{
       handoffRenderPanel();            // o formulário foi fechado (403): redesenha a linha sem ele
     }
@@ -6378,6 +6408,7 @@ async function handoffBookLoadSlots(){
     if(handoffBook === b && seq === b.seq){
       b.loading = false;
       handoffRenderPanel();
+      handoffRevealForm();
     }
   }
 }
