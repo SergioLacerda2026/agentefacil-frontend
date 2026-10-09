@@ -5502,8 +5502,8 @@ function renderNotifPanel(){
     html += s.kind === 'link' ? notifLinkRowHtml(s, items) : items.map(it => notifRowHtml(s, it)).join('');
   });
   const ae = document.activeElement;
-  const keepId = ae && /^ho-(note|book-prof|book-date)$/.test(ae.id || '') ? ae.id : null;
-  const keepSel = keepId === 'ho-note' ? { s: ae.selectionStart, e: ae.selectionEnd } : null;
+  const keepId = ae && /^ho-(note|book-prof|book-date|book-name)$/.test(ae.id || '') ? ae.id : null;
+  const keepSel = (keepId === 'ho-note' || keepId === 'ho-book-name') ? { s: ae.selectionStart, e: ae.selectionEnd } : null;
   const prevTop = body.scrollTop;      // redesenhar o sino não pode levar a rolagem de volta ao topo
   body.innerHTML = html;
   if(keepId){
@@ -6199,7 +6199,7 @@ async function concludeHandoff(id){
 //   GET  /api/appointments/availability?professional_id=&date=AAAA-MM-DD
 //   POST /api/appointments { professional_id, date, time, handoff_request_id } → 201 { appointment, professional }
 const HANDOFF_BOOK_ERRORS = {
-  dados_invalidos: 'Confira o profissional, a data e o horário.',
+  dados_invalidos: 'Confira o nome do cliente, o profissional, a data e o horário.',
   telefone_invalido: 'O telefone desta transferência não é válido para agendar.',
   sem_permissao: 'Você não tem permissão para agendar pelo painel.',
   transferencia_de_outra_pessoa: 'Esta transferência foi assumida por outra pessoa.',
@@ -6223,6 +6223,8 @@ let handoffBooked = {};                // consultas marcadas nesta sessão do pa
 
 function handoffBookErrorText(status, data){
   const code = data && data.code;
+  // dados_invalidos: o backend diz exatamente o que faltou (ex.: "Informe o nome do cliente..."), em português.
+  if(code === 'dados_invalidos' && data && typeof data.error === 'string' && data.error) return data.error;
   if(code && HANDOFF_BOOK_ERRORS[code]) return HANDOFF_BOOK_ERRORS[code];
   if(status === 429) return 'Muitas requisições em pouco tempo. Aguarde um minuto e tente de novo.';
   if(data && typeof data.error === 'string' && data.error) return data.error;
@@ -6248,11 +6250,34 @@ function handoffFmtDateKey(key){
   return m ? `${m[3]}/${m[2]}/${m[1]}` : String(key || '');
 }
 
+const HANDOFF_NAME_MAX = 100;
+
+// A transferência "tem nome" se customer_name for um texto com algo além de espaços.
+function handoffHasName(it){
+  return !!it && typeof it.customer_name === 'string' && it.customer_name.trim().length > 0;
+}
+
+// Pode confirmar: profissional, data e horário escolhidos, e — só se a transferência não tem nome — o nome informado.
+function handoffBookCanConfirm(b, it){
+  if(!b || !b.professionalId || !b.date || !b.slot) return false;
+  if(!handoffHasName(it) && !b.name.trim()) return false;
+  return true;
+}
+
+function handoffBookNameInput(el){
+  const b = handoffBook;
+  if(!b) return;
+  b.name = el.value;
+  b.info = '';
+  const ok = document.getElementById('ho-book-ok');
+  if(ok) ok.disabled = !handoffBookCanConfirm(b, handoffList.find(x => x.id === b.id)) || handoffBookBusy.has(b.id);
+}
+
 function handoffOpenBook(id){
   const h = handoffList.find(x => x.id === id);
   if(!handoffCanConclude(h)) return;
   handoffConclude = null;              // um formulário por vez na linha
-  handoffBook = { id, professionalId: '', date: handoffBrtToday(), slots: null, slot: '', duration: null, works: true,
+  handoffBook = { id, professionalId: '', date: handoffBrtToday(), name: ((handoffBooked[id] || []).slice(-1)[0] || {}).customer_name || '', slots: null, slot: '', duration: null, works: true,
                   loading: false, profsLoading: false, profsError: '', err: '', info: '', seq: 0 };
   handoffRenderPanel();
   handoffBookLoadProfs();
@@ -6386,16 +6411,18 @@ function handoffBookFormHtml(it){
     profField = `<select id="ho-book-prof" class="field" ${busy ? 'disabled' : ''} onchange="handoffBookSetProf(this.value)"><option value="">Escolha o profissional…</option>${opts}</select>`;
   }
   const info = b.info ? `<div class="ho-book-info">${apuEsc(b.info)}</div>` : '';
-  const quem = `${apuEsc(it.customer_name || 'Cliente')}${it.customer_phone && !/teste/i.test(String(it.customer_phone)) && it.channel !== 'painel_teste' ? ' · ' + apuEsc(it.customer_phone) : ''}`;
+  const temNome = handoffHasName(it);
+  const quem = `${temNome ? apuEsc(it.customer_name.trim()) : 'sem nome'}${it.customer_phone && !/teste/i.test(String(it.customer_phone)) && it.channel !== 'painel_teste' ? ' · ' + apuEsc(it.customer_phone) : ''}`;
   return `<div class="ho-conclude ho-book">
       <div class="ho-conclude-title">Agendar consulta</div>
       <div class="ho-book-note">Cliente: <b>${quem}</b> (vem da transferência)</div>
+      ${temNome ? '' : `<label class="ho-book-label">Nome do cliente <span class="ho-book-note">(obrigatório — a transferência não tem nome)</span> <input id="ho-book-name" class="field" type="text" maxlength="${HANDOFF_NAME_MAX}" autocomplete="off" placeholder="Nome do cliente" value="${apuEsc(b.name)}" ${busy ? 'disabled' : ''} oninput="handoffBookNameInput(this)"></label>`}
       <label class="ho-book-label">Profissional ${profField}</label>
       <label class="ho-book-label">Data <input id="ho-book-date" class="field" type="date" min="${apuEsc(handoffBrtToday())}" value="${apuEsc(b.date)}" ${busy ? 'disabled' : ''} onchange="handoffBookSetDate(this.value)"></label>
       ${handoffBookGridHtml(b)}
       ${info}
       <div class="notif-row-actions">
-        <button type="button" class="btn btn-accent btn-sm" ${(!b.professionalId || !b.date || !b.slot || busy) ? 'disabled' : ''} onclick="handoffConfirmBook(${convJsArg(it.id)})">${busy ? 'Agendando…' : 'Confirmar agendamento'}</button>
+        <button type="button" id="ho-book-ok" class="btn btn-accent btn-sm" ${(!handoffBookCanConfirm(b, it) || busy) ? 'disabled' : ''} onclick="handoffConfirmBook(${convJsArg(it.id)})">${busy ? 'Agendando…' : 'Confirmar agendamento'}</button>
         <button type="button" class="btn btn-ghost btn-sm" ${busy ? 'disabled' : ''} onclick="handoffCancelBook()">Cancelar</button>
       </div>
     </div>`;
@@ -6406,15 +6433,23 @@ function handoffBookedHtml(it){
   const list = handoffBooked[it.id] || [];
   return list.map(a => {
     const quando = a.start_time ? handoffFmtWhen(a.start_time) : `${handoffFmtDateKey(a.date)} às ${a.time}`;
-    return `<div class="notif-row-text" style="color:var(--green);font-weight:600">📅 Consulta marcada: ${apuEsc(quando)}${a.professional_name ? ' · ' + apuEsc(a.professional_name) : ''}</div>`;
+    return `<div class="notif-row-text" style="color:var(--green);font-weight:600">📅 Consulta marcada: ${apuEsc(quando)}${a.professional_name ? ' · ' + apuEsc(a.professional_name) : ''}${a.customer_name ? ' · ' + apuEsc(a.customer_name) : ''}</div>`;
   }).join('');
 }
 
 async function handoffConfirmBook(id){
   const b = handoffBook;
   if(!b || b.id !== id || handoffBookBusy.has(id)) return;
+  const h = handoffList.find(x => x.id === id);
+  const nomeInformado = handoffHasName(h) ? '' : b.name.trim();
   if(!b.professionalId || !b.date || !b.slot){ showToast('ℹ️ Escolha o profissional, a data e um horário.'); return; }
+  if(!handoffHasName(h)){
+    if(!nomeInformado){ showToast('ℹ️ Informe o nome do cliente.'); return; }
+    if(nomeInformado.length > HANDOFF_NAME_MAX){ showToast(`ℹ️ O nome deve ter até ${HANDOFF_NAME_MAX} caracteres.`); return; }
+  }
   const { professionalId, date, slot: time } = b;
+  const corpo = { professional_id: professionalId, date, time, handoff_request_id: id };
+  if(nomeInformado) corpo.customer_name = nomeInformado;   // só quando a transferência não tem nome; o telefone nunca vai
   handoffBookBusy.add(id);
   handoffRenderPanel();
   let fechar = false, recarregarGrade = false, reconsultar = false, remover = false, recarregarProfs = false;
@@ -6422,7 +6457,7 @@ async function handoffConfirmBook(id){
     const res = await apiFetch('/api/appointments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ professional_id: professionalId, date, time, handoff_request_id: id }),
+      body: JSON.stringify(corpo),
     });
     const data = await res.json().catch(() => ({}));
     const code = data && data.code;
@@ -6432,10 +6467,12 @@ async function handoffConfirmBook(id){
       (handoffBooked[id] = handoffBooked[id] || []).push({
         id: ap.id || null, start_time: ap.start_time || null, end_time: ap.end_time || null,
         professional_name: pr.name || '', date, time,
+        customer_name: nomeInformado,
       });
       fechar = true;
       const quando = ap.start_time ? handoffFmtWhen(ap.start_time) : `${handoffFmtDateKey(date)} às ${time}`;
-      showToast(`✓ Consulta marcada: ${quando}${pr.name ? ' com ' + pr.name : ''}.`);
+      const paraQuem = nomeInformado || (h && handoffHasName(h) ? h.customer_name.trim() : '');
+      showToast(`✓ Consulta marcada${paraQuem ? ' para ' + paraQuem : ''}: ${quando}${pr.name ? ' com ' + pr.name : ''}.`);
     }else if(res.status === 401){
       /* o apiFetch já cuidou da sessão */
     }else if(code === 'horario_ocupado'){
@@ -6460,7 +6497,9 @@ async function handoffConfirmBook(id){
       recarregarProfs = true;
       showToast(`ℹ️ ${b.info}`);
     }else{
-      showToast(`${res.status >= 500 ? '⚠' : 'ℹ️'} ${handoffBookErrorText(res.status, data)}`);
+      const msg = handoffBookErrorText(res.status, data);
+      if(code === 'dados_invalidos' || code === 'telefone_invalido') b.info = msg;   // fica visível no formulário
+      showToast(`${res.status >= 500 ? '⚠' : 'ℹ️'} ${msg}`);
     }
   }catch(e){
     showToast('⚠ Não foi possível conectar ao backend.');
