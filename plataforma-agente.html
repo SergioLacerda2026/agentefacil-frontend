@@ -807,12 +807,12 @@ label.field-label{display:block}
             <div class="hc-fields" id="hc-fields-clinica_liga" hidden>
               <div class="field-group">
                 <label class="field-label" for="hc-handoff-phone">Celular de atendimento (obrigatório)</label>
-                <input class="field" id="hc-handoff-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="(11) 99999-9999">
+                <input class="field" id="hc-handoff-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="(11) 99999-9999" oninput="handoffChoiceClearErrors('handoff_phone')">
                 <div class="hc-err" id="hc-err-handoff_phone" hidden></div>
               </div>
               <div class="field-group">
                 <label class="field-label" for="hc-wait">Prazo para ligar, em minutos (1 a 15)</label>
-                <input class="field" id="hc-wait" type="number" inputmode="numeric" min="1" max="15" step="1" value="3" style="max-width:140px">
+                <input class="field" id="hc-wait" type="number" inputmode="numeric" min="1" max="15" step="1" value="3" style="max-width:140px" oninput="handoffChoiceClearErrors('handoff_wait_minutes')">
                 <div class="hc-err" id="hc-err-handoff_wait_minutes" hidden></div>
               </div>
             </div>
@@ -822,7 +822,7 @@ label.field-label{display:block}
             <div class="hc-fields" id="hc-fields-paciente_liga" hidden>
               <div class="field-group">
                 <label class="field-label" for="hc-office-phone">Telefone do consultório (obrigatório)</label>
-                <input class="field" id="hc-office-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="(11) 3333-4444">
+                <input class="field" id="hc-office-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="(11) 3333-4444" oninput="handoffChoiceClearErrors('office_phone')">
                 <div class="hc-err" id="hc-err-office_phone" hidden></div>
               </div>
             </div>
@@ -6819,8 +6819,12 @@ function handoffCfgReset(){
   handoffCfgRender();
 }
 
-function handoffChoiceClearErrors(){
-  HC_ERR_FIELDS.concat(['geral']).forEach(f => {
+// Sem argumento: limpa os erros de todos os campos do bloco (troca de opção, salvar, reset).
+// Com `field`: limpa só o erro daquele campo (o usuário está corrigindo o valor).
+function handoffChoiceClearErrors(field){
+  const all = HC_ERR_FIELDS.concat(['geral']);
+  const campos = field && all.includes(field) ? [field] : all;
+  campos.forEach(f => {
     const el = document.getElementById('hc-err-' + f);
     if(el){ el.hidden = true; el.textContent = ''; }
   });
