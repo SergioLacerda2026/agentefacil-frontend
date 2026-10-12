@@ -48,7 +48,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .plan-fill{height:4px;background:var(--accent);border-radius:2px;width:34%}
 
 /* ── MAIN ── */
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
 .topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;gap:16px;flex-shrink:0}
 .topbar-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--ink);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topbar-right{display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:auto}
@@ -91,7 +91,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .notif-dismiss:hover{color:var(--ink)}
 .notif-panel-empty{padding:26px 14px;text-align:center;font-size:12px;color:var(--muted)}
 .notif-panel-empty[hidden]{display:none}
-.ho-banner{background:#B91C1C;color:#fff;padding:10px 28px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;font-size:13px;font-weight:600}
+.ho-banner{position:absolute;top:58px;left:0;right:0;z-index:500;max-height:calc(100% - 58px);overflow-y:auto;box-shadow:0 6px 18px rgba(20,23,26,.28);background:#B91C1C;color:#fff;padding:10px 28px;display:flex;flex-direction:column;gap:8px;font-size:13px;font-weight:600}
 .ho-banner[hidden]{display:none}
 .ho-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
 .ho-main{flex:1 1 260px;min-width:0}
@@ -105,6 +105,23 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .ho-btn:disabled{opacity:.6;cursor:not-allowed}
 .ho-btn-main:disabled{background:rgba(255,255,255,.35);border-color:transparent;color:rgba(255,255,255,.9);opacity:1}
 .ho-more{font-size:12px;opacity:.9}
+.ho-reason{display:block;font-weight:400;font-size:12px;opacity:.95;margin-top:2px}
+.hc-alert{background:var(--amber-l);border:2px solid var(--amber);color:#92400E;border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:14px;font-weight:600;line-height:1.45;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.hc-alert[hidden]{display:none}
+.hc-alert-text{flex:1 1 260px;min-width:0}
+.hc-card.hc-pending{border:2px solid var(--amber)}
+.hc-pending-note{background:var(--amber-l);color:#92400E;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;line-height:1.45;margin-bottom:12px}
+.hc-pending-note[hidden]{display:none}
+.hc-opt{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--card)}
+.hc-opt.on{border-color:var(--accent);background:var(--accent-l)}
+.hc-opt-label{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:13px;color:var(--ink)}
+.hc-opt-label input{margin-top:3px;flex-shrink:0}
+.hc-opt-sub{display:block;font-size:12px;color:var(--muted);font-weight:400;margin-top:2px;line-height:1.45}
+.hc-fields{margin-top:12px;padding-left:24px}
+.hc-fields[hidden]{display:none}
+.hc-err{font-size:12px;color:var(--red);margin-top:4px}
+.hc-err[hidden]{display:none}
+.hc-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .ho-conclude{border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .ho-conclude-title{font-size:12px;font-weight:700;color:var(--ink)}
 .ho-opts{display:flex;flex-direction:column;gap:4px}
@@ -541,6 +558,11 @@ label.field-label{display:block}
 
     <!-- ══ VISÃO GERAL ══ -->
     <div class="view active" id="view-visao">
+      <!-- Escolha da transferência pendente (só Administrador, enquanto handoff_mode_pending) -->
+      <div id="hc-pending-banner" class="hc-alert" role="alert" hidden>
+        <span class="hc-alert-text">Escolha como sua clínica atende uma transferência. Isto é necessário para o agente trabalhar em sua plenitude. Enquanto você não escolher, ele atende normalmente, mas não oferece encaminhar para uma pessoa.</span>
+        <button type="button" class="btn btn-accent btn-sm" onclick="handoffGoChoose()">Escolher agora</button>
+      </div>
       <!-- Aviso de WhatsApp offline/falhou (só Administrador; mesmo GET do aviso de recarga) -->
       <div id="wa-visao-offline" class="apu-banner wa-banner-bad" role="alert" style="display:none"></div>
       <!-- Aviso de recarga do chip (só Administrador, só com connection.recharge.due === true) -->
@@ -775,6 +797,48 @@ label.field-label{display:block}
 
     <!-- ══ CONFIGURAÇÕES ══ -->
     <div class="view" id="view-config">
+      <!-- Como a clínica atende uma transferência (só Administrador) -->
+      <div class="card hc-card admin-only" id="hc-card" style="margin-bottom:16px">
+        <div class="cfg-section">
+          <div class="cfg-title">📞 Como sua clínica atende uma transferência para uma pessoa</div>
+          <div class="hc-pending-note" id="hc-pending-note" hidden>Falta escolher. Isto é necessário para o agente trabalhar em sua plenitude. Enquanto você não escolher, ele atende normalmente, mas não oferece encaminhar para uma pessoa.</div>
+          <div class="hc-opt" id="hc-opt-clinica_liga">
+            <label class="hc-opt-label"><input type="radio" name="hc-mode" value="clinica_liga" onchange="handoffChoicePick(this.value)"><span><b>A clínica liga para o cliente</b><span class="hc-opt-sub">O agente avisa a equipe aqui no painel e a clínica liga para o cliente em poucos minutos.</span></span></label>
+            <div class="hc-fields" id="hc-fields-clinica_liga" hidden>
+              <div class="field-group">
+                <label class="field-label" for="hc-handoff-phone">Celular de atendimento (obrigatório)</label>
+                <input class="field" id="hc-handoff-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="(11) 99999-9999">
+                <div class="hc-err" id="hc-err-handoff_phone" hidden></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="hc-wait">Prazo para ligar, em minutos (1 a 15)</label>
+                <input class="field" id="hc-wait" type="number" inputmode="numeric" min="1" max="15" step="1" value="3" style="max-width:140px">
+                <div class="hc-err" id="hc-err-handoff_wait_minutes" hidden></div>
+              </div>
+            </div>
+          </div>
+          <div class="hc-opt" id="hc-opt-paciente_liga">
+            <label class="hc-opt-label"><input type="radio" name="hc-mode" value="paciente_liga" onchange="handoffChoicePick(this.value)"><span><b>O cliente liga para o consultório</b><span class="hc-opt-sub">O agente informa este número ao cliente e avisa a equipe aqui no painel, sem prometer ligação nem prazo.</span></span></label>
+            <div class="hc-fields" id="hc-fields-paciente_liga" hidden>
+              <div class="field-group">
+                <label class="field-label" for="hc-office-phone">Telefone do consultório (obrigatório)</label>
+                <input class="field" id="hc-office-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="(11) 3333-4444">
+                <div class="hc-err" id="hc-err-office_phone" hidden></div>
+              </div>
+            </div>
+          </div>
+          <div class="hc-opt" id="hc-opt-sem_transferencia">
+            <label class="hc-opt-label"><input type="radio" name="hc-mode" value="sem_transferencia" onchange="handoffChoicePick(this.value)"><span><b>A clínica não oferece transferência</b><span class="hc-opt-sub">O agente avisa ao cliente que não consegue encaminhar para uma pessoa e continua atendendo.</span></span></label>
+          </div>
+          <div class="hc-err" id="hc-err-handoff_mode" hidden></div>
+          <div class="hc-err" id="hc-err-geral" hidden></div>
+          <div class="hc-actions">
+            <button type="button" class="btn btn-accent" id="hc-save" onclick="saveHandoffChoice()">Salvar escolha</button>
+            <button type="button" class="btn btn-ghost" onclick="handoffTestAlert()">Testar aviso</button>
+          </div>
+          <div class="field-hint">“Testar aviso” só toca o bipe e mostra a faixa vermelha com um exemplo, neste navegador.</div>
+        </div>
+      </div>
       <div class="cfg-grid">
         <div>
           <div class="card" style="margin-bottom:16px">
@@ -1676,6 +1740,7 @@ function doLogout(){
 // cada aba de novo (elas só recarregam do backend ao trocar de aba).
 function resetTenantState(){
   stopNotifications();
+  handoffCfgReset();
   waReset();
   appointments = [];
   callbacks = [];
@@ -1852,6 +1917,7 @@ function applyCurrentUserToUI(){
   if(roleEl) roleEl.textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
   if(avatarEl) avatarEl.textContent = (currentUser.name||'').split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase();
   applyRoleNav();
+  handoffCfgRender();
 }
 
 // Ao abrir a página: se já tem token salvo, tenta usar direto sem pedir login de novo
@@ -2669,9 +2735,11 @@ const feats=[
   {key:'agendamento_automatico', l:'Agendamento automático',s:'IA agenda sem intervenção',on:true},
   {key:'lembrete_1h', l:'Lembrete 1h antes',s:'Mensagem automática ao cliente',on:true},
   {key:'triagem_urgencia', l:'Triagem por urgência',s:'Detecta emergências e notifica',on:true},
-  {key:'transferencia_automatica', l:'Transferência automática',s:'Passa para humano quando solicitado',on:true},
   {key:'pesquisa_satisfacao', l:'Pesquisa de satisfação',s:'Mensagem automática pós-atendimento',on:false},
 ];
+// "Transferência automática" não tem mais efeito nem aparece na tela, mas o objeto features
+// segue completo no envio: o valor carregado do servidor é preservado como veio.
+let loadedFeatures = {};
 const fl=document.getElementById('feat-list');
 feats.forEach(f=>{
   fl.innerHTML+=`<div class="toggle-row"><div><div class="toggle-label">${f.l}</div><div class="toggle-sub">${f.s}</div></div><div class="toggle ${f.on?'on':''}" data-feature-key="${f.key}" onclick="this.classList.toggle('on')"></div></div>`;
@@ -2687,11 +2755,13 @@ async function loadSettingsFromServer(){
     document.getElementById('cfg-tone').value = settings.tone;
     document.getElementById('cfg-welcome').value = settings.welcome_message;
     document.getElementById('cfg-transfer').value = settings.transfer_message;
+    loadedFeatures = (settings.features && typeof settings.features === 'object') ? { ...settings.features } : {};
     document.querySelectorAll('[data-feature-key]').forEach(el=>{
       const key = el.getAttribute('data-feature-key');
       const on = !!settings.features?.[key];
       el.classList.toggle('on', on);
     });
+    handoffCfgApply(settings);
     const nameDisplay = document.getElementById('agent-name-display');
     if(nameDisplay) nameDisplay.textContent = settings.agent_name;
   }catch(e){
@@ -2701,7 +2771,8 @@ async function loadSettingsFromServer(){
 }
 
 async function saveSettingsToServer(){
-  const features = {};
+  const features = { ...loadedFeatures };
+  if(!('transferencia_automatica' in features)) features.transferencia_automatica = true;   // padrão de antes, sem tela
   document.querySelectorAll('[data-feature-key]').forEach(el=>{
     features[el.getAttribute('data-feature-key')] = el.classList.contains('on');
   });
@@ -5342,7 +5413,7 @@ const NOTIF_SOURCES = [
       (currentUser.role === 'profissional' && ['todas_ver','todas_assumir'].includes(currentUser.permissao))
     ),
     // Sem markAll: "Marcar tudo como visto" não pode dispensar as transferências dos colegas.
-    count: items => items.filter(h => h.status === 'pendente' || h.mine).length,
+    count: items => items.filter(h => h.kind === 'informativo' || h.status === 'pendente' || h.mine).length,
     markOne: id => apiFetch(`/api/handoffs/${id}/seen`, { method:'PATCH' }),
   },
   {
@@ -5684,6 +5755,8 @@ let handoffPollFails = 0;
 let handoffConnBad = false;            // luz vermelha
 let handoffServerOffset = 0;           // server_time - relógio local, para a contagem do prazo
 let handoffClaimBusy = new Set();
+let handoffAckBusy = new Set();
+let handoffTestOn = false, handoffTestTimer = null;   // "Testar aviso": só no navegador
 let handoffBeepTimer = null, handoffTitleTimer = null, handoffTickTimer = null;
 let handoffTitleOn = false;
 let handoffBannerKey = null;          // assinatura do que a faixa mostra (só redesenha se mudar)
@@ -5709,7 +5782,7 @@ function onAudioState(){
   if(soundUnlocked && handoffRunning){
     handoffPollAt = 0;
     handoffPollSoon();                 // grava a presença agora que pode tocar
-    if(handoffPendingForMe().length) handoffBeep();
+    if(handoffAlertItems().length) handoffBeep();
   }
 }
 
@@ -5777,18 +5850,62 @@ function handoffDeadlineText(h){
   return `prazo ${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
+function handoffIsInfo(h){ return !!h && h.kind === 'informativo'; }
+
+// Transferências pendentes (as que pedem "Vou atender"). Aviso informativo nunca entra aqui.
 function handoffPendingForMe(){
-  return handoffCanAssume() ? handoffList.filter(h => h.status === 'pendente') : [];
+  return handoffCanAssume() ? handoffList.filter(h => !handoffIsInfo(h) && h.status === 'pendente') : [];
+}
+
+// Avisos informativos do modo B (o cliente final recebeu o telefone do consultório).
+// Mesma regra de quem recebe o alerta: quem pode assumir. Quem só tem todas_ver vê no sino, sem som.
+function handoffInfoForMe(){
+  return handoffCanAssume() ? handoffList.filter(handoffIsInfo) : [];
+}
+
+// Tudo o que mantém o alerta (bipe, título, faixa) ligado: pendentes primeiro, depois avisos.
+function handoffAlertItems(){
+  return handoffPendingForMe().concat(handoffInfoForMe());
+}
+
+// "de Maria" / "do cliente" — para as mensagens de assumir e concluir.
+function handoffDeNome(h){
+  const n = h && typeof h.customer_name === 'string' ? h.customer_name.trim() : '';
+  return n ? `de ${n}` : 'do cliente';
+}
+
+const HANDOFF_REASON_MAX = 140;
+function handoffReasonShort(h){
+  const r = h && typeof h.reason === 'string' ? h.reason.trim() : '';
+  if(!r) return '';
+  return r.length > HANDOFF_REASON_MAX ? r.slice(0, HANDOFF_REASON_MAX).trimEnd() + '…' : r;
 }
 
 // ── Faixa vermelha ──
+// Linha do aviso informativo (modo B): sem prazo, sem "Vou atender".
+function handoffBannerInfoRowHtml(h){
+  const busy = handoffAckBusy.has(h.id);
+  const nome = typeof h.customer_name === 'string' && h.customer_name.trim() ? h.customer_name.trim() : '';
+  const tel = h.customer_phone && !/teste/i.test(String(h.customer_phone)) && h.channel !== 'painel_teste'
+    ? ` · ${apuEsc(h.customer_phone)}` : '';
+  const motivo = handoffReasonShort(h);
+  return `<div class="ho-row">
+    <span class="ho-main">🔴 <b>${apuEsc(nome || 'Um cliente')}</b> pediu atendimento: o telefone do consultório já foi informado ao cliente${tel}${motivo ? `<span class="ho-reason">Motivo: ${apuEsc(motivo)}</span>` : ''}</span>
+    <span class="ho-actions">
+      <button type="button" class="ho-btn ho-btn-main" ${busy ? 'disabled' : ''} onclick="ackHandoffInfo(${convJsArg(h.id)})">${busy ? 'Marcando…' : 'Marcar como visto'}</button>
+    </span>
+  </div>`;
+}
+
 function handoffBannerRowHtml(h){
+  if(handoffIsInfo(h)) return handoffBannerInfoRowHtml(h);
   const busy = handoffClaimBusy.has(h.id);
+  const motivo = handoffReasonShort(h);
   const tel = h.customer_phone && !/teste/i.test(String(h.customer_phone)) && h.channel !== 'painel_teste'
     ? ` · ${apuEsc(h.customer_phone)}` : '';
   const dl = handoffDeadlineText(h);
   return `<div class="ho-row">
-    <span class="ho-main">🔴 <b>${apuEsc(h.customer_name || 'Cliente')}</b> pediu atendimento humano${tel}</span>
+    <span class="ho-main">🔴 <b>${apuEsc(h.customer_name || 'Cliente')}</b> pediu atendimento humano${tel}${motivo ? `<span class="ho-reason">Motivo: ${apuEsc(motivo)}</span>` : ''}</span>
     <span class="ho-deadline" data-deadline="${apuEsc(h.deadline_at || '')}"${dl ? '' : ' hidden'}>${apuEsc(dl)}</span>
     <span class="ho-actions">
       <button type="button" class="ho-btn ho-btn-main" ${busy ? 'disabled' : ''} onclick="claimHandoff(${convJsArg(h.id)})">${busy ? 'Assumindo…' : 'Vou atender'}</button>
@@ -5800,16 +5917,20 @@ function handoffBannerRowHtml(h){
 function handoffRenderBanner(){
   const el = document.getElementById('handoff-banner');
   if(!el) return;
-  const pend = handoffPendingForMe();
-  if(!pend.length){ el.hidden = true; el.innerHTML = ''; handoffBannerKey = null; return; }
+  const pend = handoffAlertItems();
+  if(!pend.length && !handoffTestOn){ el.hidden = true; el.innerHTML = ''; handoffBannerKey = null; return; }
   // Redesenhar a cada consulta trocaria os botões debaixo do clique: só redesenha se algo mudou.
-  const key = JSON.stringify(pend.slice(0, HANDOFF_BANNER_MAX_ROWS + 1).map(x => [x.id, x.customer_name, x.customer_phone, x.deadline_at, handoffClaimBusy.has(x.id)]));
+  const key = JSON.stringify([handoffTestOn, pend.slice(0, HANDOFF_BANNER_MAX_ROWS + 1).map(x => [x.id, x.kind, x.customer_name, x.customer_phone, x.reason, x.deadline_at, handoffClaimBusy.has(x.id), handoffAckBusy.has(x.id)])]);
   if(key === handoffBannerKey && !el.hidden) return;
   handoffBannerKey = key;
   const rows = pend.slice(0, HANDOFF_BANNER_MAX_ROWS).map(handoffBannerRowHtml).join('');
   const more = pend.length > HANDOFF_BANNER_MAX_ROWS
     ? `<div class="ho-more">+${pend.length - HANDOFF_BANNER_MAX_ROWS} no sino 🔔</div>` : '';
-  el.innerHTML = rows + more;
+  const teste = handoffTestOn ? `<div class="ho-row">
+    <span class="ho-main">🔴 <b>Teste de aviso</b>: assim a faixa aparece quando um cliente pedir atendimento. <span class="ho-reason">Motivo: exemplo, nada foi enviado a ninguém.</span></span>
+    <span class="ho-actions"><button type="button" class="ho-btn ho-btn-main" onclick="handoffTestStop()">Fechar teste</button></span>
+  </div>` : '';
+  el.innerHTML = teste + rows + more;
   el.hidden = false;
 }
 
@@ -5858,13 +5979,18 @@ function handoffStopAlert(){
 
 function handoffSyncAlert(newArrived){
   handoffRenderBanner();
-  const pend = handoffPendingForMe();
-  if(!pend.length){ handoffStopAlert(); return; }
+  const pend = handoffAlertItems();
+  if(!pend.length){
+    handoffStopAlert();
+    if(handoffTestOn) handoffRenderBanner();   // o teste segue na tela; a faixa foi zerada pelo stop
+    return;
+  }
   if(!handoffTitleTimer){
     handoffTitleTimer = setInterval(() => {
       handoffTitleOn = !handoffTitleOn;
-      const n = handoffPendingForMe().length;
-      document.title = handoffTitleOn ? `🔴 (${n}) Transferência!` : HANDOFF_BASE_TITLE;
+      const n = handoffAlertItems().length;
+      const rotulo = handoffPendingForMe().length ? 'Transferência!' : 'Cliente pediu atendimento!';
+      document.title = handoffTitleOn ? `🔴 (${n}) ${rotulo}` : HANDOFF_BASE_TITLE;
     }, 1000);
   }
   if(!handoffBeepTimer){
@@ -5906,9 +6032,9 @@ function handoffApplyResponse(data, askedPresence){
   const secs = Number(data.poll_interval_seconds);
   handoffPollSeconds = Number.isFinite(secs) && secs > 0 ? Math.min(Math.max(secs, 5), 120) : HANDOFF_DEFAULT_POLL_S;
 
-  const before = new Set(handoffPendingForMe().map(h => h.id));
+  const before = new Set(handoffAlertItems().map(h => h.id));
   handoffList = data.handoffs;
-  const arrived = handoffPendingForMe().some(h => !before.has(h.id));
+  const arrived = handoffAlertItems().some(h => !before.has(h.id));
   if(handoffConclude && !handoffCanConclude(handoffList.find(x => x.id === handoffConclude.id))) handoffConclude = null;
   if(handoffBook && !handoffCanConclude(handoffList.find(x => x.id === handoffBook.id))) handoffBook = null;
 
@@ -5920,7 +6046,7 @@ function handoffApplyResponse(data, askedPresence){
   }
   notifCache.handoffs = handoffList;
   renderNotifBadge();
-  const sig = JSON.stringify(handoffList.map(x => [x.id, x.status, x.claimed_by_name, x.mine, x.deadline_at, x.customer_name, handoffClaimBusy.has(x.id)]));
+  const sig = JSON.stringify(handoffList.map(x => [x.id, x.status, x.claimed_by_name, x.mine, x.deadline_at, x.customer_name, x.kind, x.reason, handoffClaimBusy.has(x.id), handoffAckBusy.has(x.id)]));
   if(notifOpen && sig !== handoffListSig) renderNotifPanel();
   handoffListSig = sig;
   handoffSyncAlert(arrived);
@@ -5989,6 +6115,7 @@ function stopHandoffs(){
   handoffList = [];
   handoffListSig = null;
   handoffClaimBusy = new Set();
+  handoffAckBusy = new Set();
   handoffConclude = null;
   handoffConcludeBusy = new Set();
   handoffBook = null;
@@ -5997,6 +6124,7 @@ function stopHandoffs(){
   handoffBooked = {};
   handoffPollFails = 0;
   handoffConnBad = false;
+  clearTimeout(handoffTestTimer); handoffTestTimer = null; handoffTestOn = false;
   handoffStopAlert();
   const banner = document.getElementById('handoff-banner');
   if(banner){ banner.hidden = true; banner.innerHTML = ''; }
@@ -6009,7 +6137,7 @@ document.addEventListener('visibilitychange', () => {
   if(!handoffRunning) return;
   if(!document.hidden){
     handoffPollSoon();
-    if(handoffPendingForMe().length) handoffBeep();
+    if(handoffAlertItems().length) handoffBeep();
   }
 });
 
@@ -6017,7 +6145,6 @@ document.addEventListener('visibilitychange', () => {
 async function claimHandoff(id){
   if(handoffClaimBusy.has(id)) return;
   const h = handoffList.find(x => x.id === id);
-  const nome = (h && h.customer_name) || 'o cliente';
   handoffClaimBusy.add(id);
   handoffRenderAll();
   try{
@@ -6025,7 +6152,8 @@ async function claimHandoff(id){
     const data = await res.json().catch(() => ({}));
     if(res.ok && data && data.claimed){
       handoffMerge(id, data.handoff);
-      showToast(`✓ Você assumiu o atendimento de ${nome}.`);
+      showToast(`✓ Você assumiu o atendimento ${handoffDeNome(handoffList.find(x => x.id === id) || h)}.`);
+      handoffOpenHistoryFor(handoffList.find(x => x.id === id) || h);
     }else if(res.status === 409){
       // Perdeu a corrida (ou já concluída): não é erro — mostra quem está atendendo e atualiza a lista.
       const st = data && data.handoff;
@@ -6074,7 +6202,7 @@ let handoffConclude = null;            // formulário aberto: { id, result, note
 let handoffConcludeBusy = new Set();
 
 function handoffCanConclude(h){
-  return !!h && h.status === 'assumido' && handoffCanAssume() &&
+  return !!h && !handoffIsInfo(h) && h.status === 'assumido' && handoffCanAssume() &&
     (currentUser.role === 'admin' || h.mine === true);
 }
 
@@ -6153,7 +6281,6 @@ async function concludeHandoff(id){
   const note = f.note.trim();
   if(note.length > HANDOFF_NOTE_MAX){ showToast(`ℹ️ A observação deve ter até ${HANDOFF_NOTE_MAX} caracteres.`); return; }
   const h = handoffList.find(x => x.id === id);
-  const nome = (h && h.customer_name) || 'o cliente';
   const body = { result: f.result };
   if(note) body.note = note;
   handoffConcludeBusy.add(id);
@@ -6174,7 +6301,7 @@ async function concludeHandoff(id){
         if(!data.appointments.length) aviso = ' ⚠ Nenhuma consulta ligada a esta transferência.';
         else if(data.appointments.every(a => a && a.status === 'cancelado')) aviso = ' ⚠ As consultas ligadas a esta transferência estão canceladas.';
       }
-      showToast(`✓ Atendimento de ${nome} concluído.${aviso}`);
+      showToast(`✓ Atendimento ${handoffDeNome(h)} concluído.${aviso}`);
     }else if(res.status === 400){
       showToast(data && data.code === 'observacao_longa'
         ? `ℹ️ A observação deve ter até ${HANDOFF_NOTE_MAX} caracteres.`
@@ -6548,8 +6675,75 @@ async function handoffConfirmBook(id){
   }
 }
 
+// "Marcar como visto" do aviso informativo (modo B): PATCH /api/handoffs/:id/ack.
+// 403 e 409 não são erro para o atendente: viram aviso neutro.
+async function ackHandoffInfo(id){
+  if(handoffAckBusy.has(id)) return;
+  handoffAckBusy.add(id);
+  handoffRenderAll();
+  let remover = false;
+  try{
+    const res = await apiFetch(`/api/handoffs/${encodeURIComponent(id)}/ack`, { method:'PATCH' });
+    const data = await res.json().catch(() => ({}));
+    if(res.ok){
+      remover = true;
+    }else if(res.status === 403){
+      showToast('ℹ️ Você não tem permissão para marcar este aviso como visto.');
+    }else if(res.status === 409){
+      handoffMerge(id, { kind: 'transferencia' });   // não era aviso: volta a ser tratado como transferência
+      showToast('ℹ️ Este item é uma transferência, não um aviso. Use "Vou atender".');
+    }else if(res.status === 404){
+      remover = true;
+      showToast('ℹ️ Este aviso não existe mais.');
+    }else if(res.status !== 401){
+      showToast('⚠ Não foi possível marcar como visto agora. Tente de novo.');
+    }
+  }catch(e){
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }finally{
+    handoffAckBusy.delete(id);
+    if(remover) handoffRemove(id); else handoffRenderAll();
+    handoffPollSoon();
+  }
+}
+
+// Abre sozinho o histórico da conversa da linha (sem alternar): usado ao assumir o atendimento.
+function handoffOpenHistoryFor(h){
+  if(!h) return;
+  const ch = h.channel || 'whatsapp';
+  const key = convRefKey(h.conversation_id, h.customer_phone, ch);
+  expandedHandoffKey = key;
+  delete convSessionView[key];
+  const need = !(key in convHistoryCache) || convHistoryCache[key] === 'error';
+  if(need) convHistoryCache[key] = 'loading';
+  if(!notifOpen) openNotifPanel(); else renderNotifPanel();
+  if(need) loadConversationHistory(h.conversation_id || '', h.customer_phone, ch);
+  const row = document.querySelector(`#notif-panel-body [data-ho-id="${CSS.escape(String(h.id))}"]`);
+  if(row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
+}
+
+// Linha do aviso informativo no sino: nome, telefone e motivo; sem prazo e sem ações de atendimento.
+function handoffInfoRowHtml(it){
+  const ch = it.channel || 'whatsapp';
+  const key = convRefKey(it.conversation_id, it.customer_phone, ch);
+  const open = key === expandedHandoffKey;
+  const canal = it.channel ? ` <span class="muted">· ${apuEsc(it.channel)}</span>` : '';
+  const motivo = it.reason ? `<div class="notif-row-text muted">Motivo: ${apuEsc(it.reason)}</div>` : '';
+  const busy = handoffAckBusy.has(it.id);
+  const visto = handoffCanAssume()
+    ? `<button class="btn btn-accent btn-sm" ${busy ? 'disabled' : ''} onclick="ackHandoffInfo(${convJsArg(it.id)})">${busy ? 'Marcando…' : 'Marcar como visto'}</button>` : '';
+  return `<div class="notif-row" data-ho-id="${apuEsc(it.id)}">
+      <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu atendimento. O telefone do consultório já foi informado ao cliente.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
+      ${motivo}
+      <div class="notif-row-actions">${visto}</div>
+      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span><button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${convJsArg(it.conversation_id || '')},${convJsArg(it.customer_phone)},${convJsArg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button></div>
+      ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px;margin-top:4px">${convHistoryHtml(key)}</div>` : ''}
+    </div>`;
+}
+
 // Linha da transferência no sino.
 function handoffRowHtml(it){
+  if(handoffIsInfo(it)) return handoffInfoRowHtml(it);
   const ch = it.channel || 'whatsapp';
   const key = convRefKey(it.conversation_id, it.customer_phone, ch);
   const open = key === expandedHandoffKey;
@@ -6572,7 +6766,7 @@ function handoffRowHtml(it){
   const agendarAberto = !!handoffBook && handoffBook.id === it.id;
   const agendar = handoffCanConclude(it) && !agendarAberto
     ? `<button class="btn btn-ghost btn-sm" onclick="handoffOpenBook(${convJsArg(it.id)})">Agendar</button>` : '';
-  return `<div class="notif-row">
+  return `<div class="notif-row" data-ho-id="${apuEsc(it.id)}">
       <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu transferência para atendimento humano.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
       ${motivo}
       ${estado}
@@ -6583,6 +6777,174 @@ function handoffRowHtml(it){
       <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span>${prazo}<button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${convJsArg(it.conversation_id || '')},${convJsArg(it.customer_phone)},${convJsArg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button>${marcar}</div>
       ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px;margin-top:4px">${convHistoryHtml(key)}</div>` : ''}
     </div>`;
+}
+
+// ── ESCOLHA DE COMO A CLÍNICA ATENDE UMA TRANSFERÊNCIA ──
+// handoff_mode: null (pendente) | 'clinica_liga' | 'paciente_liga' | 'sem_transferencia'.
+// Todo usuário autenticado recebe os campos em GET /api/settings; só o administrador grava
+// (PATCH /api/settings). Aqui nada vem de cliente final: os valores são da própria clínica.
+const HC_MODES = ['clinica_liga', 'paciente_liga', 'sem_transferencia'];
+const HC_ERR_FIELDS = ['handoff_phone', 'handoff_wait_minutes', 'office_phone', 'handoff_mode'];
+let handoffCfg = { mode: null, pending: false, phone: '', office: '', wait: 3 };
+let handoffChoice = null;              // opção marcada na tela (ainda não salva)
+let handoffChoiceBusy = false;
+
+function handoffCfgIsAdmin(){ return !!currentUser && currentUser.role === 'admin'; }
+
+function handoffCfgApply(settings){
+  if(!settings || typeof settings !== 'object') return;
+  const mode = HC_MODES.includes(settings.handoff_mode) ? settings.handoff_mode : null;
+  const wait = Number(settings.handoff_wait_minutes);
+  handoffCfg = {
+    mode,
+    pending: settings.handoff_mode_pending === true || mode === null,
+    phone: typeof settings.handoff_phone === 'string' ? settings.handoff_phone : '',
+    office: typeof settings.office_phone === 'string' ? settings.office_phone : '',
+    wait: Number.isInteger(wait) && wait >= 1 && wait <= 15 ? wait : 3,
+  };
+  handoffChoice = mode;
+  const ph = document.getElementById('hc-handoff-phone'); if(ph) ph.value = handoffCfg.phone;
+  const of = document.getElementById('hc-office-phone'); if(of) of.value = handoffCfg.office;
+  const wt = document.getElementById('hc-wait'); if(wt) wt.value = String(handoffCfg.wait);
+  handoffCfgRender();
+}
+
+function handoffCfgReset(){
+  handoffCfg = { mode: null, pending: false, phone: '', office: '', wait: 3 };
+  handoffChoice = null;
+  handoffChoiceBusy = false;
+  ['hc-handoff-phone', 'hc-office-phone'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  const wt = document.getElementById('hc-wait'); if(wt) wt.value = '3';
+  handoffChoiceClearErrors();
+  handoffCfgRender();
+}
+
+function handoffChoiceClearErrors(){
+  HC_ERR_FIELDS.concat(['geral']).forEach(f => {
+    const el = document.getElementById('hc-err-' + f);
+    if(el){ el.hidden = true; el.textContent = ''; }
+  });
+}
+
+function handoffChoiceShowError(field, msg){
+  const el = document.getElementById('hc-err-' + (HC_ERR_FIELDS.includes(field) ? field : 'geral'));
+  if(!el) return;
+  el.textContent = msg;
+  el.hidden = false;
+}
+
+// Mostra/esconde o aviso enfático (só administrador, só pendente) e acerta a tela de escolha.
+function handoffCfgRender(){
+  const admin = handoffCfgIsAdmin();
+  const pend = admin && handoffCfg.pending === true;
+  const banner = document.getElementById('hc-pending-banner');
+  if(banner) banner.hidden = !pend;
+  const note = document.getElementById('hc-pending-note');
+  if(note) note.hidden = !pend;
+  const card = document.getElementById('hc-card');
+  if(card) card.classList.toggle('hc-pending', pend);
+  HC_MODES.forEach(m => {
+    const opt = document.getElementById('hc-opt-' + m);
+    if(opt) opt.classList.toggle('on', handoffChoice === m);
+    const radio = document.querySelector(`input[name="hc-mode"][value="${m}"]`);
+    if(radio){ radio.checked = handoffChoice === m; radio.disabled = handoffChoiceBusy; }
+    const fields = document.getElementById('hc-fields-' + m);
+    if(fields) fields.hidden = handoffChoice !== m;
+  });
+  const save = document.getElementById('hc-save');
+  if(save){ save.disabled = handoffChoiceBusy; save.textContent = handoffChoiceBusy ? 'Salvando…' : 'Salvar escolha'; }
+}
+
+function handoffChoicePick(mode){
+  if(!HC_MODES.includes(mode) || handoffChoiceBusy) return;
+  handoffChoice = mode;
+  handoffChoiceClearErrors();
+  handoffCfgRender();
+}
+
+// Do aviso enfático da Visão Geral para o bloco de escolha.
+function handoffGoChoose(){
+  setTab('config');
+  const card = document.getElementById('hc-card');
+  if(card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const first = document.querySelector('input[name="hc-mode"]');
+  if(first) first.focus({ preventScroll: true });
+}
+
+async function saveHandoffChoice(){
+  if(handoffChoiceBusy || !handoffCfgIsAdmin()) return;
+  handoffChoiceClearErrors();
+  if(!HC_MODES.includes(handoffChoice)){
+    handoffChoiceShowError('handoff_mode', 'Escolha uma das três opções.');
+    return;
+  }
+  const body = { handoff_mode: handoffChoice };
+  if(handoffChoice === 'clinica_liga'){
+    const phone = document.getElementById('hc-handoff-phone').value.trim();
+    const wait = Number(document.getElementById('hc-wait').value);
+    let bad = false;
+    if(!phone){ handoffChoiceShowError('handoff_phone', 'Informe o celular de atendimento.'); bad = true; }
+    if(!Number.isInteger(wait) || wait < 1 || wait > 15){ handoffChoiceShowError('handoff_wait_minutes', 'O prazo deve ser um número inteiro de 1 a 15 minutos.'); bad = true; }
+    if(bad) return;
+    body.handoff_phone = phone;
+    body.handoff_wait_minutes = wait;
+  }else if(handoffChoice === 'paciente_liga'){
+    const phone = document.getElementById('hc-office-phone').value.trim();
+    if(!phone){ handoffChoiceShowError('office_phone', 'Informe o telefone do consultório.'); return; }
+    body.office_phone = phone;
+  }
+  handoffChoiceBusy = true;
+  handoffCfgRender();
+  try{
+    const res = await apiFetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if(res.ok){
+      const st = data && data.settings;
+      if(st && typeof st === 'object'){
+        handoffCfgApply(st);
+      }else{
+        // Sem o objeto settings na resposta: assume o que acabou de gravar.
+        handoffCfg.mode = handoffChoice;
+        handoffCfg.pending = data && data.handoff_mode_pending === true ? true : false;
+      }
+      showToast('✓ Escolha salva.');
+    }else if(res.status === 400){
+      const msg = (data && typeof data.error === 'string' && data.error) || 'Confira os dados informados.';
+      handoffChoiceShowError(data && data.field, msg);
+    }else if(res.status === 403){
+      handoffChoiceShowError('geral', 'Só o administrador pode alterar esta escolha.');
+    }else if(res.status !== 401){
+      handoffChoiceShowError('geral', 'Não foi possível salvar agora. Tente de novo em instantes.');
+    }
+  }catch(e){
+    handoffChoiceShowError('geral', 'Não foi possível conectar ao backend.');
+  }finally{
+    handoffChoiceBusy = false;
+    handoffCfgRender();
+  }
+}
+
+// "Testar aviso": bipe e faixa vermelha de exemplo, só no navegador (nenhuma chamada ao backend).
+function handoffTestAlert(){
+  unlockSound();
+  clearTimeout(handoffTestTimer);
+  handoffTestOn = true;
+  handoffBannerKey = null;
+  handoffRenderBanner();
+  setTimeout(handoffBeep, 150);        // dá tempo de o áudio liberar com este mesmo clique
+  if(!soundUnlocked) showToast('ℹ️ Se não ouvir o bipe, clique de novo ou verifique o som do navegador.');
+  handoffTestTimer = setTimeout(handoffTestStop, 10000);
+}
+
+function handoffTestStop(){
+  clearTimeout(handoffTestTimer); handoffTestTimer = null;
+  handoffTestOn = false;
+  handoffBannerKey = null;
+  handoffRenderBanner();
 }
 
 // ── TOAST ──
