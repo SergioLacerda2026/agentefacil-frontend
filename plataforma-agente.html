@@ -2999,8 +2999,15 @@ async function testSend(){
       })
     });
     if(!res.ok){
+      // O servidor respondeu (ex.: 400 com { error }): mostra a mensagem dele. O texto de "backend fora do ar" fica só para falha de rede.
       const errData = await res.json().catch(()=>({}));
-      throw new Error(errData.error || `Erro ${res.status}`);
+      const msgServidor = typeof errData.error === 'string' && errData.error.trim()
+        ? errData.error.trim() : `Não consegui responder agora (erro ${res.status}). Tente de novo.`;
+      testHistory.pop();   // tira a fala do usuário que não foi respondida, para a próxima tentativa não duplicá-la
+      testRemoveTyping();
+      testAddBubble(msgServidor,'in');
+      testTyping=false;
+      return;
     }
     const data=await res.json();
     const reply=data.reply||'Desculpe, tive um problema. Pode repetir?';
@@ -3010,6 +3017,7 @@ async function testSend(){
     let quick=[];
     testAddBubble(reply,'in',quick);
   }catch(e){
+    if(testHistory.length && testHistory[testHistory.length-1].role==='user') testHistory.pop();   // fala sem resposta não fica no histórico
     testRemoveTyping();
     testAddBubble('Ops, não consegui falar com o backend. Verifique se ele está rodando em '+BACKEND_URL+' e tente novamente.','in');
     console.error('[testSend] erro ao chamar backend:', e);
@@ -5881,6 +5889,12 @@ function handoffPhoneDigits(h){
   return d;
 }
 
+// Pedido do "Testar Agente" (canal painel_teste ou telefone de teste): o cliente é simulado e não há número para ligar.
+function handoffIsTeste(h){
+  return !!h && (h.channel === 'painel_teste' || /teste/i.test(String(h.customer_phone || '')));
+}
+const HANDOFF_TESTE_NOTA = 'Teste: o cliente é simulado, não há telefone para ligar.';
+
 function handoffContactHtml(h, cls){
   const d = handoffPhoneDigits(h);
   if(!d) return '';
@@ -5968,7 +5982,7 @@ function handoffBannerRowHtml(h){
     ? ` · ${apuEsc(h.customer_phone)}` : '';
   const dl = handoffDeadlineText(h);
   return `<div class="ho-row">
-    <span class="ho-main">🔴 <b>${apuEsc(h.customer_name || 'Cliente')}</b> pediu atendimento humano${tel}${motivo ? `<span class="ho-reason">Motivo: ${apuEsc(motivo)}</span>` : ''}</span>
+    <span class="ho-main">🔴 <b>${apuEsc(h.customer_name || 'Cliente')}</b> pediu atendimento humano${tel}${motivo ? `<span class="ho-reason">Motivo: ${apuEsc(motivo)}</span>` : ''}${handoffIsTeste(h) ? `<span class="ho-reason">${HANDOFF_TESTE_NOTA}</span>` : ''}</span>
     <span class="ho-deadline" data-deadline="${apuEsc(h.deadline_at || '')}"${dl ? '' : ' hidden'}>${apuEsc(dl)}</span>
     <span class="ho-actions">
       <button type="button" class="ho-btn ho-btn-main" ${busy ? 'disabled' : ''} onclick="claimHandoff(${convJsArg(h.id)})">${busy ? 'Assumindo…' : 'Vou atender'}</button>
@@ -6987,6 +7001,7 @@ function handoffRowHtml(it){
       <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu transferência para atendimento humano.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
       ${semBloco}
       ${motivo}
+      ${handoffIsTeste(it) ? `<div class="notif-row-text muted">${HANDOFF_TESTE_NOTA}</div>` : ''}
       ${estado}
       ${handoffBookedHtml(it)}
       <div class="notif-row-actions">${assumir}${concluir}${agendar}${handoffContactHtml(it, 'btn btn-ghost btn-sm')}${semAcoes}</div>
