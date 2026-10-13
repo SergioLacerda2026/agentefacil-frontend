@@ -5806,7 +5806,6 @@ let handoffServerOffset = 0;           // server_time - relógio local, para a c
 let handoffClaimBusy = new Set();
 let handoffAckBusy = new Set();
 let handoffSemBusy = new Set();          // ciência/arquivar em andamento
-let handoffSemBeeped = new Set();         // itens sem atendimento que já tocaram o bipe (uma vez por item)
 let handoffTestOn = false, handoffTestTimer = null;   // "Testar aviso": só no navegador
 let handoffBeepTimer = null, handoffTitleTimer = null, handoffTickTimer = null;
 let handoffTitleOn = false;
@@ -5833,7 +5832,7 @@ function onAudioState(){
   if(soundUnlocked && handoffRunning){
     handoffPollAt = 0;
     handoffPollSoon();                 // grava a presença agora que pode tocar
-    if(handoffAlertItems().length) handoffBeep();
+    if(handoffSomAtivo()) handoffBeep();
   }
 }
 
@@ -5920,6 +5919,16 @@ function handoffInfoForMe(){
 // Tudo o que mantém o alerta (bipe, título, faixa) ligado: pendentes primeiro, depois avisos.
 function handoffAlertItems(){
   return handoffPendingForMe().concat(handoffInfoForMe());
+}
+
+// Pedidos sem atendimento ainda sem ciência: mantêm só o SOM repetindo (não entram na faixa nem no título).
+function handoffSemNovos(){
+  return handoffCanAssume() ? handoffList.filter(h => handoffIsSem(h) && !h.ciencia_em) : [];
+}
+
+// O bipe repete enquanto houver pendente, aviso informativo ou pedido sem atendimento sem ciência.
+function handoffSomAtivo(){
+  return handoffAlertItems().length > 0 || handoffSemNovos().length > 0;
 }
 
 // "de Maria" / "do cliente" — para as mensagens de assumir e concluir.
@@ -6034,18 +6043,28 @@ function handoffStopAlert(){
 function handoffSyncAlert(newArrived){
   handoffRenderBanner();
   const pend = handoffAlertItems();
+  // Título piscando e contagem do prazo: só com pendente ou aviso informativo.
   if(!pend.length){
-    handoffStopAlert();
-    if(handoffTestOn) handoffRenderBanner();   // o teste segue na tela; a faixa foi zerada pelo stop
-    return;
+    clearInterval(handoffTitleTimer); handoffTitleTimer = null;
+    clearInterval(handoffTickTimer); handoffTickTimer = null;
+    handoffTitleOn = false;
+    document.title = HANDOFF_BASE_TITLE;
+  }else{
+    if(!handoffTitleTimer){
+      handoffTitleTimer = setInterval(() => {
+        handoffTitleOn = !handoffTitleOn;
+        const n = handoffAlertItems().length;
+        const rotulo = handoffPendingForMe().length ? 'Transferência!' : 'Cliente pediu atendimento!';
+        document.title = handoffTitleOn ? `🔴 (${n}) ${rotulo}` : HANDOFF_BASE_TITLE;
+      }, 1000);
+    }
+    if(!handoffTickTimer) handoffTickTimer = setInterval(handoffTickCountdown, 1000);
   }
-  if(!handoffTitleTimer){
-    handoffTitleTimer = setInterval(() => {
-      handoffTitleOn = !handoffTitleOn;
-      const n = handoffAlertItems().length;
-      const rotulo = handoffPendingForMe().length ? 'Transferência!' : 'Cliente pediu atendimento!';
-      document.title = handoffTitleOn ? `🔴 (${n}) ${rotulo}` : HANDOFF_BASE_TITLE;
-    }, 1000);
+  // Som: um só temporizador, que não é reiniciado quando o pedido passa de pendente para sem atendimento
+  // (sem silêncio e sem bipe duplicado). Para na hora quando não resta nada novo.
+  if(!handoffSomAtivo()){
+    clearInterval(handoffBeepTimer); handoffBeepTimer = null;
+    return;
   }
   if(!handoffBeepTimer){
     handoffBeep();
@@ -6053,7 +6072,6 @@ function handoffSyncAlert(newArrived){
   }else if(newArrived){
     handoffBeep();
   }
-  if(!handoffTickTimer) handoffTickTimer = setInterval(handoffTickCountdown, 1000);
 }
 
 function handoffRenderAll(){
@@ -6104,19 +6122,6 @@ function handoffApplyResponse(data, askedPresence){
   if(notifOpen && sig !== handoffListSig) renderNotifPanel();
   handoffListSig = sig;
   handoffSyncAlert(arrived);
-  handoffBeepSemNovos();
-}
-
-// Item sem atendimento novo (sem ciência): um bipe por item, só para quem recebe o alerta.
-function handoffBeepSemNovos(){
-  if(!handoffCanAssume()) return;
-  let toca = false;
-  handoffList.forEach(h => {
-    if(!handoffIsSem(h) || h.ciencia_em || handoffSemBeeped.has(h.id)) return;
-    handoffSemBeeped.add(h.id);
-    toca = true;
-  });
-  if(toca) handoffBeep();
 }
 
 function handoffScheduleNext(ms){
@@ -6184,7 +6189,6 @@ function stopHandoffs(){
   handoffClaimBusy = new Set();
   handoffAckBusy = new Set();
   handoffSemBusy = new Set();
-  handoffSemBeeped = new Set();
   handoffConclude = null;
   handoffConcludeBusy = new Set();
   handoffBook = null;
@@ -6206,7 +6210,7 @@ document.addEventListener('visibilitychange', () => {
   if(!handoffRunning) return;
   if(!document.hidden){
     handoffPollSoon();
-    if(handoffAlertItems().length) handoffBeep();
+    if(handoffSomAtivo()) handoffBeep();
   }
 });
 
@@ -6830,7 +6834,7 @@ async function ownerSeenHandoff(id){
     const data = await res.json().catch(() => ({}));
     if(res.ok){
       const st = data && data.handoff;
-      handoffMerge(id, st && typeof st === 'object' ? st : { ciencia_em: new Date().toISOString() });
+      handoffMerge(id, Object.assign({}, st && typeof st === 'object' ? st : {}, st && st.ciencia_em ? {} : { ciencia_em: new Date().toISOString() }));
     }else if(res.status === 403){
       showToast('ℹ️ Você não tem permissão para dar ciência neste pedido.');
     }else if(res.status === 404){
