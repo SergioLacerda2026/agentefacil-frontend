@@ -866,6 +866,7 @@ label.field-label{display:block}
                 <div class="field-label">Mensagem ao transferir para humano</div>
                 <textarea class="field" id="cfg-transfer" style="min-height:55px">Entendido! Vou transferir você para um de nossos atendentes. Um momento! 👋</textarea>
                 <div class="field-hint">Enviada quando o agente detecta pedido de atendimento humano</div>
+                <div class="field-hint" id="cfg-transfer-note" hidden>Este texto só vale na opção em que a clínica liga para o cliente. Na opção escolhida acima ele não é usado.</div>
               </div>
             </div>
           </div>
@@ -1755,6 +1756,7 @@ function resetTenantState(){
   clientBillingCache = {};
   expandedClientId = null;
   commercialCloseRequests = [];
+  testPollStop();
   testHistory = [];
   testTyping = false;
   testConversationId = newTestConversationId();
@@ -1997,7 +1999,8 @@ function setTab(id, navEl, tabEl){
   if(id==='visao'){ loadOverviewFromServer(); waLoadRechargeBanner(); }
   if(id==='whatsapp') loadWhatsappFromServer();
   if(id==='conversas') loadConversationsFromServer();
-  if(id==='testar') syncKbToTest();
+  if(id!=='testar') testPollStop();
+  if(id==='testar'){ syncKbToTest(); testPollStart(); }
   if(id==='conhecimento') loadKnowledgeFromServer();
   if(id==='fiscal') loadFiscalFromServer();
   if(id==='profissionais') loadProfessionalsFromServer();
@@ -2319,7 +2322,8 @@ function renderOverviewKpis(k){
   set('kpi-conversao', fmtConversao(k.taxa_conversao));
   set('kpi-transferencias', k.transferencias ?? '—');
   const at = k.transferencias_atendidas ?? 0;
-  set('kpi-transferencias-sub', `${at} atendida${at === 1 ? '' : 's'}`);
+  const sa = k.transferencias_sem_atendimento ?? 0;
+  set('kpi-transferencias-sub', `atendidas pela equipe: ${at} · sem atendimento: ${sa}`);
 }
 
 function clearOverviewKpis(){
@@ -3013,7 +3017,46 @@ async function testSend(){
   testTyping=false;
 }
 
+// Mensagens que o servidor grava na conversa de teste sem o usuário enviar nada (pedido sem atendimento).
+// Usa a rota que já existe, GET /api/conversations/history?conversation_id=. Só consulta com a aba aberta
+// e com pedido de transferência desta conversa pendente ou sem atendimento.
+let testPollTimer=null, testPollBusy=false, testStartedAt=Date.now();
+function testPollStart(){
+  if(testPollTimer) return;
+  testPollTimer=setInterval(testPollNow,15000);
+}
+function testPollStop(){
+  clearInterval(testPollTimer); testPollTimer=null;
+}
+async function testPollNow(){
+  if(testPollBusy||testTyping||document.hidden||!testConversationId) return;
+  const temPedido=handoffList.some(h=>h.conversation_id===testConversationId&&!handoffIsInfo(h)&&(h.status==='pendente'||handoffIsSem(h)));
+  if(!temPedido) return;
+  testPollBusy=true;
+  const cid=testConversationId;
+  try{
+    const res=await apiFetch(`/api/conversations/history?${new URLSearchParams({conversation_id:cid})}`,{skipAuthGuard:true});
+    if(!res.ok||cid!==testConversationId) return;
+    const data=await res.json().catch(()=>null);
+    const msgs=data&&Array.isArray(data.messages)?data.messages:[];
+    // Mensagens do agente que a tela já tem (contagem por texto): o que sobrar é novo.
+    const tem=new Map();
+    testHistory.forEach(m=>{ if(m.role==='assistant'){ const k=String(m.content).trim(); tem.set(k,(tem.get(k)||0)+1); } });
+    msgs.forEach(m=>{
+      if(m.role!=='assistant'||typeof m.content!=='string') return;
+      const t=Date.parse(m.created_at);
+      if(Number.isFinite(t)&&t<testStartedAt) return;
+      const k=m.content.trim();
+      if(tem.get(k)>0){ tem.set(k,tem.get(k)-1); return; }
+      testHistory.push({role:'assistant',content:m.content});
+      testAddBubble(m.content,'in');
+    });
+  }catch(e){ /* sem rede agora: tenta na próxima */ }
+  finally{ testPollBusy=false; }
+}
+
 function resetTestChat(){
+  testStartedAt=Date.now();
   testHistory=[];
   testTyping=false;
   testConversationId=newTestConversationId();
@@ -3664,12 +3707,16 @@ function apptRowHtml(a){
 function callbackRowHtml(c){
   const done = c.status === 'concluido';
   const per = callbackPeriodLabel[c.preferred_period] || c.preferred_period || '';
+  const hora = typeof c.preferred_time === 'string' && /^\d{1,2}:\d{2}/.test(c.preferred_time) ? c.preferred_time.slice(0, 5) : '';
+  const quando = hora
+    ? `${formatCallbackDate(c.preferred_date)} às ${apuEsc(hora)}`
+    : `${formatCallbackDate(c.preferred_date)}${per ? ` <span style="color:var(--muted)">·</span> <span style="font-weight:600;color:var(--muted)">Período:</span> ${apuEsc(per)}` : ''}`;
   return `
     <div style="display:flex;flex-direction:column;gap:10px;padding:14px 22px;border-bottom:1px solid var(--border);border-left:3px solid var(--amber)">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
         <div style="font-size:12px;font-weight:700;color:var(--amber);letter-spacing:.04em;text-transform:uppercase">📞 Retorno de ligação</div>
         <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Cliente:</span> ${apuEsc(c.customer_name || 'Cliente')} <span style="color:var(--muted)">· ${apuEsc(formatApptPhone(c.customer_phone))}</span></div>
-        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Dia:</span> ${formatCallbackDate(c.preferred_date)}${per ? ` <span style="color:var(--muted)">·</span> <span style="font-weight:600;color:var(--muted)">Período:</span> ${apuEsc(per)}` : ''}</div>
+        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Dia:</span> ${quando}</div>
         ${c.reason ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Motivo:</span> ${apuEsc(c.reason)}</div>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:8px">
@@ -5406,14 +5453,16 @@ const NOTIF_SOURCES = [
     id: 'handoffs',
     kind: 'seen',
     custom: true,   // consultada por handoffPollNow (v2, ritmo do servidor), não pelo refreshNotifications
-    title: 'Transferências pendentes',
+    title: 'Transferências',
     applies: () => !!currentUser && (
       currentUser.role === 'admin' ||
       currentUser.role === 'colaborador' ||
       (currentUser.role === 'profissional' && ['todas_ver','todas_assumir'].includes(currentUser.permissao))
     ),
     // Sem markAll: "Marcar tudo como visto" não pode dispensar as transferências dos colegas.
-    count: items => items.filter(h => h.kind === 'informativo' || h.status === 'pendente' || h.mine).length,
+    // Só o que é novo: pendente dentro do prazo, sem atendimento ainda sem ciência e aviso informativo.
+    count: items => items.filter(h => h.kind === 'informativo' ||
+      (h.sem_atendimento === true ? !h.ciencia_em : h.status === 'pendente')).length,
     markOne: id => apiFetch(`/api/handoffs/${id}/seen`, { method:'PATCH' }),
   },
   {
@@ -5756,6 +5805,8 @@ let handoffConnBad = false;            // luz vermelha
 let handoffServerOffset = 0;           // server_time - relógio local, para a contagem do prazo
 let handoffClaimBusy = new Set();
 let handoffAckBusy = new Set();
+let handoffSemBusy = new Set();          // ciência/arquivar em andamento
+let handoffSemBeeped = new Set();         // itens sem atendimento que já tocaram o bipe (uma vez por item)
 let handoffTestOn = false, handoffTestTimer = null;   // "Testar aviso": só no navegador
 let handoffBeepTimer = null, handoffTitleTimer = null, handoffTickTimer = null;
 let handoffTitleOn = false;
@@ -5852,9 +5903,12 @@ function handoffDeadlineText(h){
 
 function handoffIsInfo(h){ return !!h && h.kind === 'informativo'; }
 
+// Pedido (modo A) que a equipe não assumiu no prazo: o servidor marca sem_atendimento.
+function handoffIsSem(h){ return !!h && !handoffIsInfo(h) && h.sem_atendimento === true && h.status !== 'assumido'; }
+
 // Transferências pendentes (as que pedem "Vou atender"). Aviso informativo nunca entra aqui.
 function handoffPendingForMe(){
-  return handoffCanAssume() ? handoffList.filter(h => !handoffIsInfo(h) && h.status === 'pendente') : [];
+  return handoffCanAssume() ? handoffList.filter(h => !handoffIsInfo(h) && !handoffIsSem(h) && h.status === 'pendente') : [];
 }
 
 // Avisos informativos do modo B (o cliente final recebeu o telefone do consultório).
@@ -6046,10 +6100,23 @@ function handoffApplyResponse(data, askedPresence){
   }
   notifCache.handoffs = handoffList;
   renderNotifBadge();
-  const sig = JSON.stringify(handoffList.map(x => [x.id, x.status, x.claimed_by_name, x.mine, x.deadline_at, x.customer_name, x.kind, x.reason, handoffClaimBusy.has(x.id), handoffAckBusy.has(x.id)]));
+  const sig = JSON.stringify(handoffList.map(x => [x.id, x.status, x.claimed_by_name, x.mine, x.deadline_at, x.customer_name, x.kind, x.reason, x.sem_atendimento, x.ciencia_em, x.tentativas, x.desfecho, handoffClaimBusy.has(x.id), handoffAckBusy.has(x.id), handoffSemBusy.has(x.id)]));
   if(notifOpen && sig !== handoffListSig) renderNotifPanel();
   handoffListSig = sig;
   handoffSyncAlert(arrived);
+  handoffBeepSemNovos();
+}
+
+// Item sem atendimento novo (sem ciência): um bipe por item, só para quem recebe o alerta.
+function handoffBeepSemNovos(){
+  if(!handoffCanAssume()) return;
+  let toca = false;
+  handoffList.forEach(h => {
+    if(!handoffIsSem(h) || h.ciencia_em || handoffSemBeeped.has(h.id)) return;
+    handoffSemBeeped.add(h.id);
+    toca = true;
+  });
+  if(toca) handoffBeep();
 }
 
 function handoffScheduleNext(ms){
@@ -6116,6 +6183,8 @@ function stopHandoffs(){
   handoffListSig = null;
   handoffClaimBusy = new Set();
   handoffAckBusy = new Set();
+  handoffSemBusy = new Set();
+  handoffSemBeeped = new Set();
   handoffConclude = null;
   handoffConcludeBusy = new Set();
   handoffBook = null;
@@ -6160,6 +6229,11 @@ async function claimHandoff(id){
       if(data && data.code === 'ja_concluida'){
         handoffRemove(id);
         showToast('ℹ️ Este atendimento já foi concluído.');
+      }else if(data && data.code === 'prazo_vencido'){
+        // O prazo acabou com o item ainda na tela: mostra como sem atendimento e recarrega a lista.
+        handoffMerge(id, Object.assign({ sem_atendimento: true }, st || {}));
+        showToast('ℹ️ O prazo para atender este pedido já venceu. Ele aparece agora como sem atendimento.');
+        handoffPollAt = 0;
       }else{
         if(st) handoffMerge(id, st);
         if(data && data.code === 'ja_assumida'){
@@ -6675,6 +6749,133 @@ async function handoffConfirmBook(id){
   }
 }
 
+// ── Pedido sem atendimento (a equipe não assumiu no prazo) ──
+function handoffFmtHora(iso){
+  const d = new Date(iso);
+  if(!iso || isNaN(d)) return '';
+  return d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+}
+
+// Dia e hora a partir dos dados do desfecho; aceita data-hora única ou data + hora separadas.
+function handoffDesfechoQuando(d){
+  if(!d || typeof d !== 'object') return '';
+  const iso = d.start_time || d.scheduled_at || d.preferred_start || '';
+  if(iso && !isNaN(new Date(iso))) return handoffFmtWhen(iso);
+  const dia = d.preferred_date || d.date || d.data || d.dia || '';
+  const hora = d.preferred_time || d.time || d.hora || '';
+  const perKey = d.preferred_period || d.periodo || '';
+  const per = callbackPeriodLabel[perKey] || perKey;
+  const diaTxt = dia ? formatCallbackDate(dia) : '';
+  const horaTxt = typeof hora === 'string' && /^\d{1,2}:\d{2}/.test(hora) ? hora.slice(0, 5) : '';
+  if(diaTxt && horaTxt) return `${diaTxt} às ${horaTxt}`;
+  if(diaTxt && per) return `${diaTxt} (${String(per).toLowerCase()})`;
+  return diaTxt || per || '';
+}
+
+// O que o agente fez depois do prazo, conforme desfecho.tipo (texto escapado só na montagem do HTML).
+function handoffDesfechoTexto(it){
+  const df = it.desfecho && typeof it.desfecho === 'object' ? it.desfecho : null;
+  const dados = df && df.dados && typeof df.dados === 'object' ? df.dados : {};
+  // Cliente não foi avisado: só a primeira frase.
+  if(dados.notificado === false || dados.notificacao_enviada === false || (df && df.tipo === 'nao_notificado')) return '';
+  switch(df && df.tipo){
+    case 'aguarda_retorno':
+      return 'O cliente escolheu manter o pedido registrado e aguarda o retorno da equipe.';
+    case 'retorno_marcado': {
+      const q = handoffDesfechoQuando(dados);
+      return q ? `O cliente pediu retorno em ${q}.` : 'O cliente pediu retorno.';
+    }
+    case 'consulta_marcada': {
+      const q = handoffDesfechoQuando(dados);
+      const prof = dados.professional_name || dados.profissional || '';
+      const det = [q, prof].filter(Boolean).join(' com ');
+      return det ? `O agente marcou uma consulta para o cliente: ${det}.` : 'O agente marcou uma consulta para o cliente.';
+    }
+    case 'resolvido_pelo_agente':
+      return 'O agente resolveu o atendimento e o cliente não precisa mais da equipe.';
+    case 'sem_resposta':
+      return 'O agente avisou o cliente e ele ainda não respondeu.';
+    case 'em_conversa':
+      return 'O cliente respondeu e a conversa continua com o agente.';
+    default:
+      return 'O agente avisou o cliente.';
+  }
+}
+
+function handoffSemBlocoHtml(it){
+  const desf = handoffDesfechoTexto(it);
+  const t = it.tentativas && typeof it.tentativas === 'object' ? it.tentativas : null;
+  const total = t ? Number(t.total) : 0;
+  const tent = total > 1
+    ? `<div class="notif-row-text">O cliente tentou de novo (${apuEsc(total)} vezes)${t.ultima_em ? `, a última às ${apuEsc(handoffFmtHora(t.ultima_em))}` : ''}.</div>` : '';
+  const ciente = it.ciencia_em
+    ? `<div class="notif-row-text muted">Ciente em ${apuEsc(handoffFmtWhen(it.ciencia_em))}</div>` : '';
+  return `<div class="notif-row-text"><b>A equipe não atendeu o cliente no prazo.</b>${desf ? ' ' + apuEsc(desf) : ''}</div>
+      <div class="notif-row-text muted">O cliente não ficou sem resposta por falha do agente: o agente seguiu atendendo, e o pedido passou do prazo sem ninguém da equipe assumir.</div>
+      ${tent}${ciente}`;
+}
+
+// "Estou ciente": só silencia. O item continua na lista e o desfecho segue atualizando no polling.
+async function ownerSeenHandoff(id){
+  if(handoffSemBusy.has(id)) return;
+  handoffSemBusy.add(id);
+  handoffRenderAll();
+  let remover = false;
+  try{
+    const res = await apiFetch(`/api/handoffs/${encodeURIComponent(id)}/owner-seen`, { method:'PATCH' });
+    const data = await res.json().catch(() => ({}));
+    if(res.ok){
+      const st = data && data.handoff;
+      handoffMerge(id, st && typeof st === 'object' ? st : { ciencia_em: new Date().toISOString() });
+    }else if(res.status === 403){
+      showToast('ℹ️ Você não tem permissão para dar ciência neste pedido.');
+    }else if(res.status === 404){
+      remover = true;
+      showToast('ℹ️ Este pedido não existe mais.');
+    }else if(res.status !== 401){
+      showToast('⚠ Não foi possível registrar a ciência agora. Tente de novo.');
+    }
+  }catch(e){
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }finally{
+    handoffSemBusy.delete(id);
+    if(remover) handoffRemove(id); else handoffRenderAll();
+    handoffPollSoon();
+  }
+}
+
+// "Arquivar": fecha o pedido e tira da lista. Só depois de vencido (409 prazo_nao_vencido).
+async function archiveHandoff(id){
+  if(handoffSemBusy.has(id)) return;
+  if(!confirm('Arquivar este pedido? Ele sai da lista.')) return;
+  handoffSemBusy.add(id);
+  handoffRenderAll();
+  let remover = false;
+  try{
+    const res = await apiFetch(`/api/handoffs/${encodeURIComponent(id)}/archive`, { method:'PATCH' });
+    const data = await res.json().catch(() => ({}));
+    if(res.ok){
+      remover = true;
+      showToast('✓ Pedido arquivado.');
+    }else if(res.status === 409 && data && data.code === 'prazo_nao_vencido'){
+      showToast('ℹ️ O prazo deste pedido ainda não venceu.');
+    }else if(res.status === 403){
+      showToast('ℹ️ Você não tem permissão para arquivar este pedido.');
+    }else if(res.status === 404){
+      remover = true;
+      showToast('ℹ️ Este pedido não existe mais.');
+    }else if(res.status !== 401){
+      showToast('⚠ Não foi possível arquivar agora. Tente de novo.');
+    }
+  }catch(e){
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }finally{
+    handoffSemBusy.delete(id);
+    if(remover) handoffRemove(id); else handoffRenderAll();
+    handoffPollSoon();
+  }
+}
+
 // "Marcar como visto" do aviso informativo (modo B): PATCH /api/handoffs/:id/ack.
 // 403 e 409 não são erro para o atendente: viram aviso neutro.
 async function ackHandoffInfo(id){
@@ -6747,7 +6948,8 @@ function handoffRowHtml(it){
   const ch = it.channel || 'whatsapp';
   const key = convRefKey(it.conversation_id, it.customer_phone, ch);
   const open = key === expandedHandoffKey;
-  const pendente = !it.status || it.status === 'pendente';
+  const sem = handoffIsSem(it);
+  const pendente = (!it.status || it.status === 'pendente') && !sem;
   const canal = it.channel ? ` <span class="muted">· ${apuEsc(it.channel)}</span>` : '';
   const motivo = it.reason ? `<div class="notif-row-text muted">Motivo: ${apuEsc(it.reason)}</div>` : '';
   const dl = pendente ? handoffDeadlineText(it) : '';
@@ -6758,6 +6960,12 @@ function handoffRowHtml(it){
   const busy = handoffClaimBusy.has(it.id);
   const assumir = pendente && handoffCanAssume()
     ? `<button class="btn btn-accent btn-sm" ${busy ? 'disabled' : ''} onclick="claimHandoff(${convJsArg(it.id)})">${busy ? 'Assumindo…' : 'Vou atender'}</button>` : '';
+  const semBusy = handoffSemBusy.has(it.id);
+  const semBloco = sem ? handoffSemBlocoHtml(it) : '';
+  const semAcoes = sem
+    ? (it.ciencia_em ? '' : `<button class="btn btn-accent btn-sm" ${semBusy ? 'disabled' : ''} onclick="ownerSeenHandoff(${convJsArg(it.id)})">Estou ciente</button>`) +
+      `<button class="btn btn-ghost btn-sm" ${semBusy ? 'disabled' : ''} onclick="archiveHandoff(${convJsArg(it.id)})">Arquivar</button>`
+    : '';
   const marcar = pendente
     ? `<button class="notif-dismiss" onclick="markOneSeen('handoffs',${convJsArg(it.id)})">Marcar atendida</button>` : '';
   const formAberto = !!handoffConclude && handoffConclude.id === it.id;
@@ -6766,12 +6974,14 @@ function handoffRowHtml(it){
   const agendarAberto = !!handoffBook && handoffBook.id === it.id;
   const agendar = handoffCanConclude(it) && !agendarAberto
     ? `<button class="btn btn-ghost btn-sm" onclick="handoffOpenBook(${convJsArg(it.id)})">Agendar</button>` : '';
-  return `<div class="notif-row" data-ho-id="${apuEsc(it.id)}">
+  const novoSem = sem && !it.ciencia_em;
+  return `<div class="notif-row" data-ho-id="${apuEsc(it.id)}"${novoSem ? ' style="border-left:4px solid var(--red);background:var(--red-l)"' : ''}>
       <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu transferência para atendimento humano.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
+      ${semBloco}
       ${motivo}
       ${estado}
       ${handoffBookedHtml(it)}
-      <div class="notif-row-actions">${assumir}${concluir}${agendar}${handoffContactHtml(it, 'btn btn-ghost btn-sm')}</div>
+      <div class="notif-row-actions">${assumir}${concluir}${agendar}${handoffContactHtml(it, 'btn btn-ghost btn-sm')}${semAcoes}</div>
       ${handoffCanConclude(it) ? handoffConcludeFormHtml(it) : ''}
       ${handoffCanConclude(it) ? handoffBookFormHtml(it) : ''}
       <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span>${prazo}<button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${convJsArg(it.conversation_id || '')},${convJsArg(it.customer_phone)},${convJsArg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button>${marcar}</div>
@@ -6855,6 +7065,12 @@ function handoffCfgRender(){
     const fields = document.getElementById('hc-fields-' + m);
     if(fields) fields.hidden = handoffChoice !== m;
   });
+  // A mensagem ao transferir só se aplica ao modo A (a clínica liga); nos modos B e C fica desativada.
+  const soA = handoffCfg.mode === 'paciente_liga' || handoffCfg.mode === 'sem_transferencia';
+  const tr = document.getElementById('cfg-transfer');
+  if(tr) tr.disabled = soA;
+  const trn = document.getElementById('cfg-transfer-note');
+  if(trn) trn.hidden = !soA;
   const save = document.getElementById('hc-save');
   if(save){ save.disabled = handoffChoiceBusy; save.textContent = handoffChoiceBusy ? 'Salvando…' : 'Salvar escolha'; }
 }
