@@ -6756,40 +6756,44 @@ function handoffFmtHora(iso){
   return d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
 }
 
-// Dia e hora a partir dos dados do desfecho; aceita data-hora única ou data + hora separadas.
-function handoffDesfechoQuando(d){
-  if(!d || typeof d !== 'object') return '';
-  const iso = d.start_time || d.scheduled_at || d.preferred_start || '';
-  if(iso && !isNaN(new Date(iso))) return handoffFmtWhen(iso);
-  const dia = d.preferred_date || d.date || d.data || d.dia || '';
-  const hora = d.preferred_time || d.time || d.hora || '';
-  const perKey = d.preferred_period || d.periodo || '';
-  const per = callbackPeriodLabel[perKey] || perKey;
-  const diaTxt = dia ? formatCallbackDate(dia) : '';
-  const horaTxt = typeof hora === 'string' && /^\d{1,2}:\d{2}/.test(hora) ? hora.slice(0, 5) : '';
-  if(diaTxt && horaTxt) return `${diaTxt} às ${horaTxt}`;
-  if(diaTxt && per) return `${diaTxt} (${String(per).toLowerCase()})`;
-  return diaTxt || per || '';
+// "DD/MM às HH:MM" de um instante ISO, no fuso de Brasília.
+function handoffFmtDiaHora(iso){
+  const d = new Date(iso);
+  if(!iso || isNaN(d)) return '';
+  const dia = d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' });
+  const hora = d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+  return `${dia} às ${hora}`;
 }
 
+const HANDOFF_PERIODO_TXT = { manha: 'pela manhã', tarde: 'à tarde' };
+
 // O que o agente fez depois do prazo, conforme desfecho.tipo (texto escapado só na montagem do HTML).
+// desfecho nulo = o servidor não enviou mensagem ao cliente: o item só diz que a equipe não atendeu.
 function handoffDesfechoTexto(it){
   const df = it.desfecho && typeof it.desfecho === 'object' ? it.desfecho : null;
-  const dados = df && df.dados && typeof df.dados === 'object' ? df.dados : {};
-  // Cliente não foi avisado: só a primeira frase.
-  if(dados.notificado === false || dados.notificacao_enviada === false || (df && df.tipo === 'nao_notificado')) return '';
-  switch(df && df.tipo){
+  if(!df) return '';
+  const dados = df.dados && typeof df.dados === 'object' ? df.dados : {};
+  switch(df.tipo){
     case 'aguarda_retorno':
       return 'O cliente escolheu manter o pedido registrado e aguarda o retorno da equipe.';
     case 'retorno_marcado': {
-      const q = handoffDesfechoQuando(dados);
-      return q ? `O cliente pediu retorno em ${q}.` : 'O cliente pediu retorno.';
+      // data AAAA-MM-DD (ou null), hora HH:MM (ou null), periodo manha|tarde
+      const m = typeof dados.data === 'string' ? /^(\d{4})-(\d{2})-(\d{2})/.exec(dados.data) : null;
+      const dia = m ? `${m[3]}/${m[2]}` : '';
+      const hora = typeof dados.hora === 'string' && /^\d{1,2}:\d{2}/.test(dados.hora) ? dados.hora.slice(0, 5) : '';
+      const per = HANDOFF_PERIODO_TXT[dados.periodo] || '';
+      let quando = '';
+      if(dia && hora) quando = ` em ${dia} às ${hora}`;
+      else if(dia && per) quando = ` em ${dia} ${per}`;
+      else if(dia) quando = ` em ${dia}`;
+      else if(hora) quando = ` às ${hora}`;
+      else if(per) quando = ` ${per}`;
+      return `O cliente pediu retorno${quando}.`;
     }
     case 'consulta_marcada': {
-      const q = handoffDesfechoQuando(dados);
-      const prof = dados.professional_name || dados.profissional || '';
-      const det = [q, prof].filter(Boolean).join(' com ');
-      return det ? `O agente marcou uma consulta para o cliente: ${det}.` : 'O agente marcou uma consulta para o cliente.';
+      const q = handoffFmtDiaHora(dados.inicio);
+      const prof = typeof dados.profissional === 'string' ? dados.profissional.trim() : '';
+      return `O agente marcou uma consulta para o cliente${q ? ' em ' + q : ''}${prof ? ' com ' + prof : ''}.`;
     }
     case 'resolvido_pelo_agente':
       return 'O agente resolveu o atendimento e o cliente não precisa mais da equipe.';
@@ -6811,7 +6815,7 @@ function handoffSemBlocoHtml(it){
   const ciente = it.ciencia_em
     ? `<div class="notif-row-text muted">Ciente em ${apuEsc(handoffFmtWhen(it.ciencia_em))}</div>` : '';
   return `<div class="notif-row-text"><b>A equipe não atendeu o cliente no prazo.</b>${desf ? ' ' + apuEsc(desf) : ''}</div>
-      <div class="notif-row-text muted">O cliente não ficou sem resposta por falha do agente: o agente seguiu atendendo, e o pedido passou do prazo sem ninguém da equipe assumir.</div>
+      ${desf ? '<div class="notif-row-text muted">O cliente não ficou sem resposta por falha do agente: o agente seguiu atendendo, e o pedido passou do prazo sem ninguém da equipe assumir.</div>' : ''}
       ${tent}${ciente}`;
 }
 
