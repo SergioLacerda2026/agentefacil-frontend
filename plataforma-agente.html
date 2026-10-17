@@ -231,7 +231,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 /* ── LOGIN ── */
 .login-screen{position:fixed;inset:0;background:var(--ink);display:flex;align-items:center;justify-content:center;padding:20px;z-index:1000}
 .login-card{background:#fff;border-radius:16px;padding:32px 28px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-.login-logo{width:48px;height:48px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 16px;background-size:cover}
+.login-logo{width:64px;height:64px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 16px;background-size:cover}
 .login-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--ink);text-align:center;margin-bottom:4px}
 .login-title span{color:var(--accent)}
 .login-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:24px}
@@ -1214,6 +1214,12 @@ label.field-label{display:block}
             <div class="field-label">Nome do negócio</div>
             <input class="field" id="client-name" type="text" autocomplete="off" oninput="validateClientForm()">
             <div class="field-error" id="err-client-name"></div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Nome de exibição</div>
+            <input class="field" id="client-displayName" type="text" autocomplete="off" oninput="validateClientForm()">
+            <div class="field-error" id="err-client-displayName"></div>
+            <div class="field-hint">Como o negócio é conhecido pelos clientes. Não precisa ser a razão social.</div>
           </div>
           <div class="field-group">
             <div class="field-label">Nome do primeiro admin</div>
@@ -2676,6 +2682,7 @@ function setConvSessionView(rowKey, cid){
   }
   if(expandedConvKey !== null) renderConversationsList();
   if(expandedHandoffKey !== null) renderNotifPanel();
+  if(expandedCallbackId !== null) renderAppointmentsList();
 }
 
 // Acordeão: abre/fecha uma conversa. Clicar na já aberta fecha; clicar em outra
@@ -2719,6 +2726,7 @@ async function loadConversationHistory(conversationId, phone, channel){
   // rastrear qual linha depende de qual sessão (inclui sessões anteriores).
   if(expandedConvKey !== null) renderConversationsList();
   if(expandedHandoffKey !== null) renderNotifPanel();
+  if(expandedCallbackId !== null) renderAppointmentsList();
 }
 
 // Chamado no resetTenantState (logout / troca de tenant).
@@ -2726,6 +2734,7 @@ function clearConversations(){
   convPeriod = 'hoje';
   conversations = [];
   expandedConvKey = null;
+  expandedCallbackId = null;
   convHistoryCache = {};
   convSessionView = {};
   const sel = document.getElementById('conv-period');
@@ -3649,6 +3658,8 @@ async function loadAdditionalProfPricing(){
 // só dia + período (manhã/tarde), e some da visão quando concluído.
 let appointments = [];
 let callbacks = [];
+// Retorno de ligação com a conversa aberta (id do callback); só um por vez.
+let expandedCallbackId = null;
 
 const apptStatusLabel = { confirmado:'Confirmado', cancelado:'Cancelado', concluido:'Concluído', no_show:'Não compareceu' };
 const apptStatusColor = { confirmado:'var(--green)', cancelado:'var(--red)', concluido:'var(--muted)', no_show:'var(--amber)' };
@@ -3719,18 +3730,28 @@ function callbackRowHtml(c){
   const quando = hora
     ? `${formatCallbackDate(c.preferred_date)} às ${apuEsc(hora)}`
     : `${formatCallbackDate(c.preferred_date)}${per ? ` <span style="color:var(--muted)">·</span> <span style="font-weight:600;color:var(--muted)">Período:</span> ${apuEsc(per)}` : ''}`;
+  const ch = c.channel || 'whatsapp';
+  const key = convRefKey(c.conversation_id, c.customer_phone, ch);
+  const open = expandedCallbackId === c.id;
+  const resumo = c.summary
+    ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Resumo:</span><div style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px">${apuEsc(c.summary)}</div></div>`
+    : (c.reason ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Motivo:</span> ${apuEsc(c.reason)}</div>` : '');
+  const verConversa = (c.conversation_id || c.customer_phone)
+    ? `<button class="btn btn-ghost btn-sm" onclick="toggleCallbackConversation(${convJsArg(c.id)})">${open ? 'Ocultar conversa' : 'Ver conversa'}</button>` : '';
   return `
     <div style="display:flex;flex-direction:column;gap:10px;padding:14px 22px;border-bottom:1px solid var(--border);border-left:3px solid var(--amber)">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
         <div style="font-size:12px;font-weight:700;color:var(--amber);letter-spacing:.04em;text-transform:uppercase">📞 Retorno de ligação</div>
         <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Cliente:</span> ${apuEsc(c.customer_name || 'Cliente')} <span style="color:var(--muted)">· ${apuEsc(formatApptPhone(c.customer_phone))}</span></div>
         <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Dia:</span> ${quando}</div>
-        ${c.reason ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Motivo:</span> ${apuEsc(c.reason)}</div>` : ''}
+        ${resumo}
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${done?'var(--muted)':'var(--amber)'}22;color:${done?'var(--muted)':'var(--amber)'}">${done?'Concluído':'Pendente'}</span>
+        ${verConversa}
         ${done ? '' : `<button class="btn btn-ghost btn-sm" onclick="markCallbackDone(${convJsArg(c.id)})">Marcar como concluído</button>`}
       </div>
+      ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px">${convHistoryHtml(key)}</div>` : ''}
     </div>`;
 }
 
@@ -3755,6 +3776,22 @@ function renderAppointmentsList(){
   ].sort((x,y) => new Date(x.when) - new Date(y.when));
 
   list.innerHTML = rows.map(r => r.html).join('');
+}
+
+// Abre/fecha o histórico da conversa do lead dentro do cartão. Reaproveita o
+// cache e o carregamento da aba Conversas e do sino de transferências.
+function toggleCallbackConversation(id){
+  if(expandedCallbackId === id){ expandedCallbackId = null; renderAppointmentsList(); return; }
+  const c = callbacks.find(x => x.id === id);
+  if(!c) return;
+  const ch = c.channel || 'whatsapp';
+  const key = convRefKey(c.conversation_id, c.customer_phone, ch);
+  expandedCallbackId = id;
+  delete convSessionView[key];
+  const need = !(key in convHistoryCache) || convHistoryCache[key] === 'error';
+  if(need) convHistoryCache[key] = 'loading';
+  renderAppointmentsList();
+  if(need) loadConversationHistory(c.conversation_id || '', c.customer_phone, ch);
 }
 
 async function markCallbackDone(id){
@@ -3834,7 +3871,7 @@ function renderClientsList(){
       onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='${open?'var(--bg)':''}'">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--ink)">${c.name}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">Cadastrado em ${c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'}${waAdminPhoneSuffix(c.id)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Exibição: ${c.display_name ? apuEsc(c.display_name) : '—'} · Cadastrado em ${c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'}${waAdminPhoneSuffix(c.id)}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${waAdminBadgeHtml(c.id)}
@@ -3870,6 +3907,11 @@ function clientDetailHtml(c){
       <div>
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Nome do negócio</div>
         <input id="client-detail-name-${id}" style="border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;width:100%;outline:none" value="${c.name||''}">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Nome de exibição</div>
+        <input id="client-detail-displayName-${id}" style="border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;width:100%;outline:none" value="${apuEsc(c.display_name||'')}">
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Como o negócio é conhecido pelos clientes. Não precisa ser a razão social.</div>
       </div>
       <div>
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Nome do cliente/admin</div>
@@ -4090,15 +4132,19 @@ async function saveClient(id){
   if(!c) return;
   const nameEl = document.getElementById(`client-detail-name-${id}`);
   const adminNameEl = document.getElementById(`client-detail-adminName-${id}`);
+  const displayEl = document.getElementById(`client-detail-displayName-${id}`);
   const activeEl = document.getElementById(`client-detail-active-${id}`);
   const colabEl = document.getElementById(`client-detail-colaboradores-${id}`);
   const name = nameEl ? nameEl.value.trim() : c.name;
   const adminName = adminNameEl ? adminNameEl.value.trim() : c.adminName;
+  const displayName = displayEl ? displayEl.value.trim() : (c.display_name || '');
+  const displayChanged = displayName !== (c.display_name || '').trim();
   const active = activeEl ? activeEl.value === 'true' : c.active;
   const colabRaw = colabEl ? colabEl.value.trim() : '';
   const contractedColaboradores = colabRaw === '' ? 0 : Number(colabRaw);
 
   if(name.length < 3){ setFormAlert(`client-detail-alert-${id}`, 'Informe o nome do negócio (mín. 3 caracteres).', 'error'); return; }
+  if(displayChanged && !displayName){ setFormAlert(`client-detail-alert-${id}`, 'O nome de exibição não pode ficar vazio.', 'error'); return; }
   if(adminName.length < 3){ setFormAlert(`client-detail-alert-${id}`, 'Informe o nome do cliente/admin (mín. 3 caracteres).', 'error'); return; }
   if(!Number.isInteger(contractedColaboradores) || contractedColaboradores < 0){ setFormAlert(`client-detail-alert-${id}`, 'Informe um número inteiro de colaboradores (0 ou mais).', 'error'); return; }
 
@@ -4107,6 +4153,7 @@ async function saveClient(id){
   if(btn){ btn.disabled = true; btn.textContent = 'Salvando...'; }
 
   const clientPatchBody = { name, active };
+  if(displayChanged) clientPatchBody.display_name = displayName;
   if(contractedColaboradores !== (c.contracted_colaboradores ?? 0)) clientPatchBody.contracted_colaboradores = contractedColaboradores;
 
   const [clientResult, adminNameResult] = await Promise.allSettled([
@@ -4251,7 +4298,7 @@ function hideAddClientForm(){
 }
 
 function resetAddClientForm(){
-  ['name','adminName','adminEmail','adminPassword','professionalsCount'].forEach(f=>{
+  ['name','displayName','adminName','adminEmail','adminPassword','professionalsCount'].forEach(f=>{
     const el = document.getElementById('client-'+f);
     if(el) el.value = '';
     const err = document.getElementById('err-client-'+f);
@@ -4292,11 +4339,12 @@ function validateClientField(field, minLen){
 
 function validateClientForm(){
   const okName = validateClientField('name', 3);
+  const okDisplayName = validateClientField('displayName', 2);
   const okAdminName = validateClientField('adminName', 3);
   const okEmail = validateClientField('adminEmail');
   const okPwd = validateClientField('adminPassword');
   const okProfessionalsCount = validateClientField('professionalsCount');
-  const allOk = okName && okAdminName && okEmail && okPwd && okProfessionalsCount;
+  const allOk = okName && okDisplayName && okAdminName && okEmail && okPwd && okProfessionalsCount;
   const btn = document.getElementById('btn-client-submit');
   if(btn) btn.disabled = !allOk;
   return allOk;
@@ -4306,6 +4354,7 @@ async function submitAddClient(e){
   e.preventDefault();
   if(!validateClientForm()) return;
   const name = document.getElementById('client-name').value.trim();
+  const displayName = document.getElementById('client-displayName').value.trim();
   const adminName = document.getElementById('client-adminName').value.trim();
   const adminEmail = document.getElementById('client-adminEmail').value.trim();
   const adminPassword = document.getElementById('client-adminPassword').value;
@@ -4319,7 +4368,7 @@ async function submitAddClient(e){
     const res = await apiFetch('/api/admin/clients', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ clientName: name, adminName, email: adminEmail, password: adminPassword, contracted_professionals: contractedProfessionals })
+      body: JSON.stringify({ clientName: name, displayName, adminName, email: adminEmail, password: adminPassword, contracted_professionals: contractedProfessionals })
     });
     const data = await res.json();
     if(!res.ok){
@@ -4424,6 +4473,12 @@ function selectCommercialCloseRequest(id){
       <div style="border-top:1px solid var(--border);padding-top:16px">
         <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">✅ Aprovar</div>
         <div class="field-group">
+          <div class="field-label">Nome de exibição</div>
+          <input class="field" id="comercial-display-${apuEsc(id)}" type="text" value="${apuEsc(r.display_name||'')}" autocomplete="off" oninput="validateCommercialApproveForm(${convJsArg(id)})">
+          <div class="field-error" id="err-comercial-display-${apuEsc(id)}"></div>
+          <div class="field-hint">Como o negócio é conhecido pelos clientes. Não precisa ser a razão social.</div>
+        </div>
+        <div class="field-group">
           <div class="field-label">E-mail de login do admin</div>
           <input class="field" id="comercial-email-${apuEsc(id)}" type="email" value="${apuEsc(r.contact_email||'')}" autocomplete="off" oninput="validateCommercialApproveForm(${convJsArg(id)})">
           <div class="field-error" id="err-comercial-email-${apuEsc(id)}"></div>
@@ -4463,7 +4518,9 @@ function clearCommercialCloseDetail(){
 function validateCommercialApproveForm(id){
   const emailEl = document.getElementById(`comercial-email-${id}`);
   const pwdEl = document.getElementById(`comercial-password-${id}`);
-  if(!emailEl || !pwdEl) return false;
+  const displayEl = document.getElementById(`comercial-display-${id}`);
+  if(!emailEl || !pwdEl || !displayEl) return false;
+  const displayOk = displayEl.value.trim().length > 0;
   const email = emailEl.value.trim();
   const pwd = pwdEl.value;
   const emailErr = document.getElementById(`err-comercial-email-${id}`);
@@ -4475,7 +4532,7 @@ function validateCommercialApproveForm(id){
   emailEl.classList.toggle('invalid', email.length > 0 && !emailOk);
   pwdEl.classList.toggle('invalid', pwd.length > 0 && !pwdOk);
   const btn = document.getElementById(`btn-comercial-approve-${id}`);
-  const ok = emailOk && pwdOk;
+  const ok = emailOk && pwdOk && displayOk;
   if(btn) btn.disabled = !ok;
   return ok;
 }
@@ -4506,14 +4563,17 @@ async function approveCommercialClose(id){
   if(!validateCommercialApproveForm(id)) return;
   const admin_email = document.getElementById(`comercial-email-${id}`).value.trim();
   const admin_password = document.getElementById(`comercial-password-${id}`).value;
+  const display_name = document.getElementById(`comercial-display-${id}`).value.trim();
   const btn = document.getElementById(`btn-comercial-approve-${id}`);
   setFormAlert(`comercial-detail-alert-${id}`, '', '');
   if(btn){ btn.disabled = true; btn.textContent = 'Aprovando...'; }
   try{
+    const approveBody = { decision:'aprovar', admin_email, admin_password, admin_name: r.contact_name };
+    if(display_name !== (r.display_name || '').trim()) approveBody.display_name = display_name;
     const res = await apiFetch(`/api/admin/commercial-close-requests/${id}`, {
       method:'PATCH',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ decision:'aprovar', admin_email, admin_password, admin_name: r.contact_name })
+      body: JSON.stringify(approveBody)
     });
     const data = await res.json().catch(()=>({}));
     if(!res.ok){
