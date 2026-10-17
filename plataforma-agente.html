@@ -81,6 +81,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .notif-panel .btn:disabled:hover{background:#E2E8F0;color:#94A3B8}
 .notif-panel .notif-dismiss:disabled,.notif-panel .notif-markall:disabled{color:var(--light);cursor:not-allowed;text-decoration:none}
 .notif-section-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 14px 4px}
+.notif-group{border-left:4px solid var(--nc);margin:6px 0}
+.notif-group-title{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--nc);padding:7px 14px;background:color-mix(in srgb,var(--nc) 10%,transparent)}
 .notif-row{display:flex;flex-direction:column;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)}
 .notif-row:last-child{border-bottom:none}
 .notif-row-text{font-size:12px;color:var(--ink);line-height:1.45}
@@ -229,8 +231,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .form-alert.success{background:var(--green-l);color:#065F46}
 
 /* ── LOGIN ── */
-.login-screen{position:fixed;inset:0;background:var(--ink);display:flex;align-items:center;justify-content:center;padding:20px;z-index:1000}
-.login-card{background:#fff;border-radius:16px;padding:32px 28px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-screen{position:fixed;inset:0;height:100vh;height:100dvh;overflow-y:auto;background:var(--ink);display:flex;align-items:flex-start;justify-content:center;padding:20px;z-index:1000}
+.login-card{margin:auto;background:#fff;border-radius:16px;padding:32px 28px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 .login-logo{width:64px;height:64px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 16px;background-size:cover}
 .login-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--ink);text-align:center;margin-bottom:4px}
 .login-title span{color:var(--accent)}
@@ -1211,7 +1213,7 @@ label.field-label{display:block}
         <form id="add-client-form" style="padding:20px 22px" onsubmit="submitAddClient(event)" novalidate>
           <div id="add-client-alert" class="form-alert" style="display:none"></div>
           <div class="field-group">
-            <div class="field-label">Nome do negócio</div>
+            <div class="field-label">Razão social</div>
             <input class="field" id="client-name" type="text" autocomplete="off" oninput="validateClientForm()">
             <div class="field-error" id="err-client-name"></div>
           </div>
@@ -3905,7 +3907,7 @@ function clientDetailHtml(c){
     <div style="display:flex;flex-direction:column;gap:16px">
       <div id="client-detail-alert-${id}" class="form-alert" style="display:none"></div>
       <div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Nome do negócio</div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Razão social</div>
         <input id="client-detail-name-${id}" style="border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;width:100%;outline:none" value="${c.name||''}">
       </div>
       <div>
@@ -5488,6 +5490,7 @@ const notifAsArray = (d, key) => Array.isArray(d) ? d : (d && Array.isArray(d[ke
 const NOTIF_SOURCES = [
   {
     id: 'platformFranchise',
+    icon: '🧾', color: '#7C3AED', time: it => it.requested_at,
     kind: 'decision',
     title: 'Pedidos de franquia',
     applies: () => isPlatformAdmin,
@@ -5496,6 +5499,7 @@ const NOTIF_SOURCES = [
   },
   {
     id: 'clientFranchise',
+    icon: '🧾', color: '#7C3AED', time: it => it.resolved_at || it.requested_at,
     kind: 'seen',
     title: 'Seus pedidos de franquia',
     applies: () => currentUser?.role === 'admin' && !isPlatformAdmin,
@@ -5506,6 +5510,7 @@ const NOTIF_SOURCES = [
   },
   {
     id: 'proCancellations',
+    icon: '🚫', color: '#DC2626', time: it => it.cancelled_at || it.start_time,
     kind: 'seen',
     title: 'Cancelamentos de clientes',
     applies: () => !!currentUser && currentUser.role !== 'admin',
@@ -5519,6 +5524,7 @@ const NOTIF_SOURCES = [
     // (não expira, não vira resumo em linha única). Mesmo escopo de quem vê a aba
     // Agendamentos: admin, colaborador e profissional com permissão ampla.
     id: 'handoffs',
+    icon: '🙋', color: '#D97706', time: it => it.requested_at,
     kind: 'seen',
     custom: true,   // consultada por handoffPollNow (v2, ritmo do servidor), não pelo refreshNotifications
     title: 'Transferências',
@@ -5538,6 +5544,7 @@ const NOTIF_SOURCES = [
     // (o formulário de aprovação pede e-mail + senha — não cabe numa linha
     // compacta do sino). Um botão só leva pra tela dedicada (setTab('comercial')).
     id: 'commercialClose',
+    icon: '🤝', color: '#2563EB', time: it => it.requested_at || it.paid_at,
     kind: 'link',
     title: 'Fechamentos comerciais',
     applies: () => isPlatformAdmin,
@@ -5550,6 +5557,7 @@ const NOTIF_SOURCES = [
     // individual. Um mesmo pedido pode passar antes pela fila de aprovação e
     // depois aparecer aqui (inclusive já aprovado).
     id: 'newClientContact',
+    icon: '📞', color: '#059669', time: it => it.paid_at || it.requested_at,
     kind: 'seen',
     title: 'Ligar para clientes novos',
     applies: () => isPlatformAdmin,
@@ -5692,14 +5700,19 @@ function renderNotifPanel(){
   const sources = activeNotifSources();
   let html = '';
   let hasSeenItems = false;
-  sources.forEach(s => {
-    const items = notifCache[s.id] || [];
-    if(!items.length) return;
+  // Dentro de cada tipo, o mais recente primeiro; os blocos seguem o item mais recente de cada um.
+  const notifTs = (s, it) => { const t = new Date(s.time ? s.time(it) : 0).getTime(); return isNaN(t) ? 0 : t; };
+  const groups = sources.map(s => {
+    const items = (notifCache[s.id] || []).slice().sort((a, b) => notifTs(s, b) - notifTs(s, a));
+    return { s, items, newest: items.length ? notifTs(s, items[0]) : 0 };
+  }).filter(g => g.items.length).sort((a, b) => b.newest - a.newest);
+  groups.forEach(({ s, items }) => {
     // Só habilita o botão global "Marcar tudo" se a fonte suporta markAll —
     // 'Ligar para clientes novos' é item a item por decisão de produto.
     if(s.kind === 'seen' && s.markAll) hasSeenItems = true;
-    html += `<div class="notif-section-title">${s.title}</div>`;
+    html += `<div class="notif-group" style="--nc:${s.color}"><div class="notif-group-title"><span aria-hidden="true">${s.icon}</span>${s.title}</div>`;
     html += s.kind === 'link' ? notifLinkRowHtml(s, items) : items.map(it => notifRowHtml(s, it)).join('');
+    html += '</div>';
   });
   const ae = document.activeElement;
   const keepId = ae && /^ho-(note|book-prof|book-date|book-name)$/.test(ae.id || '') ? ae.id : null;
