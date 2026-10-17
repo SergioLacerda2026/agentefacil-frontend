@@ -51,7 +51,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
 .topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 28px;min-height:58px;display:flex;align-items:center;gap:16px;flex-shrink:0}
 .topbar-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--ink);flex:1;min-width:0;line-height:1.2;overflow-wrap:break-word}
-.st-btn{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--ink);display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;flex-shrink:0}
+.st-btn{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:#1D4ED8;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;flex-shrink:0}
 button.st-btn{cursor:pointer}
 .st-btn svg{width:26px;height:22px;display:block;overflow:visible}
 .st-btn .bar,.st-btn .wave{opacity:1;animation:st-blink 1.6s ease-in-out infinite}
@@ -5597,14 +5597,14 @@ let waAttendTimer = null, waAttendSeq = 0;
 function waAttendRender(st){
   const el = document.getElementById('wa-attend');
   if(!el) return;
-  if(!currentUser || isPlatformAdmin){ el.style.display = 'none'; return; }
+  if(!currentUser){ el.style.display = 'none'; return; }
   el.dataset.state = st === 'on' ? 'on' : 'off';
   el.title = WA_ATTEND_TEXT[st];
   el.setAttribute('aria-label', WA_ATTEND_TEXT[st]);
   el.style.display = '';
 }
 async function waAttendPoll(){
-  if(!currentUser || isPlatformAdmin || document.hidden) return;
+  if(!currentUser || document.hidden) return;
   const seq = ++waAttendSeq;
   const ctrl = new AbortController();
   const to = setTimeout(() => ctrl.abort(), 10000);
