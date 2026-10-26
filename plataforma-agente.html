@@ -3947,11 +3947,11 @@ function heldRowHtml(it){
   const busy = heldBusy.has(it.id);
   const acts = Array.isArray(it.actions) ? it.actions : [];
   const actions = acts
-    .filter(a => HELD_ACTION[a] && !(isTest && a === 'confirmar'))
+    .filter(a => HELD_ACTION[a] && (!isTest || a === 'descartar'))
     .map(a => `<button class="btn ${HELD_ACTION[a].cls} btn-sm"${busy ? ' disabled' : ''} onclick="heldDecide(${convJsArg(it.id)},${convJsArg(a)})">${HELD_ACTION[a].label}</button>`).join('');
   const verConversa = (it.conversation_id || it.phone)
     ? `<button class="btn btn-ghost btn-sm" onclick="heldToggleConversation(${convJsArg(it.id)})">${open ? 'Ocultar conversa' : 'Ver conversa'}</button>` : '';
-  const hint = isTest && acts.includes('confirmar')
+  const hint = isTest
     ? `<div style="font-size:12px;color:var(--muted)">ℹ️ Conversa de teste: só é possível descartar.</div>` : '';
   return `
     <div style="display:flex;flex-direction:column;gap:10px;padding:14px 22px;border-bottom:1px solid var(--border)">
@@ -4021,6 +4021,29 @@ function heldToggleConversation(id){
 function heldFixSet(id, field, v){ if(heldFix[id]) heldFix[id][field] = v; }
 function heldFixCancel(id){ delete heldFix[id]; renderHeld(); }
 
+// Diálogo próprio (não o confirm() nativo, que o navegador pode suprimir): nome, ação, Confirmar / Voltar.
+function heldConfirmDialog(it, def){
+  return new Promise(resolve => {
+    const prev = document.activeElement;
+    const ov = document.createElement('div');
+    ov.setAttribute('style', 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px');
+    ov.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="held-dlg-title" style="background:var(--card);border-radius:12px;padding:20px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:12px">
+      <div id="held-dlg-title" style="font-size:15px;font-weight:700;color:var(--ink)">${apuEsc(def.label)}?</div>
+      <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Nome informado:</span> ${apuEsc(it.customer_name_given || '—')}</div>
+      <div style="font-size:13px;color:var(--ink);line-height:1.5">${apuEsc(def.ask)}</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        <button type="button" class="btn btn-ghost" data-r="0">Voltar</button>
+        <button type="button" class="btn btn-green" data-r="1">Confirmar</button>
+      </div></div>`;
+    const done = v => { document.removeEventListener('keydown', onKey, true); ov.remove(); try{ prev && prev.focus && prev.focus(); }catch(e){} resolve(v); };
+    const onKey = e => { if(e.key === 'Escape'){ e.preventDefault(); done(false); } };
+    ov.addEventListener('click', e => { if(e.target === ov) done(false); const b = e.target.closest && e.target.closest('button[data-r]'); if(b) done(b.dataset.r === '1'); });
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(ov);
+    ov.querySelector('button[data-r="0"]').focus();
+  });
+}
+
 // Decide uma retenção. fromForm=true: reenvio com professional_id / customer_name do formulário (após 422).
 async function heldDecide(id, action, fromForm){
   const def = HELD_ACTION[action];
@@ -4034,7 +4057,7 @@ async function heldDecide(id, action, fromForm){
     const nm = (fx.customer_name || '').trim();
     if(nm) body.customer_name = nm;
   }
-  if(!confirm(def.ask)) return;
+  if(!(await heldConfirmDialog(it, def))) return;
   heldBusy.add(id); renderHeld();
   try{
     const res = await apiFetch(`/api/held-appointments/${encodeURIComponent(id)}/${def.route}`, {
