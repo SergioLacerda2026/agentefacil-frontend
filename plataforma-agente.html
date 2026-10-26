@@ -1130,6 +1130,16 @@ label.field-label{display:block}
 
     <!-- ══ AGENDAMENTOS ══ -->
     <div class="view" id="view-agendamentos">
+      <div class="card" id="held-card" style="display:none;border-left:4px solid var(--red)">
+        <div class="card-head">
+          <div>
+            <div class="card-title">⚠️ Retidos para decisão</div>
+            <div class="card-desc" id="held-count-desc">Pedidos de agendamento que o agente reteve</div>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);cursor:pointer"><input type="checkbox" id="held-show-all" onchange="heldToggleAll(this.checked)"> Mostrar decididas</label>
+        </div>
+        <div style="padding:8px 0" id="held-list"></div>
+      </div>
       <div class="card">
         <div class="card-head">
           <div>
@@ -1763,6 +1773,7 @@ function resetTenantState(){
   waReset();
   appointments = [];
   callbacks = [];
+  heldReset();
   profissionais = [];
   profContractedLimit = null;
   profActiveCount = null;
@@ -2695,6 +2706,7 @@ function setConvSessionView(rowKey, cid){
   if(expandedConvKey !== null) renderConversationsList();
   if(expandedHandoffKey !== null) renderNotifPanel();
   if(expandedCallbackId !== null) renderAppointmentsList();
+  if(heldExpandedId !== null) renderHeld();
 }
 
 // Acordeão: abre/fecha uma conversa. Clicar na já aberta fecha; clicar em outra
@@ -2739,6 +2751,7 @@ async function loadConversationHistory(conversationId, phone, channel){
   if(expandedConvKey !== null) renderConversationsList();
   if(expandedHandoffKey !== null) renderNotifPanel();
   if(expandedCallbackId !== null) renderAppointmentsList();
+  if(heldExpandedId !== null) renderHeld();
 }
 
 // Chamado no resetTenantState (logout / troca de tenant).
@@ -3713,6 +3726,7 @@ async function loadAppointmentsFromServer(){
       callbacks = cbData.callbacks || [];
     }
     renderAppointmentsList();
+    loadHeld();
   }catch(e){
     console.error('[loadAppointmentsFromServer] erro:', e);
     if(list) list.innerHTML = `<div style="padding:20px 22px;color:var(--red);font-size:13px;text-align:center">⚠ Não foi possível carregar os agendamentos.</div>`;
@@ -3821,6 +3835,268 @@ async function markCallbackDone(id){
     console.error('[markCallbackDone] erro:', e);
     showToast('⚠ Não foi possível conectar ao backend.');
   }
+}
+
+// ── AGENDAMENTOS RETIDOS PARA DECISÃO (só administrador; GET/POST /api/held-appointments) ──
+// Estado sempre por ÍCONE + TEXTO (nunca só cor): o proprietário é daltônico.
+let heldItems = [];
+let heldShowAll = false;
+let heldExpandedId = null;
+let heldBusy = new Set();
+// id → { professional_id, customer_name }: formulário aberto após 422 profissional_nao_definido.
+let heldFix = {};
+let heldNotice = null;   // { text } quando a lista não pôde ser carregada
+
+const HELD_STATUS_GLYPH = { alerta:'⚠️', confirmado:'✅', descartado:'🚫', tratado:'📞' };
+const HELD_STATUS_COLOR = { alerta:'var(--red)', confirmado:'var(--green)', descartado:'var(--muted)', tratado:'var(--accent)' };
+const HELD_ACTION = {
+  confirmar:        { label:'Confirmar agendamento', route:'confirm', cls:'btn-green',
+                      ask:'Confirmar este agendamento? Ele será criado de verdade na agenda.' },
+  descartar:        { label:'Descartar',             route:'discard', cls:'btn-ghost',
+                      ask:'Descartar este pedido? Nenhum agendamento será criado.' },
+  retornar_ligacao: { label:'Retornar a ligação',    route:'treat',   cls:'btn-green',
+                      ask:'Marcar este pedido como "ligação retornada"?' },
+};
+
+function heldIsAdmin(){ return currentUser?.role === 'admin'; }
+
+function heldReset(){
+  heldItems = []; heldShowAll = false; heldExpandedId = null; heldBusy = new Set(); heldFix = {}; heldNotice = null;
+  const card = document.getElementById('held-card');
+  if(card) card.style.display = 'none';
+  const cb = document.getElementById('held-show-all');
+  if(cb) cb.checked = false;
+  const list = document.getElementById('held-list');
+  if(list) list.innerHTML = '';
+}
+
+// Contador do sino (vem de held_appointments_open no polling de transferências ou do GET da lista).
+function heldBellSet(n){
+  if(!heldIsAdmin()) return;
+  notifCache.heldAppointments = n > 0 ? [{ n, at: new Date().toISOString() }] : [];
+  renderNotifBadge();
+  if(notifOpen) renderNotifPanel();
+}
+
+function heldToggleAll(v){ heldShowAll = !!v; loadHeld(); }
+
+async function loadHeld(){
+  const card = document.getElementById('held-card');
+  if(!card) return;
+  if(!heldIsAdmin()){ card.style.display = 'none'; return; }
+  try{
+    const res = await apiFetch(`/api/held-appointments${heldShowAll ? '?status=todos' : ''}`);
+    if(res.status === 403){ heldItems = []; card.style.display = 'none'; return; }   // não é administrador: sem seção
+    if(res.status === 503){
+      heldItems = [];
+      heldNotice = { text:'⚠️ Os agendamentos retidos estão indisponíveis agora. Tente de novo em alguns minutos.' };
+      renderHeld();
+      return;
+    }
+    if(!res.ok) throw new Error(`Erro ${res.status}`);
+    const data = await res.json();
+    heldItems = Array.isArray(data.held) ? data.held : [];
+    heldNotice = null;
+    if(typeof data.open_count === 'number') heldBellSet(data.open_count);
+    renderHeld();
+  }catch(e){
+    console.error('[loadHeld] erro:', e);
+    heldNotice = { text:'⚠️ Não foi possível carregar os agendamentos retidos.' };
+    renderHeld();
+  }
+}
+
+function heldPhoneHtml(it){
+  const phone = it.phone;
+  const note = it.phone_note ? ` <span style="color:var(--muted)">(${apuEsc(it.phone_note)})</span>` : '';
+  if(!phone) return `<span style="color:var(--muted)">${apuEsc(it.phone_note || 'sem telefone')}</span>`;
+  let digits = String(phone).replace(/\D/g, '');
+  if(digits.length < 8) return `${apuEsc(phone)}${note}`;
+  if(digits.length <= 11) digits = '55' + digits;
+  return `${apuEsc(phone)}${note} · <a href="tel:+${digits}" style="color:var(--accent);font-weight:600">📞 Ligar</a> · <a href="https://wa.me/${digits}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">💬 WhatsApp</a>`;
+}
+
+function heldFixHtml(it){
+  const fx = heldFix[it.id];
+  if(!fx) return '';
+  const profs = (profissionais || []).filter(p => p.active !== false);
+  const opts = ['<option value="">Escolha o profissional…</option>']
+    .concat(profs.map(p => `<option value="${apuEsc(p.id)}"${fx.professional_id === p.id ? ' selected' : ''}>${apuEsc(p.name)}</option>`)).join('');
+  const busy = heldBusy.has(it.id) ? ' disabled' : '';
+  return `<div style="border:1px solid var(--amber);background:var(--amber-l);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+    <div style="font-size:12px;color:var(--ink);font-weight:600">⚠️ Para confirmar, escolha o profissional. Se quiser, corrija o nome do cliente.</div>
+    <label style="font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px">Profissional
+      <select${busy} onchange="heldFixSet(${convJsArg(it.id)},'professional_id',this.value)" style="padding:6px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;font-family:inherit">${opts}</select></label>
+    <label style="font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px">Nome do cliente
+      <input type="text" maxlength="100"${busy} value="${apuEsc(fx.customer_name)}" oninput="heldFixSet(${convJsArg(it.id)},'customer_name',this.value)" style="padding:6px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;font-family:inherit"></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-green btn-sm"${busy} onclick="heldDecide(${convJsArg(it.id)},'confirmar',true)">Confirmar agendamento</button>
+      <button class="btn btn-ghost btn-sm"${busy} onclick="heldFixCancel(${convJsArg(it.id)})">Cancelar</button>
+    </div>
+  </div>`;
+}
+
+function heldRowHtml(it){
+  const icon = it.status_icon || 'alerta';
+  const glyph = HELD_STATUS_GLYPH[icon] || '⚠️';
+  const color = HELD_STATUS_COLOR[icon] || 'var(--red)';
+  const isTest = !!it.channel && it.channel !== 'whatsapp';
+  const when = it.requested_date ? `${formatCallbackDate(it.requested_date)}${it.requested_time ? ' às ' + apuEsc(it.requested_time) : ''}` : 'não informado';
+  const open = heldExpandedId === it.id;
+  const key = convRefKey(it.conversation_id, it.phone, it.channel || 'whatsapp');
+  const busy = heldBusy.has(it.id);
+  const acts = Array.isArray(it.actions) ? it.actions : [];
+  const actions = acts
+    .filter(a => HELD_ACTION[a] && !(isTest && a === 'confirmar'))
+    .map(a => `<button class="btn ${HELD_ACTION[a].cls} btn-sm"${busy ? ' disabled' : ''} onclick="heldDecide(${convJsArg(it.id)},${convJsArg(a)})">${HELD_ACTION[a].label}</button>`).join('');
+  const verConversa = (it.conversation_id || it.phone)
+    ? `<button class="btn btn-ghost btn-sm" onclick="heldToggleConversation(${convJsArg(it.id)})">${open ? 'Ocultar conversa' : 'Ver conversa'}</button>` : '';
+  const hint = isTest && acts.includes('confirmar')
+    ? `<div style="font-size:12px;color:var(--muted)">ℹ️ Conversa de teste: só é possível descartar.</div>` : '';
+  return `
+    <div style="display:flex;flex-direction:column;gap:10px;padding:14px 22px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;padding:3px 9px;border-radius:8px;border:1px solid ${color};color:${color}"><span aria-hidden="true">${glyph}</span> ${apuEsc(it.status_label || it.status)}</span>
+        ${isTest ? `<span style="font-size:12px;font-weight:700;padding:3px 9px;border-radius:8px;border:1px solid var(--muted);color:var(--muted)"><span aria-hidden="true">🧪</span> Teste</span>` : ''}
+        ${it.slot_passed ? `<span style="font-size:12px;font-weight:700;padding:3px 9px;border-radius:8px;border:1px solid var(--amber);color:#92400E"><span aria-hidden="true">⏰</span> O horário pedido já passou</span>` : ''}
+      </div>
+      <div style="font-size:13px;color:var(--ink);line-height:1.5;overflow-wrap:anywhere">${apuEsc(it.notice)}</div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Nome informado:</span> ${apuEsc(it.customer_name_given || '—')}</div>
+        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Dia e horário pedidos:</span> ${when}</div>
+        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Profissional pedido:</span> ${it.professional_name ? apuEsc(it.professional_name) : 'não informado'}</div>
+        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Telefone:</span> ${heldPhoneHtml(it)}</div>
+        ${it.agent_said ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">O agente respondeu:</span><div style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px">${apuEsc(it.agent_said)}</div></div>` : ''}
+      </div>
+      ${hint}
+      ${heldFixHtml(it)}
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${verConversa}${actions}</div>
+      ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px">${convHistoryHtml(key)}</div>` : ''}
+    </div>`;
+}
+
+function renderHeld(){
+  const card = document.getElementById('held-card');
+  const list = document.getElementById('held-list');
+  if(!card || !list) return;
+  if(!heldIsAdmin()){ card.style.display = 'none'; return; }
+  const openN = heldItems.filter(h => h.status === 'retido').length;
+  card.style.display = (heldItems.length > 0 || heldShowAll || heldNotice) ? '' : 'none';
+  const desc = document.getElementById('held-count-desc');
+  if(desc) desc.textContent = openN
+    ? `${openN} pedido${openN!==1?'s':''} aguardando a sua decisão`
+    : 'Nenhum pedido aguardando a sua decisão';
+  if(heldNotice){
+    list.innerHTML = `<div style="padding:16px 22px;color:var(--red);font-size:13px">${apuEsc(heldNotice.text)}</div>`;
+    return;
+  }
+  if(!heldItems.length){
+    list.innerHTML = '<div style="padding:16px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhum pedido retido.</div>';
+    return;
+  }
+  // preserva o foco/cursor do campo de nome enquanto a lista é redesenhada
+  const ae = document.activeElement;
+  const keep = ae && ae.tagName === 'INPUT' && ae.type === 'text' && list.contains(ae) ? { s: ae.selectionStart, e: ae.selectionEnd } : null;
+  list.innerHTML = heldItems.map(heldRowHtml).join('');
+  if(keep){
+    const n = list.querySelector('input[type=text]');
+    if(n){ n.focus({ preventScroll:true }); try{ n.setSelectionRange(keep.s, keep.e); }catch(e){} }
+  }
+}
+
+function heldToggleConversation(id){
+  if(heldExpandedId === id){ heldExpandedId = null; renderHeld(); return; }
+  const it = heldItems.find(x => x.id === id);
+  if(!it) return;
+  const ch = it.channel || 'whatsapp';
+  const key = convRefKey(it.conversation_id, it.phone, ch);
+  heldExpandedId = id;
+  delete convSessionView[key];
+  const need = !(key in convHistoryCache) || convHistoryCache[key] === 'error';
+  if(need) convHistoryCache[key] = 'loading';
+  renderHeld();
+  if(need) loadConversationHistory(it.conversation_id || '', it.phone, ch);
+}
+
+function heldFixSet(id, field, v){ if(heldFix[id]) heldFix[id][field] = v; }
+function heldFixCancel(id){ delete heldFix[id]; renderHeld(); }
+
+// Decide uma retenção. fromForm=true: reenvio com professional_id / customer_name do formulário (após 422).
+async function heldDecide(id, action, fromForm){
+  const def = HELD_ACTION[action];
+  const it = heldItems.find(x => x.id === id);
+  if(!def || !it || heldBusy.has(id)) return;
+  const body = {};
+  if(fromForm){
+    const fx = heldFix[id] || {};
+    if(!fx.professional_id){ showToast('⚠ Escolha o profissional para confirmar.', 6000); return; }
+    body.professional_id = fx.professional_id;
+    const nm = (fx.customer_name || '').trim();
+    if(nm) body.customer_name = nm;
+  }
+  if(!confirm(def.ask)) return;
+  heldBusy.add(id); renderHeld();
+  try{
+    const res = await apiFetch(`/api/held-appointments/${encodeURIComponent(id)}/${def.route}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const d = await res.json().catch(() => ({}));
+    if(res.ok){
+      delete heldFix[id];
+      showToast(action === 'confirmar' ? '✓ Agendamento confirmado' : action === 'descartar' ? '✓ Pedido descartado' : '✓ Ligação marcada como retornada');
+      await Promise.all([loadHeld(), action === 'confirmar' ? reloadAppointmentsQuiet() : null]);
+      handoffPollSoon();
+      return;
+    }
+    const code = d.code;
+    if(res.status === 409 && code === 'horario_ocupado'){
+      delete heldFix[id];
+      showToast('⚠ Esse horário foi ocupado nesse meio-tempo. O pedido voltou a aguardar a sua decisão.', 9000);
+      await loadHeld();
+    }else if(res.status === 409 && code === 'confirmacao_indisponivel_no_teste'){
+      showToast('⚠ Conversa de teste: ela só pode ser descartada, não confirmada.', 9000);
+      await loadHeld();
+    }else if(res.status === 422 && code === 'profissional_nao_definido'){
+      if(!profissionais.length){
+        try{
+          const r = await apiFetch('/api/professionals');
+          if(r.ok){ const pd = await r.json(); profissionais = pd.professionals || []; }
+        }catch(e){}
+      }
+      heldFix[id] = { professional_id: heldFix[id]?.professional_id || '', customer_name: heldFix[id]?.customer_name ?? it.customer_name_given ?? '' };
+      showToast('Escolha o profissional para confirmar este agendamento.', 7000);
+    }else if(res.status === 403){
+      heldItems = [];
+      renderHeld();
+      showToast('⚠ Só o administrador pode decidir agendamentos retidos.', 7000);
+    }else if(res.status === 503){
+      showToast('⚠ Este recurso está indisponível agora. Tente de novo em alguns minutos.', 8000);
+    }else if(res.status === 409 || res.status === 404){
+      showToast(`⚠ ${d.error || 'Este pedido já foi decidido.'}`, 7000);
+      await loadHeld();
+    }else{
+      showToast(`⚠ ${d.error || 'Não foi possível concluir a decisão.'}`, 7000);
+    }
+  }catch(e){
+    console.error('[heldDecide] erro:', e);
+    showToast('⚠ Não foi possível conectar ao backend.');
+  }finally{
+    heldBusy.delete(id);
+    renderHeld();
+  }
+}
+
+// Recarrega só a lista de agendamentos (após confirmar um retido), sem refazer a seção de retidos.
+async function reloadAppointmentsQuiet(){
+  try{
+    const r = await apiFetch('/api/appointments');
+    if(!r.ok) return;
+    const data = await r.json();
+    appointments = (data.appointments || []).sort((a,b)=> new Date(a.start_time) - new Date(b.start_time));
+    renderAppointmentsList();
+  }catch(e){}
 }
 
 async function cancelAppointmentFromPanel(id){
@@ -5503,6 +5779,7 @@ const NOTIF_ICONS = {
   calX: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M10 14l4 4M14 14l-4 4"/>',
   repeat: '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
   briefcase: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  alert: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
   phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>',
 };
 const notifIconHtml = k => `<span class="notif-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${NOTIF_ICONS[k] || ''}</svg></span>`;
@@ -5570,6 +5847,17 @@ const NOTIF_SOURCES = [
     applies: () => isPlatformAdmin,
     load: () => apiFetch('/api/admin/commercial-close-requests', { skipAuthGuard: true }),
     pick: d => notifAsArray(d, 'requests'),
+  },
+  {
+    // Agendamentos retidos (possível trote): só o administrador. A contagem vem de
+    // held_appointments_open no GET /api/handoffs?v=2; sem o campo, a fonte fica vazia.
+    id: 'heldAppointments',
+    icon: 'alert', color: '#B91C1C', time: it => it.at,
+    kind: 'link',
+    custom: true,
+    title: 'Agendamentos retidos',
+    applies: () => currentUser?.role === 'admin',
+    count: items => items.reduce((n, x) => n + (x.n || 0), 0),
   },
   {
     // Seção separada da fila de aprovação: aqui é só ligar pro cliente novo.
@@ -5745,10 +6033,23 @@ function notifRowHtml(source, it){
 // 'decision'/'seen') — a decisão em si não cabe no dropdown, só avisa e leva
 // pra tela dedicada.
 function notifLinkRowHtml(source, items){
+  if(source.id === 'heldAppointments'){
+    const n = source.count(items);
+    return `<div class="notif-row">
+      <div class="notif-row-text">${n} agendamento${n===1?'':'s'} retido${n===1?'':'s'} aguardando a sua decisão.</div>
+      <div class="notif-row-actions"><button class="btn btn-accent btn-sm" onclick="goToHeldAppointments()">Ver retidos →</button></div>
+    </div>`;
+  }
   return `<div class="notif-row">
     <div class="notif-row-text">${items.length} pedido${items.length===1?'':'s'} de fechamento comercial aguardando aprovação.</div>
     <div class="notif-row-actions"><button class="btn btn-accent btn-sm" onclick="goToCommercialCloseRequests()">Ver pedidos →</button></div>
   </div>`;
+}
+
+function goToHeldAppointments(){
+  closeNotifPanel();
+  setTab('agendamentos');
+  setTimeout(() => { const c = document.getElementById('held-card'); if(c && c.style.display !== 'none') c.scrollIntoView({ behavior:'smooth', block:'start' }); }, 500);
 }
 
 function goToCommercialCloseRequests(){
@@ -6267,6 +6568,7 @@ function handoffApplyResponse(data, askedPresence){
     handoffConnBad = false;
   }
   notifCache.handoffs = handoffList;
+  if(typeof data.held_appointments_open === 'number') heldBellSet(data.held_appointments_open);
   renderNotifBadge();
   const sig = JSON.stringify(handoffList.map(x => [x.id, x.status, x.claimed_by_name, x.mine, x.deadline_at, x.customer_name, x.kind, x.reason, x.sem_atendimento, x.ciencia_em, x.tentativas, x.desfecho, handoffClaimBusy.has(x.id), handoffAckBusy.has(x.id), handoffSemBusy.has(x.id)]));
   if(notifOpen && sig !== handoffListSig) renderNotifPanel();
