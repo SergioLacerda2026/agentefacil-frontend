@@ -1440,7 +1440,11 @@ label.field-label{display:block}
 <script>
 // ── BACKEND ──
 // URL do backend Node.js (protege a chave da API — ver /agentefacil-backend).
-const BACKEND_URL = 'https://agentefacil-backend.onrender.com';
+const BACKENDS = {
+  'app.convertia.ia.br':          'https://api.convertia.ia.br',
+  'plataforma-agente.vercel.app': 'https://agentefacil-backend.onrender.com',
+};
+const BACKEND_URL = BACKENDS[location.hostname] || BACKENDS['plataforma-agente.vercel.app'];
 
 // URL e chave "anon" (pública, segura de expor) do Supabase — usadas SÓ
 // pra fazer login. A chave anon não dá acesso a nada sozinha; ela só
