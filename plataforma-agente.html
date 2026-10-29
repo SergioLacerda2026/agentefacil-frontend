@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AgenteFácil · Plataforma</title>
+<title>Convert IA · Plataforma</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -443,7 +443,7 @@ label.field-label{display:block}
 <div id="login-screen" class="login-screen">
   <div class="login-card">
     <div class="login-logo agent-mascot"></div>
-    <div class="login-title">Agente <span>Fácil</span></div>
+    <div class="login-title">Convert <span>IA</span></div>
     <div class="login-sub">Entre com seu e-mail e senha</div>
     <form id="login-form" onsubmit="event.preventDefault();doLogin();">
       <div class="field-group">
@@ -489,7 +489,7 @@ label.field-label{display:block}
 <aside class="sidebar">
   <div class="sb-logo">
     <div class="sb-brand">
-      <span class="sb-brand-full">Agente<span>Fácil</span></span>
+      <span class="sb-brand-full">Convert <span>IA</span></span>
       <span class="sb-brand-mini agent-mascot-clear"></span>
     </div>
     <div class="sb-tagline">Plataforma de atendimento IA</div>
@@ -870,11 +870,6 @@ label.field-label{display:block}
                 </select>
               </div>
               <div class="field-group">
-                <div class="field-label">Mensagem de boas-vindas</div>
-                <textarea class="field" id="cfg-welcome">Olá! 😊 Seja bem-vindo! Como posso te ajudar hoje?</textarea>
-                <div class="field-hint">Primeira mensagem que o agente envia ao cliente</div>
-              </div>
-              <div class="field-group">
                 <div class="field-label">Mensagem ao transferir para humano</div>
                 <textarea class="field" id="cfg-transfer" style="min-height:55px">Entendido! Vou transferir você para um de nossos atendentes. Um momento! 👋</textarea>
                 <div class="field-hint">Enviada quando o agente detecta pedido de atendimento humano</div>
@@ -1205,7 +1200,7 @@ label.field-label{display:block}
         <div class="card-head">
           <div>
             <div class="card-title">🏢 Clientes cadastrados na plataforma</div>
-            <div class="card-desc">Cada cliente é uma instalação independente do AgenteFácil</div>
+            <div class="card-desc">Cada cliente é uma instalação independente do Convert IA</div>
           </div>
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
             <label for="wa-adm-filter" class="apu-muted">WhatsApp</label>
@@ -2788,6 +2783,9 @@ feats.forEach(f=>{
 });
 
 // ── CONFIGURAÇÕES: carregar e salvar via backend (Supabase) ──
+// welcome_message não aparece mais na tela (o backend não envia boas-vindas); o valor
+// carregado é só reenviado no PUT para preservar a coluna. Sem valor carregado, não vai no payload.
+let loadedWelcome = null;
 async function loadSettingsFromServer(){
   try{
     const res = await apiFetch('/api/settings');
@@ -2795,7 +2793,7 @@ async function loadSettingsFromServer(){
     const { settings } = await res.json();
     document.getElementById('cfg-agent-name').value = settings.agent_name;
     document.getElementById('cfg-tone').value = settings.tone;
-    document.getElementById('cfg-welcome').value = settings.welcome_message;
+    loadedWelcome = (typeof settings.welcome_message === 'string') ? settings.welcome_message : null;
     document.getElementById('cfg-transfer').value = settings.transfer_message;
     loadedFeatures = (settings.features && typeof settings.features === 'object') ? { ...settings.features } : {};
     document.querySelectorAll('[data-feature-key]').forEach(el=>{
@@ -2821,10 +2819,10 @@ async function saveSettingsToServer(){
   const payload = {
     agent_name: document.getElementById('cfg-agent-name').value,
     tone: document.getElementById('cfg-tone').value,
-    welcome_message: document.getElementById('cfg-welcome').value,
     transfer_message: document.getElementById('cfg-transfer').value,
     features,
   };
+  if(loadedWelcome !== null) payload.welcome_message = loadedWelcome;
   try{
     const res = await apiFetch('/api/settings', {
       method:'PUT',
@@ -3113,20 +3111,15 @@ function resetTestChat(){
 
 function initTestChat(){
   const chat=document.getElementById('test-chat');
-  // Evita duplicar a mensagem de boas-vindas caso initTestChat() seja
-  // chamado mais de uma vez sem o chat ter sido limpo antes.
+  // Não há saudação simulada: no WhatsApp real o backend não envia boas-vindas,
+  // o agente se apresenta na primeira resposta.
   if(chat.children.length>0) return;
   const sep=document.createElement('div');
   sep.className='p-sep';
   sep.textContent='Hoje';
   chat.appendChild(sep);
-  setTimeout(()=>{
-    const agentName=document.getElementById('cfg-agent-name')?.value||'Bia';
-    const welcome=document.getElementById('cfg-welcome')?.value||'Olá! 😊 Seja bem-vindo! Como posso te ajudar hoje?';
-    document.getElementById('agent-name-display').textContent=agentName;
-    testAddBubble(welcome,'in',
-      ['Quero fazer um agendamento','Qual o horário de funcionamento?','Quais serviços oferecem?']);
-  },600);
+  const agentName=document.getElementById('cfg-agent-name')?.value||'Bia';
+  document.getElementById('agent-name-display').textContent=agentName;
 }
 
 // ── PROFISSIONAIS (dados reais do Supabase, via backend) ──
