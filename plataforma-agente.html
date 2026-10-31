@@ -136,6 +136,23 @@ button.st-btn{cursor:pointer}
 .hc-err{font-size:12px;color:var(--red);margin-top:4px}
 .hc-err[hidden]{display:none}
 .hc-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+/* Cartão "Valor da consulta" (aba Profissionais, só administrador) */
+.pc-status{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:10px}
+.pc-note{border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.45;margin-bottom:12px;background:var(--bg);color:var(--ink);border:1px solid var(--border)}
+.pc-note.warn{background:var(--amber-l);color:#92400E;border:2px solid var(--amber);font-weight:600}
+.pc-block{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--card)}
+.pc-block.off{background:var(--bg)}
+.pc-label{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.pc-guard{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.45}
+.pc-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pc-input{flex:1 1 160px;min-width:0;min-height:44px;font-size:16px;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-family:inherit;color:var(--ink);background:#fff}
+.pc-input:disabled{background:var(--bg);color:var(--muted);cursor:not-allowed;border-style:dashed}
+.pc-btn{min-height:44px}
+.pc-tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--ink);margin-left:6px}
+.pc-prev{font-size:12px;color:var(--muted);margin-top:4px;min-height:16px}
+.pc-err{font-size:13px;font-weight:600;color:#991B1B;background:var(--red-l);border-radius:8px;padding:8px 10px;margin-top:8px}
+.pc-ok{font-size:12px;font-weight:600;color:#065F46;margin-top:6px}
+.pc-prof-name{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px}
 .ho-conclude{border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .ho-conclude-title{font-size:12px;font-weight:700;color:var(--ink)}
 .ho-opts{display:flex;flex-direction:column;gap:4px}
@@ -629,6 +646,7 @@ label.field-label{display:block}
 
     <!-- ══ BASE DE CONHECIMENTO ══ -->
     <div class="view" id="view-conhecimento">
+      <div class="pc-note" id="kb-price-notice" style="display:none">O agente só informa o valor da consulta quando o paciente pergunta, e usa apenas o valor cadastrado na aba Profissionais. Preço escrito aqui na Base de Conhecimento não é usado para o valor da consulta.</div>
       <div class="template-card">
         <div class="template-icon">📄</div>
         <div class="template-info">
@@ -731,6 +749,14 @@ label.field-label{display:block}
       </div>
       <div id="prof-user-banner" style="background:var(--amber-l);border:1px solid #FCD34D;border-radius:10px;padding:12px 18px;margin-bottom:20px;display:none;align-items:center;justify-content:space-between">
         <span style="font-size:13px;color:#92400E;font-weight:500">👤 Você está no perfil <strong>Profissional</strong> — visualizando apenas suas próprias informações e agenda.</span>
+      </div>
+
+      <!-- Valor da consulta (só administrador; aparece quando o backend manda consultation_price_mode) -->
+      <div class="card" id="price-card" style="margin-bottom:20px;display:none">
+        <div class="cfg-section">
+          <div class="cfg-title">💲 Valor da consulta</div>
+          <div id="price-card-body"></div>
+        </div>
       </div>
 
       <div class="prof-layout" style="display:grid;gap:20px">
@@ -1780,6 +1806,7 @@ function resetTenantState(){
   colabActiveCount = null;
   franchiseRequestPending = false;
   franchiseReqBusy = false;
+  priceReset();
   platformClients = [];
   clientBillingCache = {};
   expandedClientId = null;
@@ -3128,6 +3155,7 @@ let profContractedLimit = null;
 let profActiveCount = null;
 let colabContractedLimit = null;
 let colabActiveCount = null;
+let profLoadOk = false;    // última carga de /api/professionals deu certo?
 let selectedProfId = null; // qual profissional está aberto no painel de detalhe (pra re-render)
 
 const diasLabels = {seg:'Seg',ter:'Ter',qua:'Qua',qui:'Qui',sex:'Sex',sab:'Sáb',dom:'Dom'};
@@ -3148,8 +3176,11 @@ async function loadProfessionalsFromServer(){
     profActiveCount = typeof data.active_count === 'number' ? data.active_count : null;
     colabContractedLimit = typeof data.contracted_colaboradores === 'number' ? data.contracted_colaboradores : null;
     colabActiveCount = typeof data.colaborador_count === 'number' ? data.colaborador_count : null;
+    priceApplyServer(data);
+    profLoadOk = true;
     renderProfList();
   }catch(e){
+    profLoadOk = false;
     console.error('[loadProfessionalsFromServer] erro:', e);
     const list = document.getElementById('prof-list');
     if(list) list.innerHTML = `<div style="padding:20px 22px;color:var(--red);font-size:13px;text-align:center">⚠ Não foi possível carregar os profissionais.</div>`;
@@ -3210,7 +3241,7 @@ function renderProfList(){
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--ink)">${p.name}${p.role==='admin'?' 👑':''}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">${p.role==='colaborador' ? 'Colaborador' : `${p.especialidade||'—'} · ${(p.dias_atendimento||[]).map(d=>diasLabels[d]).join(', ')}`}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${p.role==='colaborador' ? 'Colaborador' : `${p.especialidade||'—'} · ${(p.dias_atendimento||[]).map(d=>diasLabels[d]).join(', ')}`}${isAdmin ? priceListTag(p) : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${p.role==='colaborador' ? `<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--bg);color:var(--muted);border:1px solid var(--border)">🤝 Colaborador</span>` : ''}
@@ -3310,6 +3341,7 @@ function selectProf(id){
         </div>
       </div>
       ${isAdmin ? `
+      ${priceDetailBlock(p)}
       <div>
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Permissão de acesso ao painel</div>
         <select id="perm-${id}" onchange="updatePerm('${id}',this.value)" style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;width:100%;outline:none;color:var(--ink)" ${p.role==='admin'?'disabled':''}>
@@ -3417,6 +3449,418 @@ async function removeProf(id){
     console.error('[removeProf] erro:', e);
     showToast('⚠ Não foi possível conectar ao backend.');
   }
+}
+
+// ── VALOR DA CONSULTA (cartão na aba Profissionais, só administrador) ──
+// O administrador escolhe UM modo: 'clinica' (um valor para todos), 'profissional' (cada um o seu) ou
+// 'nao_informa' (o agente não informa). Enquanto não escolher (mode null) o agente também não informa.
+// Só o campo do modo ativo é editável; os demais continuam visíveis e desabilitados, com o valor guardado.
+// Todo o envio de valor passa por priceCommit (PUT /api/consultation-price ou PATCH {consultation_price});
+// saveProf, toggleAtivo e submitCompleteProfile NUNCA enviam consultation_price (403 somente_admin).
+// O cartão só existe se a raiz do GET /api/professionals trouxer consultation_price_mode (pode ser null).
+const PRICE_MODE_KEYS = ['clinica', 'profissional', 'nao_informa'];
+const PRICE_MODES = {
+  clinica:      { label:'Um valor para toda a clínica',         sub:'O mesmo valor vale para todos os profissionais.' },
+  profissional: { label:'Cada profissional com o seu valor',    sub:'Cada profissional tem o seu valor, que pode ser diferente dos outros.' },
+  nao_informa:  { label:'O agente não informa valor da consulta', sub:'Se o paciente perguntar, o agente diz que o valor é tratado direto com a clínica.' },
+};
+const PRICE_MAX_CENTS = 9999999;     // R$ 99.999,99
+const PRICE_TXT_INVALID = 'Digite um valor de R$ 0,00 a R$ 99.999,99, com até 2 casas depois da vírgula. Use 0 para consulta gratuita.';
+const PRICE_TXT_GENERIC = 'Não foi possível salvar agora. O valor não foi alterado. Tente de novo.';
+const PRICE_MSG = {
+  somente_admin:         'Só o administrador pode ver e alterar os valores da consulta.',
+  valor_da_clinica_ativo:'O modo atual é o valor único da clínica, então os valores individuais não podem ser alterados. Para editá-los, troque o modo para “Cada profissional com o seu valor”.',
+  valor_invalido:        PRICE_TXT_INVALID,
+  modo_invalido:         'Escolha uma das três opções.',
+  valor_obrigatorio:     'Para usar o valor único da clínica, digite o valor da consulta.',
+  colaborador_sem_valor: 'Colaboradores não têm valor de consulta.',
+  migracao_pendente:     'Este recurso está sendo ativado. Tente de novo em alguns minutos.',
+  dados_invalidos:       'Não foi possível salvar. Confira os dados e tente de novo.',
+};
+let priceState = null;            // { mode, pending, clinic, without } ou null (cartão escondido)
+let priceDraft = { clinic: undefined, chooserClinic: '', prof: {} };   // texto digitado e ainda não salvo
+let priceChoice = null;           // opção marcada no seletor de modo (ainda não salva)
+let priceChooserOpen = false;
+let priceBusy = false;
+let priceMsgs = {};               // escopo ('top' | 'chooser' | 'clinica' | id do profissional) → { kind:'err'|'ok', text }
+
+function priceNum(v){ if(v == null) return null; const n = Number(v); return Number.isFinite(n) ? n : null; }
+function formatBRL(n){ return Number(n).toLocaleString('pt-BR', { style:'currency', currency:'BRL' }); }
+function priceShow(n){ return n === 0 ? 'Consulta gratuita · R$ 0,00' : formatBRL(n); }
+function priceInputStr(n){ return n == null ? '' : Number(n).toFixed(2).replace('.', ','); }
+
+// Texto digitado → { ok, value, cents } | { empty:true } | { ok:false }. Aceita 350, 350,5, 350,50, 1.350,00, R$ 350,00.
+// Ponto sozinho: "1.350" é milhar; "350.5" é decimal. Mais de 2 casas, sinal ou letras: inválido.
+function parsePrice(text){
+  const t = String(text == null ? '' : text).replace(/R\$/gi, '').replace(/[\s ]/g, '');
+  if(t === '') return { ok:false, empty:true };
+  if(!/^[0-9.,]+$/.test(t)) return { ok:false };
+  let intPart, decPart = '';
+  if(t.includes(',')){
+    const parts = t.split(',');
+    if(parts.length !== 2) return { ok:false };
+    intPart = parts[0]; decPart = parts[1];
+    if(!/^(\d+|\d{1,3}(\.\d{3})+)$/.test(intPart) || !/^\d{1,2}$/.test(decPart)) return { ok:false };
+    intPart = intPart.replace(/\./g, '');
+  }else if(t.includes('.')){
+    if(/^\d{1,3}(\.\d{3})+$/.test(t)) intPart = t.replace(/\./g, '');
+    else if(/^\d+\.\d{1,2}$/.test(t)){ const p = t.split('.'); intPart = p[0]; decPart = p[1]; }
+    else return { ok:false };
+  }else intPart = t;
+  if(intPart.length > 8) return { ok:false };
+  const cents = parseInt(intPart, 10) * 100 + (decPart ? parseInt(decPart.padEnd(2, '0'), 10) : 0);
+  if(cents > PRICE_MAX_CENTS) return { ok:false };
+  return { ok:true, value: cents / 100, cents };
+}
+
+function pricePreview(text){
+  const r = parsePrice(text);
+  if(r.empty) return '';
+  if(!r.ok) return '⚠ Valor não reconhecido. Use números, por exemplo 350 ou 350,50.';
+  return `Será salvo: ${priceShow(r.value)}`;
+}
+
+function priceReset(){
+  priceState = null;
+  priceDraft = { clinic: undefined, chooserClinic: '', prof: {} };
+  priceChoice = null; priceChooserOpen = false; priceBusy = false; priceMsgs = {};
+  renderPriceCard();
+}
+
+// Chamado por loadProfessionalsFromServer com a resposta do GET /api/professionals.
+function priceApplyServer(data){
+  if(!currentUser || currentUser.role !== 'admin' || !data || typeof data !== 'object' || !('consultation_price_mode' in data)){
+    priceState = null;
+    renderPriceCard();
+    return;
+  }
+  const mode = PRICE_MODE_KEYS.includes(data.consultation_price_mode) ? data.consultation_price_mode : null;
+  const wo = Number(data.professionals_without_price);
+  if(priceState && priceState.mode !== mode) priceDraft = { clinic: undefined, chooserClinic: priceDraft.chooserClinic, prof: {} };   // rascunho de outro modo não vale mais
+  priceState = {
+    mode,
+    pending: data.consultation_price_mode_pending === true || mode === null,
+    clinic: priceNum(data.default_consultation_price),
+    without: Number.isInteger(wo) && wo > 0 ? wo : 0,
+  };
+  renderPriceCard();
+}
+
+// O que vale para este profissional agora, em texto (vem do servidor: effective + source).
+function priceEffText(p){
+  const st = priceState;
+  if(!st || st.pending) return 'Modo de valor ainda não escolhido: o agente não informa valor';
+  if(st.mode === 'nao_informa') return 'O agente não informa valor';
+  const ef = priceNum(p.consultation_price_effective);
+  if(ef === null) return 'Sem valor: o agente diz que o valor é tratado direto com a clínica';
+  return `${priceShow(ef)} (${p.consultation_price_source === 'clinica' ? 'valor da clínica' : 'valor próprio'})`;
+}
+
+function priceListTag(p){
+  const st = priceState;
+  if(!st || st.pending || p.role === 'colaborador' || (st.mode !== 'clinica' && st.mode !== 'profissional')) return '';
+  const ef = priceNum(p.consultation_price_effective);
+  return ` · ${ef === null ? '⚠ Sem valor' : apuEsc(priceShow(ef))}`;
+}
+
+function priceDetailBlock(p){
+  if(!priceState || p.role === 'colaborador') return '';
+  return `<div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Valor da consulta</div>
+        <div id="prof-price-line-${apuEsc(p.id)}" style="font-size:13px;color:var(--ink);font-weight:500">${apuEsc(priceEffText(p))}</div>
+        <div class="field-hint">Para alterar, use o cartão “Valor da consulta” no topo desta aba.</div>
+      </div>`;
+}
+
+function priceRefreshDetailLine(){
+  if(!selectedProfId) return;
+  const el = document.getElementById('prof-price-line-' + selectedProfId);
+  const p = profissionais.find(x => x.id === selectedProfId);
+  if(el && p) el.textContent = priceEffText(p);
+}
+
+function priceMsgHtml(scope){
+  const m = priceMsgs[scope];
+  if(!m) return '';
+  return m.kind === 'err'
+    ? `<div class="pc-err" role="alert">⚠ ${apuEsc(m.text)}</div>`
+    : `<div class="pc-ok" role="status">✓ ${apuEsc(m.text)}</div>`;
+}
+
+function priceChooserHtml(){
+  const st = priceState;
+  const sel = priceChoice !== null ? priceChoice : (st.pending ? null : st.mode);
+  const dis = priceBusy ? ' disabled' : '';
+  let h = `<div class="pc-label" id="pc-chooser-title">Como o agente deve tratar o valor da consulta?</div><div role="radiogroup" aria-labelledby="pc-chooser-title">`;
+  PRICE_MODE_KEYS.forEach(k => {
+    const m = PRICE_MODES[k];
+    const active = !st.pending && st.mode === k;
+    let extra = '';
+    if(k === 'clinica' && sel === 'clinica'){
+      extra = st.clinic !== null
+        ? `<div class="pc-guard">Valor da clínica já guardado: <b>${apuEsc(priceShow(st.clinic))}</b>. Depois de ativar este modo, você pode alterá-lo no campo “Valor único da clínica”.</div>`
+        : `<div style="margin-top:8px"><label class="pc-label" for="pc-chooser-clinic">Valor da consulta (obrigatório)</label>
+            <input id="pc-chooser-clinic" class="pc-input" style="width:100%" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" value="${apuEsc(priceDraft.chooserClinic)}"${dis} oninput="priceChooserClinicInput(this.value)">
+            <div class="pc-prev" id="pc-prev-chooser">${apuEsc(pricePreview(priceDraft.chooserClinic))}</div></div>`;
+    }
+    h += `<div class="hc-opt${sel === k ? ' on' : ''}">
+      <label class="hc-opt-label" style="min-height:44px"><input type="radio" id="pc-opt-${k}" name="pc-mode" value="${k}"${sel === k ? ' checked' : ''}${dis} onchange="pricePick('${k}')"><span><b>${apuEsc(m.label)}</b>${active ? '<span class="pc-tag">✔ Ativo agora</span>' : ''}<span class="hc-opt-sub">${apuEsc(m.sub)}</span></span></label>
+      ${extra}
+    </div>`;
+  });
+  h += `</div>${priceMsgHtml('chooser')}
+    <div class="hc-actions">
+      <button type="button" class="btn btn-accent pc-btn" onclick="priceApplyMode()"${dis}>${priceBusy ? 'Salvando…' : (st.pending ? 'Salvar escolha' : 'Aplicar escolha')}</button>
+      ${st.pending ? '' : `<button type="button" class="btn btn-ghost pc-btn" onclick="priceCancelChooser()"${dis}>Cancelar</button>`}
+    </div>`;
+  return h;
+}
+
+function priceCardHtml(){
+  const st = priceState, mode = st.mode;
+  const dis = priceBusy ? ' disabled' : '';
+  let h = `<div class="pc-status" role="status">${st.pending ? '⚠ Modo ainda não escolhido' : '✔ Modo ativo: ' + apuEsc(PRICE_MODES[mode].label)}</div>`;
+  h += priceMsgHtml('top');
+  if(st.pending){
+    h += `<div class="pc-note warn">⚠ Escolha como o agente deve tratar o valor da consulta. Enquanto isso, se o paciente perguntar, o agente diz que o valor é tratado direto com a clínica.</div>`;
+  }else if(mode === 'nao_informa'){
+    h += `<div class="pc-note">O agente não informa o valor da consulta. Se o paciente perguntar, ele diz que o valor é tratado direto com a clínica.</div>`;
+  }else if(mode === 'profissional' && st.without > 0){
+    h += `<div class="pc-note warn">⚠ ${st.without === 1
+      ? '1 profissional sem valor cadastrado: para esse, o agente diz que o valor é tratado direto com a clínica.'
+      : st.without + ' profissionais sem valor cadastrado: para esses, o agente diz que o valor é tratado direto com a clínica.'}</div>`;
+  }
+  h += `<div class="pc-note">O agente só informa o valor da consulta quando o paciente pergunta, e usa apenas o valor cadastrado aqui. Preço escrito na Base de Conhecimento não é usado para o valor da consulta.</div>`;
+
+  if(st.pending || priceChooserOpen) h += priceChooserHtml();
+  else h += `<button type="button" class="btn btn-ghost pc-btn" onclick="priceOpenChooser()"${dis}>Trocar de modo</button>`;
+
+  // Valor único da clínica
+  const cOn = mode === 'clinica';
+  const cDraft = cOn ? priceDraft.clinic : undefined;     // campo desabilitado mostra sempre o valor guardado
+  const cVal = cDraft !== undefined ? cDraft : priceInputStr(st.clinic);
+  const cPrev = cDraft !== undefined
+    ? pricePreview(priceDraft.clinic)
+    : (st.clinic !== null ? `Vale agora para todos: ${priceShow(st.clinic)}` : 'Sem valor: digite o valor e salve.');
+  h += `<div class="pc-block${cOn ? '' : ' off'}" style="margin-top:14px">
+    <label class="pc-label" for="pc-clinic">Valor único da clínica<span class="pc-tag">${cOn ? '✔ Pode editar agora' : '🔒 Desabilitado'}</span></label>
+    <div class="pc-row">
+      <input id="pc-clinic" class="pc-input" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" value="${apuEsc(cVal)}"${cOn && !priceBusy ? '' : ' disabled'} oninput="priceClinicInput(this.value)">
+      ${cOn ? `<button type="button" class="btn btn-accent pc-btn" onclick="priceSaveClinic()"${dis}>${priceBusy ? 'Salvando…' : 'Salvar valor'}</button>` : ''}
+    </div>
+    ${cOn ? `<div class="pc-prev" id="pc-prev-clinic">${apuEsc(cPrev)}</div>`
+          : `<div class="pc-guard">${st.clinic !== null ? 'Guardado, não está valendo agora.' : 'Nenhum valor guardado.'} Para editar, troque o modo para “${apuEsc(PRICE_MODES.clinica.label)}”.</div>`}
+    ${priceMsgHtml('clinica')}
+  </div>`;
+
+  // Valores individuais (administrador entra; colaborador não)
+  const pOn = mode === 'profissional';
+  const lista = profissionais.filter(p => p.role !== 'colaborador');
+  h += `<div class="pc-label" style="margin-top:14px">Valores de cada profissional<span class="pc-tag">${pOn ? '✔ Pode editar agora' : '🔒 Desabilitado'}</span></div>`;
+  if(!lista.length) h += `<div class="pc-guard">Nenhum profissional cadastrado ainda.</div>`;
+  lista.forEach(p => {
+    const id = p.id, stored = priceNum(p.consultation_price);
+    const draft = pOn ? priceDraft.prof[id] : undefined;
+    const val =draft !== undefined ? draft : priceInputStr(stored);
+    const ctrl = pOn && !priceBusy;
+    h += `<div class="pc-block${pOn ? '' : ' off'}">
+      <label class="pc-prof-name" for="pc-prof-${apuEsc(id)}">${apuEsc(p.name)}${p.role === 'admin' ? ' 👑' : ''}${p.active ? '' : '<span class="pc-tag">Inativo</span>'}</label>
+      <div class="pc-row">
+        <input id="pc-prof-${apuEsc(id)}" class="pc-input" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" value="${apuEsc(val)}"${ctrl ? '' : ' disabled'} oninput="priceProfInput(${convJsArg(id)}, this.value)">
+        ${pOn ? `<button type="button" class="btn btn-accent pc-btn" onclick="priceSaveProf(${convJsArg(id)})"${dis}>Salvar valor</button>
+          ${stored !== null ? `<button type="button" class="btn btn-ghost pc-btn" onclick="priceClearProf(${convJsArg(id)})"${dis}>Limpar valor</button>` : ''}` : ''}
+      </div>
+      ${pOn ? `<div class="pc-prev" id="pc-prev-${apuEsc(id)}">${apuEsc(draft !== undefined ? pricePreview(draft) : 'Vale agora: ' + priceEffText(p))}</div>`
+            : `<div class="pc-guard">${stored !== null ? 'Guardado, não está valendo agora.' : 'Nenhum valor guardado.'}</div>`}
+      ${priceMsgHtml(id)}
+    </div>`;
+  });
+  return h;
+}
+
+// Redesenha o cartão sem perder o que está sendo digitado (rascunho em priceDraft) nem o foco.
+function renderPriceCard(){
+  const card = document.getElementById('price-card');
+  const body = document.getElementById('price-card-body');
+  const kb = document.getElementById('kb-price-notice');
+  if(!card || !body) return;
+  const on = !!priceState;
+  card.style.display = on ? '' : 'none';
+  if(kb) kb.style.display = on ? '' : 'none';
+  if(!on){ body.innerHTML = ''; return; }
+  const ae = document.activeElement;
+  const focusId = ae && ae.id && body.contains(ae) ? ae.id : null;
+  let ss = null, se = null;
+  try{ if(focusId && ae.selectionStart != null){ ss = ae.selectionStart; se = ae.selectionEnd; } }catch(e){}
+  body.innerHTML = priceCardHtml();
+  if(focusId){
+    const el = document.getElementById(focusId);
+    if(el && !el.disabled){
+      el.focus({ preventScroll:true });
+      try{ if(ss != null && el.setSelectionRange) el.setSelectionRange(ss, se); }catch(e){}
+    }
+  }
+  priceRefreshDetailLine();
+}
+
+function priceOpenChooser(){
+  if(priceBusy) return;
+  priceChooserOpen = true; priceChoice = null; priceDraft.chooserClinic = '';
+  delete priceMsgs.chooser; delete priceMsgs.top;
+  renderPriceCard();
+}
+function priceCancelChooser(){
+  if(priceBusy) return;
+  priceChooserOpen = false; priceChoice = null; priceDraft.chooserClinic = '';
+  delete priceMsgs.chooser;
+  renderPriceCard();
+}
+function pricePick(k){
+  if(priceBusy || !PRICE_MODE_KEYS.includes(k)) return;
+  priceChoice = k;
+  delete priceMsgs.chooser;
+  renderPriceCard();
+}
+function priceSetPrev(id, text){ const el = document.getElementById(id); if(el) el.textContent = text; }
+function priceChooserClinicInput(v){ priceDraft.chooserClinic = v; priceSetPrev('pc-prev-chooser', pricePreview(v)); }
+function priceClinicInput(v){ priceDraft.clinic = v; priceSetPrev('pc-prev-clinic', pricePreview(v)); }
+function priceProfInput(id, v){ priceDraft.prof[id] = v; priceSetPrev('pc-prev-' + id, pricePreview(v)); }
+
+function priceErrText(r){
+  if(r.net) return 'Não foi possível conectar. O valor não foi alterado.';
+  const code = r.data && typeof r.data.code === 'string' ? r.data.code : '';
+  if(Object.prototype.hasOwnProperty.call(PRICE_MSG, code)) return PRICE_MSG[code];
+  if(r.res.status === 401) return 'Sua sessão expirou. Entre de novo.';
+  return PRICE_TXT_GENERIC;
+}
+
+// Único caminho de gravação de valor/modo. Recarrega o estado do servidor depois (não confia no local).
+async function priceCommit(errScope, okScope, method, path, body, okText){
+  priceBusy = true;
+  Object.keys(priceMsgs).forEach(k => { if(priceMsgs[k].kind === 'ok') delete priceMsgs[k]; });
+  delete priceMsgs[errScope];
+  renderPriceCard();
+  let ok = false;
+  let r;
+  try{
+    const res = await apiFetch(path, { method, headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    r = { res, data };
+  }catch(e){
+    console.error('[priceCommit] erro:', e);
+    r = { net:true };
+  }
+  if(r.net || !r.res.ok){
+    priceMsgs[errScope] = { kind:'err', text: priceErrText(r) };
+    if(!r.net && [403, 409, 503].includes(r.res.status)) await loadProfessionalsFromServer();   // a tela estava desatualizada
+  }else{
+    ok = true;
+    await loadProfessionalsFromServer();
+    priceMsgs[okScope] = profLoadOk
+      ? { kind:'ok', text: okText }
+      : { kind:'err', text:'Salvo, mas não foi possível atualizar a tela. Recarregue a página.' };
+    if(profLoadOk) showToast('✓ ' + okText);
+  }
+  priceBusy = false;
+  renderPriceCard();
+  return ok;
+}
+
+function priceConfirmContent(choice, typed){
+  const st = priceState;
+  const line = t => `<div style="font-size:13px;color:var(--ink);line-height:1.5">${t}</div>`;
+  const L = [];
+  if(choice === 'clinica'){
+    const v = typed !== null ? typed : st.clinic;
+    L.push(line(`Todos os profissionais passam a ter o mesmo valor: <b>${apuEsc(priceShow(v))}</b>.${typed !== null ? ' Este valor será guardado agora.' : ''}`));
+    L.push(line('Os valores individuais continuam guardados, mas ficam bloqueados e não valem enquanto este modo estiver ativo.'));
+  }else if(choice === 'profissional'){
+    L.push(line('Cada profissional passa a usar o seu próprio valor.'));
+    L.push(line(st.clinic !== null
+      ? `O valor da clínica (${apuEsc(priceShow(st.clinic))}) continua guardado, mas fica bloqueado e não vale.`
+      : 'Não há valor da clínica guardado.'));
+    const sem = profissionais.filter(p => p.role !== 'colaborador' && p.active && priceNum(p.consultation_price) === null).map(p => apuEsc(p.name));
+    if(sem.length) L.push(line(`<b>Sem valor guardado:</b> ${sem.join(', ')}. Para ${sem.length === 1 ? 'esse profissional' : 'esses profissionais'}, o agente diz que o valor é tratado direto com a clínica.`));
+  }else{
+    L.push(line('O agente deixa de informar o valor da consulta. Se o paciente perguntar, ele diz que o valor é tratado direto com a clínica.'));
+    L.push(line('Os valores guardados (da clínica e dos profissionais) continuam guardados, mas ficam bloqueados.'));
+  }
+  L.push(line('<b>Nada é apagado.</b> Você pode voltar a qualquer modo quando quiser.'));
+  return {
+    titleId: 'price-dlg-title',
+    titleHtml: `Mudar para “${apuEsc(PRICE_MODES[choice].label)}”?`,
+    bodyHtml: L.join('\n      '),
+    confirmCls: 'btn-accent',
+    boxExtraStyle: ';max-height:90vh;overflow:auto',
+  };
+}
+
+async function priceApplyMode(){
+  if(priceBusy || !priceState) return;
+  const st = priceState;
+  const choice = priceChoice !== null ? priceChoice : (st.pending ? null : st.mode);
+  delete priceMsgs.chooser;
+  const fail = text => { priceMsgs.chooser = { kind:'err', text }; renderPriceCard(); };
+  if(!PRICE_MODE_KEYS.includes(choice)) return fail(PRICE_MSG.modo_invalido);
+  if(!st.pending && choice === st.mode) return fail('Este já é o modo ativo. Escolha outro ou toque em Cancelar.');
+  const body = { consultation_price_mode: choice };
+  let typed = null;
+  if(choice === 'clinica' && st.clinic === null){
+    const r = parsePrice(priceDraft.chooserClinic);
+    if(r.empty) return fail(PRICE_MSG.valor_obrigatorio);
+    if(!r.ok) return fail(PRICE_TXT_INVALID);
+    body.default_consultation_price = r.value;
+    typed = r.value;
+  }
+  if(!(await confirmDialog(priceConfirmContent(choice, typed)))) return;
+  const ok = await priceCommit('chooser', 'top', 'PUT', '/api/consultation-price', body, `Modo alterado para “${PRICE_MODES[choice].label}”.`);
+  if(ok){ priceChooserOpen = false; priceChoice = null; priceDraft.chooserClinic = ''; renderPriceCard(); }
+}
+
+async function priceSaveClinic(){
+  if(priceBusy || !priceState || priceState.mode !== 'clinica') return;
+  const raw = priceDraft.clinic !== undefined ? priceDraft.clinic : priceInputStr(priceState.clinic);
+  const r = parsePrice(raw);
+  if(!r.ok){
+    priceMsgs.clinica = { kind:'err', text: r.empty ? PRICE_MSG.valor_obrigatorio : PRICE_TXT_INVALID };
+    renderPriceCard();
+    return;
+  }
+  const ok = await priceCommit('clinica', 'clinica', 'PUT', '/api/consultation-price', { default_consultation_price: r.value }, 'Valor da clínica salvo.');
+  if(ok){ priceDraft.clinic = undefined; renderPriceCard(); }
+}
+
+async function priceSaveProf(id){
+  if(priceBusy || !priceState || priceState.mode !== 'profissional') return;
+  const p = profissionais.find(x => x.id === id);
+  if(!p || p.role === 'colaborador') return;
+  const raw = priceDraft.prof[id] !== undefined ? priceDraft.prof[id] : priceInputStr(priceNum(p.consultation_price));
+  const r = parsePrice(raw);
+  if(!r.ok){
+    priceMsgs[id] = { kind:'err', text: r.empty ? 'Digite o valor ou use “Limpar valor”.' : PRICE_TXT_INVALID };
+    renderPriceCard();
+    return;
+  }
+  const ok = await priceCommit(id, id, 'PATCH', `/api/professionals/${encodeURIComponent(id)}`, { consultation_price: r.value }, `Valor de ${p.name} salvo.`);
+  if(ok){ delete priceDraft.prof[id]; renderPriceCard(); }
+}
+
+async function priceClearProf(id){
+  if(priceBusy || !priceState || priceState.mode !== 'profissional') return;
+  const p = profissionais.find(x => x.id === id);
+  if(!p || p.role === 'colaborador') return;
+  const stored = priceNum(p.consultation_price);
+  if(stored === null) return;
+  const yes = await confirmDialog({
+    titleId: 'price-dlg-title',
+    titleHtml: `Limpar o valor de ${apuEsc(p.name)}?`,
+    bodyHtml: `<div style="font-size:13px;color:var(--ink);line-height:1.5">O valor guardado (${apuEsc(priceShow(stored))}) será removido e não poderá ser recuperado. Até você cadastrar outro, o agente diz que o valor é tratado direto com a clínica.</div>`,
+    confirmLabel: 'Limpar valor',
+    confirmCls: 'btn-accent',
+  });
+  if(!yes) return;
+  const ok = await priceCommit(id, id, 'PATCH', `/api/professionals/${encodeURIComponent(id)}`, { consultation_price: null }, `Valor de ${p.name} removido.`);
+  if(ok){ delete priceDraft.prof[id]; renderPriceCard(); }
 }
 
 // ── PEDIDOS DE MUDANÇA DE FRANQUIA (cliente → plataforma) ──
@@ -4018,19 +4462,21 @@ function heldToggleConversation(id){
 function heldFixSet(id, field, v){ if(heldFix[id]) heldFix[id][field] = v; }
 function heldFixCancel(id){ delete heldFix[id]; renderHeld(); }
 
-// Diálogo próprio (não o confirm() nativo, que o navegador pode suprimir): nome, ação, Confirmar / Voltar.
-function heldConfirmDialog(it, def){
+// Diálogo próprio (não o confirm() nativo, que o navegador pode suprimir): título, corpo, Confirmar / Voltar.
+// Genérico: heldConfirmDialog (retenções) e o cartão "Valor da consulta" usam o mesmo.
+// opt: { titleId, titleHtml, bodyHtml, confirmLabel, confirmCls, backLabel, boxExtraStyle } (HTML já escapado por quem chama).
+function confirmDialog(opt){
+  const o = Object.assign({ titleId:'dlg-title', confirmLabel:'Confirmar', confirmCls:'btn-green', backLabel:'Voltar', boxExtraStyle:'' }, opt);
   return new Promise(resolve => {
     const prev = document.activeElement;
     const ov = document.createElement('div');
     ov.setAttribute('style', 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px');
-    ov.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="held-dlg-title" style="background:var(--card);border-radius:12px;padding:20px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:12px">
-      <div id="held-dlg-title" style="font-size:15px;font-weight:700;color:var(--ink)">${apuEsc(def.label)}?</div>
-      <div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Nome informado:</span> ${apuEsc(it.customer_name_given || '—')}</div>
-      <div style="font-size:13px;color:var(--ink);line-height:1.5">${apuEsc(def.ask)}</div>
+    ov.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="${o.titleId}" style="background:var(--card);border-radius:12px;padding:20px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:12px${o.boxExtraStyle}">
+      <div id="${o.titleId}" style="font-size:15px;font-weight:700;color:var(--ink)">${o.titleHtml}</div>
+      ${o.bodyHtml}
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-        <button type="button" class="btn btn-ghost" data-r="0">Voltar</button>
-        <button type="button" class="btn btn-green" data-r="1">Confirmar</button>
+        <button type="button" class="btn btn-ghost" data-r="0">${o.backLabel}</button>
+        <button type="button" class="btn ${o.confirmCls}" data-r="1">${o.confirmLabel}</button>
       </div></div>`;
     const done = v => { document.removeEventListener('keydown', onKey, true); ov.remove(); try{ prev && prev.focus && prev.focus(); }catch(e){} resolve(v); };
     const onKey = e => { if(e.key === 'Escape'){ e.preventDefault(); done(false); } };
@@ -4038,6 +4484,16 @@ function heldConfirmDialog(it, def){
     document.addEventListener('keydown', onKey, true);
     document.body.appendChild(ov);
     ov.querySelector('button[data-r="0"]').focus();
+  });
+}
+
+// Retenções: nome, ação, Confirmar / Voltar (mesmo HTML de antes, agora montado por confirmDialog).
+function heldConfirmDialog(it, def){
+  return confirmDialog({
+    titleId: 'held-dlg-title',
+    titleHtml: `${apuEsc(def.label)}?`,
+    bodyHtml: `<div style="font-size:13px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Nome informado:</span> ${apuEsc(it.customer_name_given || '—')}</div>
+      <div style="font-size:13px;color:var(--ink);line-height:1.5">${apuEsc(def.ask)}</div>`,
   });
 }
 
