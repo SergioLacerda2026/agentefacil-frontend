@@ -164,6 +164,9 @@ button.st-btn{cursor:pointer}
 .pc-err{font-size:13px;font-weight:600;color:#991B1B;background:var(--red-l);border-radius:8px;padding:8px 10px;margin-top:8px}
 .pc-ok{font-size:12px;font-weight:600;color:#065F46;margin-top:6px}
 .pc-prof-name{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.pc-ic{width:16px;height:16px;vertical-align:-3px;margin-right:5px;color:var(--ink2)}
+.pc-ready{flex:1 1 100%;font-size:13px;font-weight:700;color:var(--ink)}
+.pc-btn:disabled{opacity:.55;cursor:not-allowed}
 .ho-conclude{border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .ho-conclude-title{font-size:12px;font-weight:700;color:var(--ink)}
 .ho-opts{display:flex;flex-direction:column;gap:4px}
@@ -826,6 +829,16 @@ label.field-label{display:block}
                   <option value="profissional" selected>Profissional</option>
                   <option value="colaborador">Colaborador</option>
                 </select>
+              </div>
+              <div class="field-group" id="prof-price-group" style="display:none">
+                <label class="field-label" for="prof-price"><svg class="pc-ic ic-line" aria-hidden="true"><use href="#ic-precos"/></svg>Valor da consulta (R$)</label>
+                <div id="prof-price-input-box">
+                  <input class="field" id="prof-price" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" oninput="validateProfForm()" aria-describedby="prof-price-hint prof-price-prev err-prof-price">
+                  <div class="pc-guard" id="prof-price-hint">Obrigatório: quem atende pela agenda precisa ter valor. Use 0 para consulta gratuita.</div>
+                  <div class="pc-prev" id="prof-price-prev"></div>
+                  <div class="field-error" id="err-prof-price"></div>
+                </div>
+                <div class="pc-guard" id="prof-price-ro" style="display:none"></div>
               </div>
               <div class="field-group">
                 <div class="field-label">E-mail de login</div>
@@ -1978,7 +1991,9 @@ async function submitCompleteProfile(){
     });
     const data = await res.json();
     if(!res.ok){
-      setFormAlert('cp-form-alert', data.error || 'Não foi possível salvar.', 'error');
+      // Profissional comum não define valor (só o administrador): aqui só a explicação do 400 valor_obrigatorio.
+      const msg = data.code === 'valor_obrigatorio' ? '⚠ ' + priceCodeText('valor_obrigatorio', 'comum') : (data.error || 'Não foi possível salvar.');
+      setFormAlert('cp-form-alert', msg, 'error');
       return;
     }
     await loadCurrentUser();
@@ -3493,6 +3508,29 @@ async function saveProf(id){
   };
   if(currentUser.role === 'admin') payload.permissao = p.permissao;
 
+  // Valor da consulta (só administrador, modo 'profissional', quem não é colaborador): vai junto dos outros campos,
+  // e só se mudou. Quem já tem valor não pode esvaziar o campo (não existe "limpar"); sem valor guardado e campo
+  // vazio, nada é enviado (legado agendável sem valor não trava as outras alterações; o backend recusa se a
+  // pessoa passar a ser agendável sem valor).
+  const priceEl = document.getElementById(`prof-price-${id}`);
+  const hadPriceField = !!(currentUser.role === 'admin' && priceEl && priceState && !priceState.pending && priceState.mode === 'profissional' && p.role !== 'colaborador');
+  if(hadPriceField){
+    profPriceMsg(id, '');
+    const pr = parsePrice(priceEl.value);
+    const stored = priceNum(p.consultation_price);
+    if(pr.empty && stored !== null){
+      profPriceMsg(id, `O valor da consulta não pode ficar vazio. Digite um valor (0 para consulta gratuita) ou volte ao valor anterior (${priceShow(stored)}).`);
+      priceEl.focus();
+      return;
+    }
+    if(!pr.ok && !pr.empty){
+      profPriceMsg(id, PRICE_TXT_INVALID);
+      priceEl.focus();
+      return;
+    }
+    if(pr.ok && (stored === null || pr.value !== stored)) payload.consultation_price = pr.value;
+  }
+
   try{
     const res = await apiFetch(`/api/professionals/${id}`, {
       method:'PATCH',
@@ -3500,8 +3538,21 @@ async function saveProf(id){
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-    if(!res.ok){ showToast(`⚠ ${data.error||'Não foi possível salvar.'}`, 7000); return; }
+    if(!res.ok){
+      const code = typeof data.code === 'string' ? data.code : '';
+      if(PRICE_FICHA_CODES.includes(code)){
+        const txt = priceCodeText(code, currentUser.role === 'admin' ? 'ficha' : 'comum', data);
+        // Só relê se o painel estava com o modo desatualizado (sem campo de valor e o servidor exigiu, ou o servidor
+        // está no modo clínica). Reler à toa descartaria os dias de atendimento marcados e ainda não salvos.
+        if((code === 'valor_obrigatorio' && !hadPriceField) || code === 'valor_da_clinica_ativo') await loadProfessionalsFromServer();
+        if(!profPriceMsg(id, txt)) showToast(`⚠ ${txt}`, 7000);
+        return;
+      }
+      showToast(`⚠ ${data.error||'Não foi possível salvar.'}`, 7000);
+      return;
+    }
     await loadProfessionalsFromServer();
+    selectProf(id);   // reflete o valor e o aviso "Sem valor" vindos do servidor
     showToast(`✓ ${p.name} atualizado com sucesso!`);
   }catch(e){
     console.error('[saveProf] erro:', e);
@@ -3547,9 +3598,13 @@ async function removeProf(id){
 // ── VALOR DA CONSULTA (cartão na aba Profissionais, só administrador) ──
 // O administrador escolhe UM modo: 'clinica' (um valor para todos), 'profissional' (cada um o seu) ou
 // 'nao_informa' (o agente não informa). Enquanto não escolher (mode null) o agente também não informa.
-// Só o campo do modo ativo é editável; os demais continuam visíveis e desabilitados, com o valor guardado.
-// Todo o envio de valor passa por priceCommit (PUT /api/consultation-price ou PATCH {consultation_price});
-// saveProf, toggleAtivo e submitCompleteProfile NUNCA enviam consultation_price (403 somente_admin).
+// O cartão tem a escolha do modo, o valor único da clínica e um resumo de quem está sem valor. O valor de cada
+// profissional é digitado na inclusão (formulário), na ficha (saveProf) e, na troca para 'profissional', no próprio
+// seletor de modo (professional_prices, junto do modo, numa única chamada atômica do backend).
+// "Agendável" é definição do backend: o painel só lê requires_price, consultation_price_missing e
+// professionals_without_price; nunca recalcula esse critério.
+// Gravação: priceCommit (PUT /api/consultation-price), saveProf (PATCH consultation_price, só administrador) e
+// submitAddProf (POST). submitCompleteProfile (profissional comum) NUNCA envia valor (403 somente_admin).
 // O cartão só existe se a raiz do GET /api/professionals trouxer consultation_price_mode (pode ser null).
 const PRICE_MODE_KEYS = ['clinica', 'profissional', 'nao_informa'];
 const PRICE_MODES = {
@@ -3567,11 +3622,23 @@ const PRICE_MSG = {
   modo_invalido:         'Escolha uma das três opções.',
   valor_obrigatorio:     'Para usar o valor único da clínica, digite o valor da consulta.',
   colaborador_sem_valor: 'Colaboradores não têm valor de consulta.',
-  migracao_pendente:     'Este recurso está sendo ativado. Tente de novo em alguns minutos.',
+  migracao_pendente:     'O recurso de valor por profissional ainda está sendo ativado no sistema. Nada foi alterado. Tente de novo em alguns minutos ou fale com o suporte.',
+  conflito_tente_novamente: 'Outra alteração do valor da consulta estava em andamento. Nada foi alterado. Tente de novo em instantes.',
+  profissional_invalido: 'Algum profissional da lista está inativo ou não existe mais. A tela foi atualizada: confira e tente de novo.',
   dados_invalidos:       'Não foi possível salvar. Confira os dados e tente de novo.',
 };
+// 400 valor_obrigatorio muda de texto conforme quem pediu (o código é o mesmo; o contexto vem de quem chama).
+const PRICE_VALOR_OBRIGATORIO = {
+  inclusao: 'Informe o valor da consulta deste profissional. No modo “Cada profissional com o seu valor”, quem atende pela agenda precisa ter valor (0 para consulta gratuita). O profissional não foi cadastrado.',
+  ficha:    'Informe o valor da consulta. No modo “Cada profissional com o seu valor”, quem atende pela agenda precisa ter valor (0 para consulta gratuita). Nada foi salvo.',
+  comum:    'O administrador precisa definir o valor da sua consulta antes de você concluir o cadastro. Peça a ele para informar o valor na aba Profissionais e tente de novo.',
+};
+const PRICE_ADD_CODES   = ['valor_obrigatorio', 'valor_invalido', 'colaborador_sem_valor', 'migracao_pendente', 'conflito_tente_novamente'];
+const PRICE_FICHA_CODES = ['valor_obrigatorio', 'valor_invalido', 'valor_da_clinica_ativo', 'colaborador_sem_valor', 'somente_admin', 'migracao_pendente', 'conflito_tente_novamente'];
 let priceState = null;            // { mode, pending, clinic, without } ou null (cartão escondido)
-let priceDraft = { clinic: undefined, chooserClinic: '', prof: {} };   // texto digitado e ainda não salvo
+// Texto digitado e ainda não salvo: valor da clínica, valor da clínica no seletor, valores por profissional no seletor
+// (id → texto) e ids que o servidor apontou como sem valor (409).
+let priceDraft = { clinic: undefined, chooserClinic: '', chooserProf: {}, serverMissing: null };
 let priceChoice = null;           // opção marcada no seletor de modo (ainda não salva)
 let priceChooserOpen = false;
 let priceBusy = false;
@@ -3615,7 +3682,7 @@ function pricePreview(text){
 
 function priceReset(){
   priceState = null;
-  priceDraft = { clinic: undefined, chooserClinic: '', prof: {} };
+  priceDraft = { clinic: undefined, chooserClinic: '', chooserProf: {}, serverMissing: null };
   priceChoice = null; priceChooserOpen = false; priceBusy = false; priceMsgs = {};
   renderPriceCard();
 }
@@ -3629,47 +3696,76 @@ function priceApplyServer(data){
   }
   const mode = PRICE_MODE_KEYS.includes(data.consultation_price_mode) ? data.consultation_price_mode : null;
   const wo = Number(data.professionals_without_price);
-  if(priceState && priceState.mode !== mode) priceDraft = { clinic: undefined, chooserClinic: priceDraft.chooserClinic, prof: {} };   // rascunho de outro modo não vale mais
+  const modeChanged = !priceState || priceState.mode !== mode;
+  if(priceState && priceState.mode !== mode){   // rascunho e avisos do modo anterior não valem mais
+    priceDraft = { clinic: undefined, chooserClinic: priceDraft.chooserClinic, chooserProf: {}, serverMissing: null };
+    priceMsgs = {};
+  }
   priceState = {
     mode,
     pending: data.consultation_price_mode_pending === true || mode === null,
     clinic: priceNum(data.default_consultation_price),
     without: Number.isInteger(wo) && wo > 0 ? wo : 0,
   };
+  // A contagem do resumo é do backend e a lista vem das flags de cada profissional: saem da mesma definição.
+  if(mode === 'profissional' && priceState.without !== priceMissing().length){
+    console.warn('[valor da consulta] professionals_without_price difere da lista de consultation_price_missing', priceState.without, priceMissing().length);
+  }
   renderPriceCard();
+  if(modeChanged && selectedProfId) rerenderProfDetail();   // o campo de valor da ficha depende do modo
 }
 
-// O que vale para este profissional agora, em texto (vem do servidor: effective + source).
-function priceEffText(p){
-  const st = priceState;
-  if(!st || st.pending) return 'Modo de valor ainda não escolhido: o agente não informa valor';
-  if(st.mode === 'nao_informa') return 'O agente não informa valor';
-  const ef = priceNum(p.consultation_price_effective);
-  if(ef === null) return 'Sem valor: o agente diz que o valor é tratado direto com a clínica';
-  return `${priceShow(ef)} (${p.consultation_price_source === 'clinica' ? 'valor da clínica' : 'valor próprio'})`;
-}
+// Quem atende pela agenda (requires_price) e quem está sem valor (consultation_price_missing): flags do backend,
+// só para o administrador. O painel não recalcula "agendável".
+function priceBookable(){ return profissionais.filter(p => p.requires_price === true); }
+function priceMissing(){ return profissionais.filter(p => p.consultation_price_missing === true); }
+function priceWhoText(list){ return list.map(p => p.name + (p.especialidade ? ` (${p.especialidade})` : '')).join(', '); }
 
 function priceListTag(p){
   const st = priceState;
   if(!st || st.pending || p.role === 'colaborador' || (st.mode !== 'clinica' && st.mode !== 'profissional')) return '';
   const ef = priceNum(p.consultation_price_effective);
-  return ` · ${ef === null ? '⚠ Sem valor' : apuEsc(priceShow(ef))}`;
+  if(ef !== null) return ` · ${apuEsc(priceShow(ef))}`;
+  // Modo profissional: o aviso é só de quem o backend marca como sem valor; quem ainda não atende pela agenda não é exigido.
+  return st.mode === 'profissional' && !p.consultation_price_missing ? '' : ' · ⚠ Sem valor';
 }
 
+// Campo de valor na ficha (só administrador; colaborador não tem). Modo 'profissional': campo editável, salvo junto
+// com o resto em saveProf; em branco quando não há valor guardado. Modo 'clinica': só leitura. Demais modos: nada.
 function priceDetailBlock(p){
-  if(!priceState || p.role === 'colaborador') return '';
-  return `<div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Valor da consulta</div>
-        <div id="prof-price-line-${apuEsc(p.id)}" style="font-size:13px;color:var(--ink);font-weight:500">${apuEsc(priceEffText(p))}</div>
+  const st = priceState;
+  if(!st || st.pending || p.role === 'colaborador' || (st.mode !== 'clinica' && st.mode !== 'profissional')) return '';
+  const lblStyle = 'display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px';
+  const icon = '<svg class="pc-ic ic-line" aria-hidden="true"><use href="#ic-precos"/></svg>';
+  if(st.mode === 'clinica'){
+    return `<div>
+        <div style="${lblStyle}">${icon}Valor da consulta</div>
+        <div style="font-size:13px;color:var(--ink);font-weight:500">${st.clinic !== null ? 'Valor da clínica: ' + apuEsc(priceShow(st.clinic)) + ' (vale para todos; só leitura)' : 'O valor único da clínica ainda não está definido (só leitura)'}</div>
         <div class="field-hint">Para alterar, use o cartão “Valor da consulta” no topo desta aba.</div>
+      </div>`;
+  }
+  const id = apuEsc(p.id);
+  return `<div>
+        <label for="prof-price-${id}" style="${lblStyle}">${icon}Valor da consulta (R$)</label>
+        ${p.consultation_price_missing ? '<div class="pc-note warn" role="status">⚠ Sem valor: obrigatório para quem atende pela agenda.</div>' : ''}
+        <input id="prof-price-${id}" class="pc-input" style="width:100%" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" value="${apuEsc(priceInputStr(priceNum(p.consultation_price)))}" aria-describedby="prof-price-hint-${id} prof-price-prev-${id}" oninput="priceFichaInput(${convJsArg(p.id)}, this.value)">
+        <div class="pc-guard" id="prof-price-hint-${id}">Obrigatório para quem atende pela agenda. Use 0 para consulta gratuita.</div>
+        <div class="pc-prev" id="prof-price-prev-${id}"></div>
+        <div id="prof-price-msg-${id}"></div>
       </div>`;
 }
 
-function priceRefreshDetailLine(){
-  if(!selectedProfId) return;
-  const el = document.getElementById('prof-price-line-' + selectedProfId);
-  const p = profissionais.find(x => x.id === selectedProfId);
-  if(el && p) el.textContent = priceEffText(p);
+function priceFichaInput(id, v){
+  priceSetPrev('prof-price-prev-' + id, pricePreview(v));
+  profPriceMsg(id, '');
+}
+
+// Mensagem de erro fixa (texto + ⚠) logo abaixo do campo de valor da ficha. false se a ficha não está na tela.
+function profPriceMsg(id, text){
+  const el = document.getElementById('prof-price-msg-' + id);
+  if(!el) return false;
+  el.innerHTML = text ? `<div class="pc-err" role="alert">⚠ ${apuEsc(text)}</div>` : '';
+  return true;
 }
 
 function priceMsgHtml(scope){
@@ -3680,10 +3776,48 @@ function priceMsgHtml(scope){
     : `<div class="pc-ok" role="status">✓ ${apuEsc(m.text)}</div>`;
 }
 
+// Troca para 'profissional': um campo para CADA profissional que atende pela agenda (requires_price), em branco
+// quando não há valor guardado e preenchido com o guardado quando há. Só habilita "Aplicar escolha" com todos válidos.
+function priceChooserProfText(p){
+  const d = priceDraft.chooserProf[p.id];
+  return d !== undefined ? d : priceInputStr(priceNum(p.consultation_price));
+}
+function priceChooserReady(){
+  const list = priceBookable();
+  const ok = list.filter(p => parsePrice(priceChooserProfText(p)).ok).length;
+  return { total: list.length, ok, all: ok === list.length };
+}
+function priceChooserReadyText(){
+  const r = priceChooserReady();
+  return r.all ? '✔ Todos os valores preenchidos' : `⚠ Faltam ${r.total - r.ok} de ${r.total} valores`;
+}
+
+function priceChooserProfHtml(dis){
+  const list = priceBookable();
+  if(!list.length) return `<div class="pc-guard">Nenhum profissional atende pela agenda agora, então não há valores a informar. Quem for cadastrado depois precisará ter valor.</div>`;
+  const semValor = list.filter(p => priceNum(p.consultation_price) === null).length;
+  let h = semValor
+    ? `<div class="pc-note warn" style="margin-top:8px">⚠ Antes de trocar: quem atende pela agenda precisa ter valor. ${semValor} de ${list.length} ${semValor === 1 ? 'está sem valor' : 'estão sem valor'}. Confira o valor de cada um abaixo e digite os que estão em branco (use 0 para consulta gratuita).</div>`
+    : `<div class="pc-note" style="margin-top:8px">✔ Todos os profissionais que atendem pela agenda já têm valor guardado. Confira abaixo; você pode alterar antes de aplicar.</div>`;
+  list.forEach(p => {
+    const id = p.id, stored = priceNum(p.consultation_price), text = priceChooserProfText(p);
+    const srv = priceDraft.serverMissing && priceDraft.serverMissing.has(id);
+    h += `<div class="pc-block">
+      <label class="pc-prof-name" for="pc-cp-${apuEsc(id)}">${apuEsc(p.name)}${p.especialidade ? ' — ' + apuEsc(p.especialidade) : ''}${stored === null ? '<span class="pc-tag">⚠ Sem valor guardado</span>' : '<span class="pc-tag">✔ Valor guardado</span>'}${srv ? '<span class="pc-tag">⚠ O servidor aponta: falta o valor</span>' : ''}</label>
+      <input id="pc-cp-${apuEsc(id)}" class="pc-input" style="width:100%" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" value="${apuEsc(text)}"${dis} aria-describedby="pc-cp-prev-${apuEsc(id)}" oninput="priceChooserProfInput(${convJsArg(id)}, this.value)">
+      <div class="pc-prev" id="pc-cp-prev-${apuEsc(id)}">${apuEsc(pricePreview(text))}</div>
+    </div>`;
+  });
+  return h;
+}
+
 function priceChooserHtml(){
   const st = priceState;
   const sel = priceChoice !== null ? priceChoice : (st.pending ? null : st.mode);
   const dis = priceBusy ? ' disabled' : '';
+  const activeProf = !st.pending && st.mode === 'profissional';
+  const needVals = sel === 'profissional' && !activeProf && priceBookable().length > 0;
+  const blocked = needVals && !priceChooserReady().all;
   let h = `<div class="pc-label" id="pc-chooser-title">Como o agente deve tratar o valor da consulta?</div><div role="radiogroup" aria-labelledby="pc-chooser-title">`;
   PRICE_MODE_KEYS.forEach(k => {
     const m = PRICE_MODES[k];
@@ -3695,6 +3829,8 @@ function priceChooserHtml(){
         : `<div style="margin-top:8px"><label class="pc-label" for="pc-chooser-clinic">Valor da consulta (obrigatório)</label>
             <input id="pc-chooser-clinic" class="pc-input" style="width:100%" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" value="${apuEsc(priceDraft.chooserClinic)}"${dis} oninput="priceChooserClinicInput(this.value)">
             <div class="pc-prev" id="pc-prev-chooser">${apuEsc(pricePreview(priceDraft.chooserClinic))}</div></div>`;
+    }else if(k === 'profissional' && sel === 'profissional' && !activeProf){
+      extra = priceChooserProfHtml(dis);
     }
     h += `<div class="hc-opt${sel === k ? ' on' : ''}">
       <label class="hc-opt-label" style="min-height:44px"><input type="radio" id="pc-opt-${k}" name="pc-mode" value="${k}"${sel === k ? ' checked' : ''}${dis} onchange="pricePick('${k}')"><span><b>${apuEsc(m.label)}</b>${active ? '<span class="pc-tag">✔ Ativo agora</span>' : ''}<span class="hc-opt-sub">${apuEsc(m.sub)}</span></span></label>
@@ -3703,8 +3839,9 @@ function priceChooserHtml(){
   });
   h += `</div>${priceMsgHtml('chooser')}
     <div class="hc-actions">
-      <button type="button" class="btn btn-accent pc-btn" onclick="priceApplyMode()"${dis}>${priceBusy ? 'Salvando…' : (st.pending ? 'Salvar escolha' : 'Aplicar escolha')}</button>
+      <button type="button" id="pc-apply" class="btn btn-accent pc-btn" onclick="priceApplyMode()"${dis}${blocked ? ' disabled' : ''}${needVals ? ' aria-describedby="pc-ready"' : ''}>${priceBusy ? 'Salvando…' : (st.pending ? 'Salvar escolha' : 'Aplicar escolha')}</button>
       ${st.pending ? '' : `<button type="button" class="btn btn-ghost pc-btn" onclick="priceCancelChooser()"${dis}>Cancelar</button>`}
+      ${needVals ? `<span id="pc-ready" class="pc-ready" role="status">${apuEsc(priceChooserReadyText())}</span>` : ''}
     </div>`;
   return h;
 }
@@ -3718,56 +3855,34 @@ function priceCardHtml(){
     h += `<div class="pc-note warn">⚠ Escolha como o agente deve tratar o valor da consulta. Enquanto isso, se o paciente perguntar, o agente diz que o valor é tratado direto com a clínica.</div>`;
   }else if(mode === 'nao_informa'){
     h += `<div class="pc-note">O agente não informa o valor da consulta. Se o paciente perguntar, ele diz que o valor é tratado direto com a clínica.</div>`;
-  }else if(mode === 'profissional' && st.without > 0){
-    h += `<div class="pc-note warn">⚠ ${st.without === 1
-      ? '1 profissional sem valor cadastrado: para esse, o agente diz que o valor é tratado direto com a clínica.'
-      : st.without + ' profissionais sem valor cadastrado: para esses, o agente diz que o valor é tratado direto com a clínica.'}</div>`;
+  }else if(mode === 'profissional'){
+    if(st.without > 0){
+      const who = priceWhoText(priceMissing());
+      h += `<div class="pc-note warn">⚠ ${st.without === 1 ? '1 profissional sem valor' : st.without + ' profissionais sem valor'}${who ? ': ' + apuEsc(who) : ''}. Quem atende pela agenda precisa ter valor: abra a ficha do profissional na lista abaixo e informe. Até lá, para ${st.without === 1 ? 'esse profissional' : 'esses profissionais'}, o agente diz que o valor é tratado direto com a clínica.</div>`;
+    }else{
+      h += `<div class="pc-note">✔ Todos os profissionais que atendem pela agenda têm valor.</div>`;
+    }
   }
   h += `<div class="pc-note">O agente só informa o valor da consulta quando o paciente pergunta, e usa apenas o valor cadastrado aqui. Preço escrito na Base de Conhecimento não é usado para o valor da consulta.</div>`;
 
   if(st.pending || priceChooserOpen) h += priceChooserHtml();
   else h += `<button type="button" class="btn btn-ghost pc-btn" onclick="priceOpenChooser()"${dis}>Trocar de modo</button>`;
 
-  // Valor único da clínica
+  // Valor único da clínica. "Salvar valor" só aparece com alteração ainda não salva.
   const cOn = mode === 'clinica';
   const cDraft = cOn ? priceDraft.clinic : undefined;     // campo desabilitado mostra sempre o valor guardado
   const cVal = cDraft !== undefined ? cDraft : priceInputStr(st.clinic);
-  const cPrev = cDraft !== undefined
-    ? pricePreview(priceDraft.clinic)
-    : (st.clinic !== null ? `Vale agora para todos: ${priceShow(st.clinic)}` : 'Sem valor: digite o valor e salve.');
+  const cDirty = cOn && cDraft !== undefined && cDraft !== priceInputStr(st.clinic);
   h += `<div class="pc-block${cOn ? '' : ' off'}" style="margin-top:14px">
     <label class="pc-label" for="pc-clinic">Valor único da clínica<span class="pc-tag">${cOn ? '✔ Pode editar agora' : '🔒 Desabilitado'}</span></label>
     <div class="pc-row">
       <input id="pc-clinic" class="pc-input" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" value="${apuEsc(cVal)}"${cOn && !priceBusy ? '' : ' disabled'} oninput="priceClinicInput(this.value)">
-      ${cOn ? `<button type="button" class="btn btn-accent pc-btn" onclick="priceSaveClinic()"${dis}>${priceBusy ? 'Salvando…' : 'Salvar valor'}</button>` : ''}
+      ${cOn ? `<button type="button" id="pc-clinic-save" class="btn btn-accent pc-btn" onclick="priceSaveClinic()"${dis}${cDirty ? '' : ' style="display:none"'}>${priceBusy ? 'Salvando…' : 'Salvar valor'}</button>` : ''}
     </div>
-    ${cOn ? `<div class="pc-prev" id="pc-prev-clinic">${apuEsc(cPrev)}</div>`
+    ${cOn ? `<div class="pc-prev" id="pc-prev-clinic">${apuEsc(priceClinicPrev(cVal))}</div>`
           : `<div class="pc-guard">${st.clinic !== null ? 'Guardado, não está valendo agora.' : 'Nenhum valor guardado.'} Para editar, troque o modo para “${apuEsc(PRICE_MODES.clinica.label)}”.</div>`}
     ${priceMsgHtml('clinica')}
   </div>`;
-
-  // Valores individuais (administrador entra; colaborador não)
-  const pOn = mode === 'profissional';
-  const lista = profissionais.filter(p => p.role !== 'colaborador');
-  h += `<div class="pc-label" style="margin-top:14px">Valores de cada profissional<span class="pc-tag">${pOn ? '✔ Pode editar agora' : '🔒 Desabilitado'}</span></div>`;
-  if(!lista.length) h += `<div class="pc-guard">Nenhum profissional cadastrado ainda.</div>`;
-  lista.forEach(p => {
-    const id = p.id, stored = priceNum(p.consultation_price);
-    const draft = pOn ? priceDraft.prof[id] : undefined;
-    const val =draft !== undefined ? draft : priceInputStr(stored);
-    const ctrl = pOn && !priceBusy;
-    h += `<div class="pc-block${pOn ? '' : ' off'}">
-      <label class="pc-prof-name" for="pc-prof-${apuEsc(id)}">${apuEsc(p.name)}${p.role === 'admin' ? ' 👑' : ''}${p.active ? '' : '<span class="pc-tag">Inativo</span>'}</label>
-      <div class="pc-row">
-        <input id="pc-prof-${apuEsc(id)}" class="pc-input" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" value="${apuEsc(val)}"${ctrl ? '' : ' disabled'} oninput="priceProfInput(${convJsArg(id)}, this.value)">
-        ${pOn ? `<button type="button" class="btn btn-accent pc-btn" onclick="priceSaveProf(${convJsArg(id)})"${dis}>Salvar valor</button>
-          ${stored !== null ? `<button type="button" class="btn btn-ghost pc-btn" onclick="priceClearProf(${convJsArg(id)})"${dis}>Limpar valor</button>` : ''}` : ''}
-      </div>
-      ${pOn ? `<div class="pc-prev" id="pc-prev-${apuEsc(id)}">${apuEsc(draft !== undefined ? pricePreview(draft) : 'Vale agora: ' + priceEffText(p))}</div>`
-            : `<div class="pc-guard">${stored !== null ? 'Guardado, não está valendo agora.' : 'Nenhum valor guardado.'}</div>`}
-      ${priceMsgHtml(id)}
-    </div>`;
-  });
   return h;
 }
 
@@ -3780,7 +3895,7 @@ function renderPriceCard(){
   const on = !!priceState;
   card.style.display = on ? '' : 'none';
   if(kb) kb.style.display = on ? '' : 'none';
-  if(!on){ body.innerHTML = ''; return; }
+  if(!on){ body.innerHTML = ''; updateAddProfPrice(); return; }
   const ae = document.activeElement;
   const focusId = ae && ae.id && body.contains(ae) ? ae.id : null;
   let ss = null, se = null;
@@ -3793,18 +3908,18 @@ function renderPriceCard(){
       try{ if(ss != null && el.setSelectionRange) el.setSelectionRange(ss, se); }catch(e){}
     }
   }
-  priceRefreshDetailLine();
+  updateAddProfPrice();   // o campo de valor do formulário de inclusão segue o modo
 }
 
 function priceOpenChooser(){
   if(priceBusy) return;
-  priceChooserOpen = true; priceChoice = null; priceDraft.chooserClinic = '';
+  priceChooserOpen = true; priceChoice = null; priceDraft.chooserClinic = ''; priceDraft.chooserProf = {}; priceDraft.serverMissing = null;
   delete priceMsgs.chooser; delete priceMsgs.top;
   renderPriceCard();
 }
 function priceCancelChooser(){
   if(priceBusy) return;
-  priceChooserOpen = false; priceChoice = null; priceDraft.chooserClinic = '';
+  priceChooserOpen = false; priceChoice = null; priceDraft.chooserClinic = ''; priceDraft.chooserProf = {}; priceDraft.serverMissing = null;
   delete priceMsgs.chooser;
   renderPriceCard();
 }
@@ -3816,19 +3931,60 @@ function pricePick(k){
 }
 function priceSetPrev(id, text){ const el = document.getElementById(id); if(el) el.textContent = text; }
 function priceChooserClinicInput(v){ priceDraft.chooserClinic = v; priceSetPrev('pc-prev-chooser', pricePreview(v)); }
-function priceClinicInput(v){ priceDraft.clinic = v; priceSetPrev('pc-prev-clinic', pricePreview(v)); }
-function priceProfInput(id, v){ priceDraft.prof[id] = v; priceSetPrev('pc-prev-' + id, pricePreview(v)); }
+// Texto de apoio do valor da clínica: sem alteração mostra o que vale agora; com alteração, o que será salvo.
+function priceClinicPrev(raw){
+  const st = priceState;
+  if(raw !== priceInputStr(st.clinic)) return pricePreview(raw);
+  return st.clinic !== null ? `Vale agora para todos: ${priceShow(st.clinic)}` : 'Sem valor: digite o valor e salve.';
+}
+function priceClinicInput(v){
+  priceDraft.clinic = v;
+  if(!priceState) return;
+  priceSetPrev('pc-prev-clinic', priceClinicPrev(v));
+  const b = document.getElementById('pc-clinic-save');
+  if(b) b.style.display = v !== priceInputStr(priceState.clinic) ? '' : 'none';
+}
+// Digitação no valor de um profissional dentro do seletor de modo: atualiza só o texto de apoio, o contador
+// ("Faltam N de M valores") e o botão, sem redesenhar o cartão (não perde foco nem cursor).
+function priceChooserProfInput(id, v){
+  priceDraft.chooserProf[id] = v;
+  priceSetPrev('pc-cp-prev-' + id, pricePreview(v));
+  const rd = priceChooserReady();
+  priceSetPrev('pc-ready', priceChooserReadyText());
+  const b = document.getElementById('pc-apply');
+  if(b) b.disabled = priceBusy || !rd.all;
+}
 
-function priceErrText(r){
+// Texto (sem o ⚠, que quem mostra acrescenta) de um código de erro do módulo. `ctx` diz de onde veio o pedido:
+// 'troca' (PUT do modo), 'clinica' (PUT do valor da clínica), 'inclusao' (POST), 'ficha' (PATCH do administrador) ou
+// 'comum' (profissional comum concluindo o próprio cadastro).
+function priceCodeText(code, ctx, data){
+  data = data || {};
+  if(code === 'profissionais_sem_valor'){
+    const list = Array.isArray(data.missing) ? data.missing.map(m => m && m.name ? m.name + (m.especialidade ? ` (${m.especialidade})` : '') : 'um profissional') : [];
+    return `Não foi possível trocar de modo: falta o valor de ${list.length ? list.join(', ') : 'quem atende pela agenda'}. Nada foi alterado. Digite o valor de cada um (use 0 para consulta gratuita) e aplique de novo.`;
+  }
+  if(code === 'valor_obrigatorio'){
+    if(ctx === 'troca' && data.professional_id){
+      const p = profissionais.find(x => x.id === data.professional_id);
+      return `Falta o valor de ${p ? p.name : 'um profissional'}. Digite o valor (0 para consulta gratuita).`;
+    }
+    return PRICE_VALOR_OBRIGATORIO[ctx] || PRICE_MSG.valor_obrigatorio;
+  }
+  return Object.prototype.hasOwnProperty.call(PRICE_MSG, code) ? PRICE_MSG[code] : '';
+}
+
+function priceErrText(r, ctx){
   if(r.net) return 'Não foi possível conectar. O valor não foi alterado.';
   const code = r.data && typeof r.data.code === 'string' ? r.data.code : '';
-  if(Object.prototype.hasOwnProperty.call(PRICE_MSG, code)) return PRICE_MSG[code];
+  const txt = priceCodeText(code, ctx, r.data);
+  if(txt) return txt;
   if(r.res.status === 401) return 'Sua sessão expirou. Entre de novo.';
   return PRICE_TXT_GENERIC;
 }
 
-// Único caminho de gravação de valor/modo. Recarrega o estado do servidor depois (não confia no local).
-async function priceCommit(errScope, okScope, method, path, body, okText){
+// Único caminho de gravação do modo e do valor da clínica. Recarrega o estado do servidor depois (não confia no local).
+async function priceCommit(errScope, okScope, method, path, body, okText, ctx){
   priceBusy = true;
   Object.keys(priceMsgs).forEach(k => { if(priceMsgs[k].kind === 'ok') delete priceMsgs[k]; });
   delete priceMsgs[errScope];
@@ -3844,10 +4000,14 @@ async function priceCommit(errScope, okScope, method, path, body, okText){
     r = { net:true };
   }
   if(r.net || !r.res.ok){
-    priceMsgs[errScope] = { kind:'err', text: priceErrText(r) };
-    if(!r.net && [403, 409, 503].includes(r.res.status)) await loadProfessionalsFromServer();   // a tela estava desatualizada
+    priceMsgs[errScope] = { kind:'err', text: priceErrText(r, ctx) };
+    const code = !r.net && r.data && typeof r.data.code === 'string' ? r.data.code : '';
+    // O servidor diz quem falta: o que já foi digitado fica, e quem falta é apontado em texto.
+    if(code === 'profissionais_sem_valor' && Array.isArray(r.data.missing)) priceDraft.serverMissing = new Set(r.data.missing.map(m => m.id));
+    if(!r.net && ([403, 409, 503].includes(r.res.status) || code === 'profissional_invalido')) await loadProfessionalsFromServer();   // a tela estava desatualizada
   }else{
     ok = true;
+    priceDraft.serverMissing = null;
     await loadProfessionalsFromServer();
     priceMsgs[okScope] = profLoadOk
       ? { kind:'ok', text: okText }
@@ -3859,7 +4019,8 @@ async function priceCommit(errScope, okScope, method, path, body, okText){
   return ok;
 }
 
-function priceConfirmContent(choice, typed){
+// rows: [{ id, name, value }] com todos os valores que serão guardados na troca para 'profissional' (ou null).
+function priceConfirmContent(choice, typed, rows){
   const st = priceState;
   const line = t => `<div style="font-size:13px;color:var(--ink);line-height:1.5">${t}</div>`;
   const L = [];
@@ -3872,8 +4033,10 @@ function priceConfirmContent(choice, typed){
     L.push(line(st.clinic !== null
       ? `O valor da clínica (${apuEsc(priceShow(st.clinic))}) continua guardado, mas fica bloqueado e não vale.`
       : 'Não há valor da clínica guardado.'));
-    const sem = profissionais.filter(p => p.role !== 'colaborador' && p.active && priceNum(p.consultation_price) === null).map(p => apuEsc(p.name));
-    if(sem.length) L.push(line(`<b>Sem valor guardado:</b> ${sem.join(', ')}. Para ${sem.length === 1 ? 'esse profissional' : 'esses profissionais'}, o agente diz que o valor é tratado direto com a clínica.`));
+    if(rows && rows.length){
+      L.push(line('<b>Valores que serão guardados agora:</b>'));
+      L.push(`<ul style="margin:0;padding-left:18px;font-size:13px;color:var(--ink);line-height:1.6">${rows.map(r => `<li>${apuEsc(r.name)} — ${apuEsc(priceShow(r.value))}</li>`).join('')}</ul>`);
+    }
   }else{
     L.push(line('O agente deixa de informar o valor da consulta. Se o paciente perguntar, ele diz que o valor é tratado direto com a clínica.'));
     L.push(line('Os valores guardados (da clínica e dos profissionais) continuam guardados, mas ficam bloqueados.'));
@@ -3897,7 +4060,7 @@ async function priceApplyMode(){
   if(!PRICE_MODE_KEYS.includes(choice)) return fail(PRICE_MSG.modo_invalido);
   if(!st.pending && choice === st.mode) return fail('Este já é o modo ativo. Escolha outro ou toque em Cancelar.');
   const body = { consultation_price_mode: choice };
-  let typed = null;
+  let typed = null, rows = null;
   if(choice === 'clinica' && st.clinic === null){
     const r = parsePrice(priceDraft.chooserClinic);
     if(r.empty) return fail(PRICE_MSG.valor_obrigatorio);
@@ -3905,9 +4068,23 @@ async function priceApplyMode(){
     body.default_consultation_price = r.value;
     typed = r.value;
   }
-  if(!(await confirmDialog(priceConfirmContent(choice, typed)))) return;
-  const ok = await priceCommit('chooser', 'top', 'PUT', '/api/consultation-price', body, `Modo alterado para “${PRICE_MODES[choice].label}”.`);
-  if(ok){ priceChooserOpen = false; priceChoice = null; priceDraft.chooserClinic = ''; renderPriceCard(); }
+  if(choice === 'profissional'){
+    // Todos os que atendem pela agenda, com o valor que está no campo (guardado ou editado). Sem ninguém, a chave não vai.
+    const list = priceBookable();
+    if(list.length){
+      rows = [];
+      for(const p of list){
+        const r = parsePrice(priceChooserProfText(p));
+        if(!r.ok) return fail(r.empty ? priceCodeText('valor_obrigatorio', 'troca', { professional_id: p.id }) : `Valor de ${p.name}: ${PRICE_TXT_INVALID}`);
+        rows.push({ id: p.id, name: p.name, value: r.value });
+      }
+      body.professional_prices = rows.map(x => ({ professional_id: x.id, consultation_price: x.value }));
+    }
+  }
+  if(!(await confirmDialog(priceConfirmContent(choice, typed, rows)))) return;
+  priceDraft.serverMissing = null;
+  const ok = await priceCommit('chooser', 'top', 'PUT', '/api/consultation-price', body, `Modo alterado para “${PRICE_MODES[choice].label}”.`, 'troca');
+  if(ok){ priceChooserOpen = false; priceChoice = null; priceDraft.chooserClinic = ''; priceDraft.chooserProf = {}; priceDraft.serverMissing = null; renderPriceCard(); }
 }
 
 async function priceSaveClinic(){
@@ -3919,41 +4096,8 @@ async function priceSaveClinic(){
     renderPriceCard();
     return;
   }
-  const ok = await priceCommit('clinica', 'clinica', 'PUT', '/api/consultation-price', { default_consultation_price: r.value }, 'Valor da clínica salvo.');
+  const ok = await priceCommit('clinica', 'clinica', 'PUT', '/api/consultation-price', { default_consultation_price: r.value }, 'Valor da clínica salvo.', 'clinica');
   if(ok){ priceDraft.clinic = undefined; renderPriceCard(); }
-}
-
-async function priceSaveProf(id){
-  if(priceBusy || !priceState || priceState.mode !== 'profissional') return;
-  const p = profissionais.find(x => x.id === id);
-  if(!p || p.role === 'colaborador') return;
-  const raw = priceDraft.prof[id] !== undefined ? priceDraft.prof[id] : priceInputStr(priceNum(p.consultation_price));
-  const r = parsePrice(raw);
-  if(!r.ok){
-    priceMsgs[id] = { kind:'err', text: r.empty ? 'Digite o valor ou use “Limpar valor”.' : PRICE_TXT_INVALID };
-    renderPriceCard();
-    return;
-  }
-  const ok = await priceCommit(id, id, 'PATCH', `/api/professionals/${encodeURIComponent(id)}`, { consultation_price: r.value }, `Valor de ${p.name} salvo.`);
-  if(ok){ delete priceDraft.prof[id]; renderPriceCard(); }
-}
-
-async function priceClearProf(id){
-  if(priceBusy || !priceState || priceState.mode !== 'profissional') return;
-  const p = profissionais.find(x => x.id === id);
-  if(!p || p.role === 'colaborador') return;
-  const stored = priceNum(p.consultation_price);
-  if(stored === null) return;
-  const yes = await confirmDialog({
-    titleId: 'price-dlg-title',
-    titleHtml: `Limpar o valor de ${apuEsc(p.name)}?`,
-    bodyHtml: `<div style="font-size:13px;color:var(--ink);line-height:1.5">O valor guardado (${apuEsc(priceShow(stored))}) será removido e não poderá ser recuperado. Até você cadastrar outro, o agente diz que o valor é tratado direto com a clínica.</div>`,
-    confirmLabel: 'Limpar valor',
-    confirmCls: 'btn-accent',
-  });
-  if(!yes) return;
-  const ok = await priceCommit(id, id, 'PATCH', `/api/professionals/${encodeURIComponent(id)}`, { consultation_price: null }, `Valor de ${p.name} removido.`);
-  if(ok){ delete priceDraft.prof[id]; renderPriceCard(); }
 }
 
 // ── PEDIDOS DE MUDANÇA DE FRANQUIA (cliente → plataforma) ──
@@ -4096,6 +4240,59 @@ function updateAddProfGate(focusName){
     if(limitAlert){ limitAlert.style.display = 'none'; limitAlert.innerHTML = ''; }
     if(focusName) document.getElementById('prof-name')?.focus();
   }
+  updateAddProfPrice();
+}
+
+// Valor da consulta no formulário de inclusão, pelo modo escolhido pelo administrador:
+// 'profissional' + papel Profissional → campo obrigatório ('input'); 'clinica' → só leitura ('readonly');
+// nao_informa, escolha pendente, colaborador ou cartão escondido (instalação de vendas) → nada (null).
+function addProfPriceMode(){
+  const st = priceState;
+  const roleEl = document.getElementById('prof-role');
+  const role = roleEl ? roleEl.value : 'profissional';
+  if(!st || st.pending || role === 'colaborador') return null;
+  if(st.mode === 'profissional') return 'input';
+  if(st.mode === 'clinica') return 'readonly';
+  return null;
+}
+
+function updateAddProfPrice(){
+  const grp = document.getElementById('prof-price-group');
+  if(!grp) return;
+  const m = addProfPriceMode();
+  grp.style.display = m ? '' : 'none';
+  const box = document.getElementById('prof-price-input-box');
+  const ro = document.getElementById('prof-price-ro');
+  if(box) box.style.display = m === 'input' ? '' : 'none';
+  if(ro){
+    ro.style.display = m === 'readonly' ? '' : 'none';
+    if(m === 'readonly') ro.textContent = priceState.clinic !== null
+      ? `Valor da consulta: ${priceShow(priceState.clinic)} — valor único da clínica (só leitura).`
+      : 'O valor único da clínica ainda não está definido (só leitura).';
+  }
+  if(m !== 'input'){
+    const el = document.getElementById('prof-price');
+    if(el){ el.value = ''; el.classList.remove('invalid'); }
+  }
+  validateProfForm();
+}
+
+// O valor é obrigatório (0 vale) quando o campo está em uso; fora disso não conta.
+function validateProfPrice(){
+  const input = document.getElementById('prof-price');
+  const errEl = document.getElementById('err-prof-price');
+  const prev = document.getElementById('prof-price-prev');
+  if(!input || addProfPriceMode() !== 'input'){
+    if(errEl) errEl.textContent = '';
+    if(prev) prev.textContent = '';
+    return true;
+  }
+  const r = parsePrice(input.value);
+  const bad = !r.ok && !r.empty;
+  if(errEl) errEl.textContent = bad ? '⚠ ' + PRICE_TXT_INVALID : '';
+  input.classList.toggle('invalid', bad);
+  if(prev) prev.textContent = r.ok ? `Será salvo: ${priceShow(r.value)}` : '';
+  return r.ok;
 }
 
 function hideAddProfForm(){
@@ -4118,8 +4315,10 @@ function resetAddProfForm(){
   if(toggleBtn) toggleBtn.textContent = '👁';
   const roleEl = document.getElementById('prof-role');
   if(roleEl) roleEl.value = 'profissional';
+  const priceEl = document.getElementById('prof-price');
+  if(priceEl){ priceEl.value = ''; priceEl.classList.remove('invalid'); }
   setFormAlert('add-prof-alert', '', '');
-  validateProfForm();
+  updateAddProfPrice();
 }
 
 function validateProfField(field, minLen){
@@ -4145,7 +4344,8 @@ function validateProfForm(){
   const okName = validateProfField('name', 3);
   const okEmail = validateProfField('email');
   const okPwd = validateProfField('password');
-  const allOk = okName && okEmail && okPwd;
+  const okPrice = validateProfPrice();
+  const allOk = okName && okEmail && okPwd && okPrice;
   const btn = document.getElementById('btn-prof-submit');
   if(btn) btn.disabled = !allOk;
   return allOk;
@@ -4159,6 +4359,12 @@ async function submitAddProf(e){
   const password = document.getElementById('prof-password').value;
   const roleEl = document.getElementById('prof-role');
   const role = roleEl ? roleEl.value : 'profissional';
+  const body = { name, email, password, role };
+  if(addProfPriceMode() === 'input'){
+    const pr = parsePrice(document.getElementById('prof-price').value);
+    if(!pr.ok){ validateProfForm(); return; }
+    body.consultation_price = pr.value;   // número, 0 vale; colaborador nunca leva o campo
+  }
   const btn = document.getElementById('btn-prof-submit');
   setFormAlert('add-prof-alert', '', '');
   btn.disabled = true;
@@ -4167,11 +4373,15 @@ async function submitAddProf(e){
     const res = await apiFetch('/api/professionals', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ name, email, password, role })
+      body: JSON.stringify(body)
     });
     const data = await res.json();
     if(!res.ok){
-      setFormAlert('add-prof-alert', data.error || 'Não foi possível criar o profissional.', 'error');
+      const code = typeof data.code === 'string' ? data.code : '';
+      const txt = PRICE_ADD_CODES.includes(code) ? priceCodeText(code, 'inclusao', data) : '';
+      setFormAlert('add-prof-alert', txt ? '⚠ ' + txt : (data.error || 'Não foi possível criar o profissional.'), 'error');
+      // Modo desatualizado (o servidor exigiu valor e o formulário não tinha o campo): relê o modo para o campo aparecer.
+      if(code === 'valor_obrigatorio' && body.consultation_price === undefined) await loadProfessionalsFromServer();
       return;
     }
     await loadProfessionalsFromServer();
