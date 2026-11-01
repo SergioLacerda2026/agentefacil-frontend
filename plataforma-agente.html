@@ -16,6 +16,7 @@
   --amber:#F59E0B;--amber-l:#FFFBEB;
   --red:#EF4444;--red-l:#FEF2F2;
   --sw:240px;
+  --nav-ic:#E8EBEF;--tab-ic:#1E293B;
 }
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink2);display:flex;height:100vh;height:100dvh;overflow:hidden;font-size:14px;overflow-wrap:anywhere}
 #app-shell{display:flex;min-width:0;width:100%}
@@ -32,7 +33,17 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,.55);font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px;position:relative}
 .nav-item:hover{background:rgba(255,255,255,.06);color:#fff}
 .nav-item.active{background:var(--accent);color:#fff}
-.nav-ic{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.nav-item.active::before{content:'';position:absolute;left:0;top:7px;bottom:7px;width:4px;border-radius:0 4px 4px 0;background:#fff}
+.nav-item:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+.nav-ic{width:22px;height:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--nav-ic)}
+.ic-line{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.nav-ic .ic-line{width:22px;height:22px;display:block}
+.nav-ic .ic-ph{width:24px;height:24px;display:block;flex:none}
+.tab-ic{width:20px;height:20px;vertical-align:middle;margin:-3px 5px -3px 0;color:var(--tab-ic);--ph-screen:#EEF2F6;--ph-detail:#8FA0B5}
+.nav-tip{position:fixed;z-index:9997;left:0;top:0;transform:translateY(-50%);background:#1E293B;color:#fff;font-size:12.5px;font-weight:600;line-height:1.3;padding:7px 11px;border-radius:7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.28);pointer-events:none;opacity:0;visibility:hidden;transition:opacity .12s}
+.nav-tip.show{opacity:1;visibility:visible}
+.nav-tip::before{content:'';position:absolute;left:-5px;top:50%;margin-top:-5px;border:5px solid transparent;border-left:0;border-right-color:#1E293B}
+@media(prefers-reduced-motion:reduce){.nav-tip{transition:none}}
 .nav-item[data-view="whatsapp"] .nav-ic{height:20px;display:flex;align-items:center;justify-content:center}
 .nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px}
 .nav-badge.green{background:var(--green)}
@@ -455,6 +466,22 @@ label.field-label{display:block}
 </style>
 </head>
 <body>
+<!-- Ícones do menu lateral e das abas internas: cada desenho é definido só aqui e usado via <use href="#ic-..."> -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="ic-visao" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M8 17v-5"/><path d="M13 17V8"/><path d="M18 17V6"/></symbol>
+<symbol id="ic-conversas" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+<symbol id="ic-conhecimento" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></symbol>
+<symbol id="ic-profissionais" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+<symbol id="ic-config" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="ic-whatsapp" viewBox="0 0 24 24"><g stroke="none"><rect x="6" y="1.5" width="12" height="21" rx="2.8" style="fill:currentColor"/><rect x="7.6" y="4.2" width="8.8" height="14" rx="1" style="fill:var(--ph-screen,#2B3644)"/><circle cx="12" cy="11.2" r="2.7" fill="#25D366"/><rect x="10.2" y="2.7" width="3.6" height="0.8" rx="0.4" style="fill:var(--ph-detail,#9AA3AD)"/><rect x="10.4" y="19.8" width="3.2" height="0.9" rx="0.45" style="fill:var(--ph-detail,#9AA3AD)"/></g></symbol>
+<symbol id="ic-fiscal" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h8"/></symbol>
+<symbol id="ic-testar" viewBox="0 0 24 24"><path d="M21 7 6.82 21.18a2.83 2.83 0 0 1-3.99-.01 2.83 2.83 0 0 1 0-4L17 3"/><path d="m16 2 6 6"/><path d="M12 16H4"/></symbol>
+<symbol id="ic-agendamentos" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></symbol>
+<symbol id="ic-plat-visao" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+<symbol id="ic-clientes" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></symbol>
+<symbol id="ic-precos" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></symbol>
+<symbol id="ic-comercial" viewBox="0 0 24 24"><path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/></symbol>
+</defs></svg>
 
 <!-- TELA DE LOGIN -->
 <div id="login-screen" class="login-screen">
@@ -513,21 +540,21 @@ label.field-label{display:block}
   </div>
   <nav class="sb-nav">
     <div class="nav-section">Painel</div>
-    <div class="nav-item active" data-view="visao" onclick="setTab('visao',this)"><span class="nav-ic">📊</span><span>Visão Geral</span></div>
-    <div class="nav-item" data-view="conversas" onclick="setTab('conversas',this)"><span class="nav-ic">💬</span><span>Conversas</span></div>
+    <div class="nav-item active" data-view="visao" tabindex="0" role="button" aria-label="Visão Geral" onclick="setTab('visao',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-visao"/></svg></span><span>Visão Geral</span></div>
+    <div class="nav-item" data-view="conversas" tabindex="0" role="button" aria-label="Conversas" onclick="setTab('conversas',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-conversas"/></svg></span><span>Conversas</span></div>
     <div class="nav-section">Agente</div>
-    <div class="nav-item" data-view="conhecimento" onclick="setTab('conhecimento',this)"><span class="nav-ic">🧠</span><span>Base de Conhecimento</span></div>
-    <div class="nav-item" data-view="profissionais" onclick="setTab('profissionais',this)"><span class="nav-ic">👥</span><span>Profissionais</span></div>
-    <div class="nav-item" data-view="config" onclick="setTab('config',this)"><span class="nav-ic">⚙️</span><span>Configurações</span></div>
-    <div class="nav-item" data-view="whatsapp" onclick="setTab('whatsapp',this)"><span class="nav-ic"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" style="display:block;flex:none"><rect x="6" y="1.5" width="12" height="21" rx="2.8" fill="#E8EBEF"/><rect x="7.6" y="4.2" width="8.8" height="14" rx="1" fill="#2B3644"/><circle cx="12" cy="11.2" r="2.7" fill="#25D366"/><rect x="10.2" y="2.7" width="3.6" height="0.8" rx="0.4" fill="#9AA3AD"/><rect x="10.4" y="19.8" width="3.2" height="0.9" rx="0.45" fill="#9AA3AD"/></svg></span><span>WhatsApp</span></div>
-    <div class="nav-item" data-view="fiscal" onclick="setTab('fiscal',this)"><span class="nav-ic">🧾</span><span>Dados fiscais</span></div>
-    <div class="nav-item" data-view="testar" onclick="setTab('testar',this)"><span class="nav-ic">🧪</span><span>Testar Agente</span><span class="nav-badge green">NOVO</span></div>
-    <div class="nav-item" data-view="agendamentos" onclick="setTab('agendamentos',this)"><span class="nav-ic">📅</span><span>Agendamentos</span></div>
+    <div class="nav-item" data-view="conhecimento" tabindex="0" role="button" aria-label="Base de Conhecimento" onclick="setTab('conhecimento',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-conhecimento"/></svg></span><span>Base de Conhecimento</span></div>
+    <div class="nav-item" data-view="profissionais" tabindex="0" role="button" aria-label="Profissionais" onclick="setTab('profissionais',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-profissionais"/></svg></span><span>Profissionais</span></div>
+    <div class="nav-item" data-view="config" tabindex="0" role="button" aria-label="Configurações" onclick="setTab('config',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-config"/></svg></span><span>Configurações</span></div>
+    <div class="nav-item" data-view="whatsapp" tabindex="0" role="button" aria-label="WhatsApp" onclick="setTab('whatsapp',this)"><span class="nav-ic"><svg class="ic-ph" aria-hidden="true"><use href="#ic-whatsapp"/></svg></span><span>WhatsApp</span></div>
+    <div class="nav-item" data-view="fiscal" tabindex="0" role="button" aria-label="Dados fiscais" onclick="setTab('fiscal',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-fiscal"/></svg></span><span>Dados fiscais</span></div>
+    <div class="nav-item" data-view="testar" tabindex="0" role="button" aria-label="Testar Agente" aria-describedby="nav-badge-testar" onclick="setTab('testar',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-testar"/></svg></span><span>Testar Agente</span><span class="nav-badge green" id="nav-badge-testar">NOVO</span></div>
+    <div class="nav-item" data-view="agendamentos" tabindex="0" role="button" aria-label="Agendamentos" onclick="setTab('agendamentos',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-agendamentos"/></svg></span><span>Agendamentos</span></div>
     <div class="nav-section platform-admin-only" style="display:none">Plataforma</div>
-    <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('plat-visao',this)"><span class="nav-ic">🌐</span><span>Visão Geral</span></div>
-    <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('clientes',this)"><span class="nav-ic">🏢</span><span>Clientes da Plataforma</span></div>
-    <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('precos',this)"><span class="nav-ic">💰</span><span>Preços</span></div>
-    <div class="nav-item platform-admin-only" style="display:none" onclick="setTab('comercial',this)"><span class="nav-ic">🤝</span><span>Fechamentos comerciais</span></div>
+    <div class="nav-item platform-admin-only" style="display:none" tabindex="0" role="button" aria-label="Visão Geral da Plataforma" onclick="setTab('plat-visao',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-plat-visao"/></svg></span><span>Visão Geral</span></div>
+    <div class="nav-item platform-admin-only" style="display:none" tabindex="0" role="button" aria-label="Clientes da Plataforma" onclick="setTab('clientes',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-clientes"/></svg></span><span>Clientes da Plataforma</span></div>
+    <div class="nav-item platform-admin-only" style="display:none" tabindex="0" role="button" aria-label="Preços" onclick="setTab('precos',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-precos"/></svg></span><span>Preços</span></div>
+    <div class="nav-item platform-admin-only" style="display:none" tabindex="0" role="button" aria-label="Fechamentos comerciais" onclick="setTab('comercial',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-comercial"/></svg></span><span>Fechamentos comerciais</span></div>
   </nav>
   <div class="sb-foot">
     <div class="user-label" style="font-size:10px;color:rgba(255,255,255,.3);margin-bottom:6px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Logado como</div>
@@ -545,6 +572,7 @@ label.field-label{display:block}
     </div>
   </div>
 </aside>
+<div class="nav-tip" id="nav-tip" role="tooltip" aria-hidden="true"></div>
 
 <!-- MAIN -->
 <main class="main">
@@ -570,19 +598,19 @@ label.field-label{display:block}
 
   <div class="content">
     <div class="tabs">
-      <button class="tab active" data-view="visao" onclick="setTab('visao',null,this)">📊 Visão Geral</button>
-      <button class="tab" data-view="conversas" onclick="setTab('conversas',null,this)">💬 Conversas</button>
-      <button class="tab" data-view="conhecimento" onclick="setTab('conhecimento',null,this)">🧠 Base de Conhecimento</button>
-      <button class="tab" data-view="profissionais" onclick="setTab('profissionais',null,this)">👥 Profissionais</button>
-      <button class="tab" data-view="config" onclick="setTab('config',null,this)">⚙️ Configurações</button>
-      <button class="tab" data-view="whatsapp" onclick="setTab('whatsapp',null,this)"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="vertical-align:middle;margin:-3px 3px -3px 0"><rect x="6" y="1.5" width="12" height="21" rx="2.8" fill="#1D3557"/><rect x="7.6" y="4.2" width="8.8" height="14" rx="1" fill="#EEF2F6"/><circle cx="12" cy="11.2" r="2.7" fill="#25D366"/><rect x="10.2" y="2.7" width="3.6" height="0.8" rx="0.4" fill="#8FA0B5"/><rect x="10.4" y="19.8" width="3.2" height="0.9" rx="0.45" fill="#8FA0B5"/></svg>WhatsApp</button>
-      <button class="tab" data-view="fiscal" onclick="setTab('fiscal',null,this)">🧾 Dados fiscais</button>
-      <button class="tab" data-view="testar" onclick="setTab('testar',null,this)">🧪 Testar Agente</button>
-      <button class="tab" data-view="agendamentos" onclick="setTab('agendamentos',null,this)">📅 Agendamentos</button>
-      <button class="tab platform-admin-only" style="display:none" onclick="setTab('plat-visao',null,this)">🌐 Visão Geral da Plataforma</button>
-      <button class="tab platform-admin-only" style="display:none" onclick="setTab('clientes',null,this)">🏢 Clientes da Plataforma</button>
-      <button class="tab platform-admin-only" style="display:none" onclick="setTab('precos',null,this)">💰 Preços</button>
-      <button class="tab platform-admin-only" style="display:none" onclick="setTab('comercial',null,this)">🤝 Fechamentos comerciais</button>
+      <button class="tab active" data-view="visao" onclick="setTab('visao',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-visao"/></svg>Visão Geral</button>
+      <button class="tab" data-view="conversas" onclick="setTab('conversas',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-conversas"/></svg>Conversas</button>
+      <button class="tab" data-view="conhecimento" onclick="setTab('conhecimento',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-conhecimento"/></svg>Base de Conhecimento</button>
+      <button class="tab" data-view="profissionais" onclick="setTab('profissionais',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-profissionais"/></svg>Profissionais</button>
+      <button class="tab" data-view="config" onclick="setTab('config',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-config"/></svg>Configurações</button>
+      <button class="tab" data-view="whatsapp" onclick="setTab('whatsapp',null,this)"><svg class="tab-ic ic-ph" aria-hidden="true"><use href="#ic-whatsapp"/></svg>WhatsApp</button>
+      <button class="tab" data-view="fiscal" onclick="setTab('fiscal',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-fiscal"/></svg>Dados fiscais</button>
+      <button class="tab" data-view="testar" onclick="setTab('testar',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-testar"/></svg>Testar Agente</button>
+      <button class="tab" data-view="agendamentos" onclick="setTab('agendamentos',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-agendamentos"/></svg>Agendamentos</button>
+      <button class="tab platform-admin-only" style="display:none" onclick="setTab('plat-visao',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-plat-visao"/></svg>Visão Geral da Plataforma</button>
+      <button class="tab platform-admin-only" style="display:none" onclick="setTab('clientes',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-clientes"/></svg>Clientes da Plataforma</button>
+      <button class="tab platform-admin-only" style="display:none" onclick="setTab('precos',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-precos"/></svg>Preços</button>
+      <button class="tab platform-admin-only" style="display:none" onclick="setTab('comercial',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-comercial"/></svg>Fechamentos comerciais</button>
     </div>
 
     <!-- ══ VISÃO GERAL ══ -->
@@ -2065,6 +2093,67 @@ function setTab(id, navEl, tabEl){
   if(id==='comercial') loadCommercialCloseRequestsFromServer();
   if(id==='plat-visao') loadPlatformOverviewFromServer();
 }
+
+// ── LEGENDA DOS ÍCONES DO MENU (só com a barra recolhida) ──
+const NAV_TIP_TOUCH_MS = 3000; // quanto tempo a legenda fica visível depois de um toque no ícone (ms)
+const NAV_COLLAPSED_MQ = window.matchMedia('(max-width:900px)'); // mesmo breakpoint do CSS que recolhe a sidebar
+(function navTipInit(){
+  const tip = document.getElementById('nav-tip');
+  const nav = document.querySelector('.sb-nav');
+  if(!tip || !nav) return;
+  let hideTimer = null;
+  let lastPointer = 'mouse';
+  let shownBy = '';   // 'hover' | 'focus' | 'touch' — quem abriu a legenda
+  const itemOf = el => el && el.closest ? el.closest('.nav-item') : null;
+  function hide(){
+    clearTimeout(hideTimer); hideTimer = null; shownBy = '';
+    tip.classList.remove('show');
+  }
+  function show(item, by, autoHideMs){
+    if(!NAV_COLLAPSED_MQ.matches) return;
+    clearTimeout(hideTimer); hideTimer = null;
+    tip.textContent = item.getAttribute('aria-label') || '';
+    const r = item.getBoundingClientRect();
+    const sbRight = item.closest('.sidebar').getBoundingClientRect().right;
+    const half = tip.offsetHeight / 2;
+    const y = Math.min(Math.max(r.top + r.height / 2, half + 4), window.innerHeight - half - 4);
+    tip.style.left = (sbRight + 8) + 'px';
+    tip.style.top = y + 'px';
+    tip.classList.add('show');
+    shownBy = by;
+    if(autoHideMs) hideTimer = setTimeout(hide, autoHideMs);
+  }
+  nav.addEventListener('pointerdown', e => { lastPointer = e.pointerType; });
+  nav.addEventListener('pointerover', e => {
+    const item = itemOf(e.target);
+    if(item && e.pointerType !== 'touch') show(item, 'hover');
+  });
+  nav.addEventListener('pointerout', e => {
+    const item = itemOf(e.target);
+    if(item && e.pointerType !== 'touch' && !item.contains(e.relatedTarget)) hide();
+  });
+  nav.addEventListener('focusin', e => {
+    const item = itemOf(e.target);
+    if(item && item.matches(':focus-visible')) show(item, 'focus');
+  });
+  nav.addEventListener('focusout', () => { if(shownBy === 'focus') hide(); });
+  nav.addEventListener('click', e => {
+    const item = itemOf(e.target);
+    if(item && lastPointer === 'touch') show(item, 'touch', NAV_TIP_TOUCH_MS);
+  });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') hide(); });
+  nav.addEventListener('keydown', e => {
+    const item = itemOf(e.target);
+    if(item && item === e.target && (e.key === 'Enter' || e.key === ' ')){
+      e.preventDefault();
+      lastPointer = 'keyboard';
+      item.click();
+    }
+  });
+  nav.addEventListener('scroll', hide);
+  window.addEventListener('resize', hide);
+  NAV_COLLAPSED_MQ.addEventListener('change', hide);
+})();
 
 // ── KNOWLEDGE BASE ── (agora persistida no Supabase via backend)
 let knowledgeText = ''; // combined text of all active docs — preenchido a partir da API
