@@ -518,7 +518,7 @@ label.field-label{display:block}
 <div id="complete-profile-modal" class="login-screen" style="display:none">
   <div class="login-card" style="max-width:420px">
     <div class="login-title" style="text-align:left">Complete seu cadastro</div>
-    <div class="login-sub" style="text-align:left;margin-bottom:20px">Antes de começar a receber agendamentos, informe sua especialidade e os dias em que você atende.</div>
+    <div class="login-sub" style="text-align:left;margin-bottom:20px">Antes de começar a receber agendamentos, informe sua especialidade e os dias em que você trabalha.</div>
     <div id="cp-form-alert" class="form-alert" style="display:none"></div>
     <div class="field-group">
       <div class="field-label">Especialidade</div>
@@ -526,7 +526,7 @@ label.field-label{display:block}
       <div class="field-error" id="err-cp-especialidade"></div>
     </div>
     <div class="field-group">
-      <div class="field-label">Dias de atendimento</div>
+      <div class="field-label">Dias de trabalho</div>
       <div id="cp-dias" style="display:flex;gap:6px;flex-wrap:wrap"></div>
     </div>
     <button class="btn btn-accent" id="cp-submit-btn" type="button" disabled style="width:100%;padding:11px;margin-top:6px" onclick="submitCompleteProfile()">Salvar e continuar</button>
@@ -547,19 +547,19 @@ label.field-label{display:block}
   </div>
   <nav class="sb-nav">
     <div class="nav-section">Painel</div>
-    <div class="nav-item active" data-view="visao" tabindex="0" role="button" aria-label="Visão Geral" onclick="setTab('visao',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-visao"/></svg></span><span>Visão Geral</span></div>
+    <div class="nav-item active" data-view="visao" tabindex="0" role="button" aria-label="Visão geral" onclick="setTab('visao',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-visao"/></svg></span><span>Visão geral</span></div>
     <div class="nav-item" data-view="conversas" tabindex="0" role="button" aria-label="Conversas" onclick="setTab('conversas',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-conversas"/></svg></span><span>Conversas</span></div>
     <div class="nav-section">Agente</div>
-    <div class="nav-item" data-view="conhecimento" tabindex="0" role="button" aria-label="Base de Conhecimento" onclick="setTab('conhecimento',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-conhecimento"/></svg></span><span>Base de Conhecimento</span></div>
+    <div class="nav-item" data-view="conhecimento" tabindex="0" role="button" aria-label="Base de conhecimento" onclick="setTab('conhecimento',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-conhecimento"/></svg></span><span>Base de conhecimento</span></div>
     <div class="nav-item" data-view="profissionais" tabindex="0" role="button" aria-label="Profissionais" onclick="setTab('profissionais',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-profissionais"/></svg></span><span>Profissionais</span></div>
     <div class="nav-item" data-view="config" tabindex="0" role="button" aria-label="Configurações" onclick="setTab('config',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-config"/></svg></span><span>Configurações</span></div>
     <div class="nav-item" data-view="whatsapp" tabindex="0" role="button" aria-label="WhatsApp" onclick="setTab('whatsapp',this)"><span class="nav-ic"><svg class="ic-ph" aria-hidden="true"><use href="#ic-whatsapp"/></svg></span><span>WhatsApp</span></div>
     <div class="nav-item" data-view="fiscal" tabindex="0" role="button" aria-label="Dados fiscais" onclick="setTab('fiscal',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-fiscal"/></svg></span><span>Dados fiscais</span></div>
-    <div class="nav-item" data-view="testar" tabindex="0" role="button" aria-label="Testar Agente" aria-describedby="nav-badge-testar" onclick="setTab('testar',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-testar"/></svg></span><span>Testar Agente</span><span class="nav-badge green" id="nav-badge-testar">NOVO</span></div>
+    <div class="nav-item" data-view="testar" tabindex="0" role="button" aria-label="Testar agente" aria-describedby="nav-badge-testar" onclick="setTab('testar',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-testar"/></svg></span><span>Testar agente</span><span class="nav-badge green" id="nav-badge-testar">NOVO</span></div>
     <div class="nav-item" data-view="agendamentos" tabindex="0" role="button" aria-label="Agendamentos" onclick="setTab('agendamentos',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-agendamentos"/></svg></span><span>Agendamentos</span></div>
     <div class="nav-section platform-admin-only" style="display:none">Plataforma</div>
-    <div class="nav-item platform-admin-only" style="display:none" tabindex="0" role="button" aria-label="Visão Geral da Plataforma" onclick="setTab('plat-visao',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-plat-visao"/></svg></span><span>Visão Geral</span></div>
-    <div class="nav-item platform-admin-only" style="display:none" tabindex="0" role="button" aria-label="Clientes da Plataforma" onclick="setTab('clientes',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-clientes"/></svg></span><span>Clientes da Plataforma</span></div>
+    <div class="nav-item platform-admin-only" style="display:none" tabindex="0" role="button" aria-label="Visão geral da plataforma" onclick="setTab('plat-visao',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-plat-visao"/></svg></span><span>Visão geral</span></div>
+    <div class="nav-item platform-admin-only" style="display:none" tabindex="0" role="button" aria-label="Clientes da plataforma" onclick="setTab('clientes',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-clientes"/></svg></span><span>Clientes da plataforma</span></div>
     <div class="nav-item platform-admin-only" style="display:none" tabindex="0" role="button" aria-label="Preços" onclick="setTab('precos',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-precos"/></svg></span><span>Preços</span></div>
     <div class="nav-item platform-admin-only" style="display:none" tabindex="0" role="button" aria-label="Fechamentos comerciais" onclick="setTab('comercial',this)"><span class="nav-ic"><svg class="ic-line" aria-hidden="true"><use href="#ic-comercial"/></svg></span><span>Fechamentos comerciais</span></div>
   </nav>
@@ -585,7 +585,7 @@ label.field-label{display:block}
 <main class="main">
   <div class="ho-banner" id="handoff-banner" role="alert" hidden></div>
   <div class="topbar">
-    <div class="topbar-title" id="page-title">Visão Geral</div>
+    <div class="topbar-title" id="page-title">Visão geral</div>
     <div class="topbar-right">
       <span class="st-btn" id="wa-attend" data-state="off" role="img" tabindex="0" title="WhatsApp: verificando" aria-label="WhatsApp: verificando" style="display:none"><svg viewBox="0 0 30 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path transform="translate(0,2) scale(.78)" stroke-width="2.4" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/><g class="bars" stroke-width="2.6"><path class="bar" d="M21 19v-4"/><path class="bar" d="M24 19v-8"/><path class="bar" d="M27 19V7"/></g></svg></span>
       <button type="button" class="st-btn" id="call-light" data-state="warn" style="display:none" onclick="handoffLightClick()" title="Som desligado: toque para ativar" aria-label="Som desligado: toque para ativar"><svg viewBox="0 0 30 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="2 8.5 6.5 8.5 12 4 12 20 6.5 15.5 2 15.5" fill="currentColor"/><g class="waves"><path class="wave" d="M15 10a3 3 0 0 1 0 4"/><path class="wave" d="M18 8a6 6 0 0 1 0 8"/><path class="wave" d="M21 6a9 9 0 0 1 0 12"/></g><g class="xmark" stroke-width="2.6"><path d="M17 9l8 8M25 9l-8 8"/></g></svg></button>
@@ -605,17 +605,17 @@ label.field-label{display:block}
 
   <div class="content">
     <div class="tabs">
-      <button class="tab active" data-view="visao" onclick="setTab('visao',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-visao"/></svg>Visão Geral</button>
+      <button class="tab active" data-view="visao" onclick="setTab('visao',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-visao"/></svg>Visão geral</button>
       <button class="tab" data-view="conversas" onclick="setTab('conversas',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-conversas"/></svg>Conversas</button>
-      <button class="tab" data-view="conhecimento" onclick="setTab('conhecimento',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-conhecimento"/></svg>Base de Conhecimento</button>
+      <button class="tab" data-view="conhecimento" onclick="setTab('conhecimento',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-conhecimento"/></svg>Base de conhecimento</button>
       <button class="tab" data-view="profissionais" onclick="setTab('profissionais',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-profissionais"/></svg>Profissionais</button>
       <button class="tab" data-view="config" onclick="setTab('config',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-config"/></svg>Configurações</button>
       <button class="tab" data-view="whatsapp" onclick="setTab('whatsapp',null,this)"><svg class="tab-ic ic-ph" aria-hidden="true"><use href="#ic-whatsapp"/></svg>WhatsApp</button>
       <button class="tab" data-view="fiscal" onclick="setTab('fiscal',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-fiscal"/></svg>Dados fiscais</button>
-      <button class="tab" data-view="testar" onclick="setTab('testar',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-testar"/></svg>Testar Agente</button>
+      <button class="tab" data-view="testar" onclick="setTab('testar',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-testar"/></svg>Testar agente</button>
       <button class="tab" data-view="agendamentos" onclick="setTab('agendamentos',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-agendamentos"/></svg>Agendamentos</button>
-      <button class="tab platform-admin-only" style="display:none" onclick="setTab('plat-visao',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-plat-visao"/></svg>Visão Geral da Plataforma</button>
-      <button class="tab platform-admin-only" style="display:none" onclick="setTab('clientes',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-clientes"/></svg>Clientes da Plataforma</button>
+      <button class="tab platform-admin-only" style="display:none" onclick="setTab('plat-visao',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-plat-visao"/></svg>Visão geral da plataforma</button>
+      <button class="tab platform-admin-only" style="display:none" onclick="setTab('clientes',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-clientes"/></svg>Clientes da plataforma</button>
       <button class="tab platform-admin-only" style="display:none" onclick="setTab('precos',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-precos"/></svg>Preços</button>
       <button class="tab platform-admin-only" style="display:none" onclick="setTab('comercial',null,this)"><svg class="tab-ic ic-line" aria-hidden="true"><use href="#ic-comercial"/></svg>Fechamentos comerciais</button>
     </div>
@@ -624,7 +624,7 @@ label.field-label{display:block}
     <div class="view active" id="view-visao">
       <!-- Escolha da transferência pendente (só Administrador, enquanto handoff_mode_pending) -->
       <div id="hc-pending-banner" class="hc-alert" role="alert" hidden>
-        <span class="hc-alert-text">Escolha como sua clínica atende uma transferência. Isto é necessário para o agente trabalhar em sua plenitude. Enquanto você não escolher, ele atende normalmente, mas não oferece encaminhar para uma pessoa.</span>
+        <span class="hc-alert-text">Escolha como sua empresa trata a transferência para atendimento humano. Sem essa escolha, o agente atende normalmente, mas não oferece transferência para atendimento humano.</span>
         <button type="button" class="btn btn-accent btn-sm" onclick="handoffGoChoose()">Escolher agora</button>
       </div>
       <!-- Aviso de WhatsApp offline/falhou (só Administrador; mesmo GET do aviso de recarga) -->
@@ -651,7 +651,7 @@ label.field-label{display:block}
         <div class="card" id="kb-summary-card" data-view="conhecimento">
           <div class="card-head"><span class="card-title">🧠 Base de conhecimento ativa</span><button class="btn btn-ghost btn-sm" onclick="setTab('conhecimento')">Gerenciar →</button></div>
           <div style="padding:16px 22px" id="kb-summary">
-            <div style="color:var(--muted);font-size:13px">Nenhum documento carregado ainda.<br>Vá em <strong>Base de Conhecimento</strong> para adicionar.</div>
+            <div style="color:var(--muted);font-size:13px">Nenhum documento carregado ainda.<br>Vá em <strong>Base de conhecimento</strong> para adicionar.</div>
           </div>
         </div>
         <div class="card">
@@ -681,12 +681,12 @@ label.field-label{display:block}
 
     <!-- ══ BASE DE CONHECIMENTO ══ -->
     <div class="view" id="view-conhecimento">
-      <div class="pc-note" id="kb-price-notice" style="display:none">O agente só informa o valor da consulta quando o paciente pergunta, e usa apenas o valor cadastrado na aba Profissionais. Preço escrito aqui na Base de Conhecimento não é usado para o valor da consulta.</div>
+      <div class="pc-note" id="kb-price-notice" style="display:none">O agente só informa o valor da consulta quando o cliente pergunta, e usa apenas o valor cadastrado na aba Profissionais. Preço escrito aqui na Base de conhecimento não é usado para o valor da consulta.</div>
       <div class="template-card">
         <div class="template-icon">📄</div>
         <div class="template-info">
           <div class="template-title">Modelo de documento de conhecimento</div>
-          <div class="template-desc">Baixe o modelo, preencha com as informações do seu negócio e faça o upload abaixo. Você pode carregar múltiplos documentos — o agente usa todos como fonte de conhecimento.</div>
+          <div class="template-desc">Baixe o modelo, preencha com as informações da sua empresa e faça o upload abaixo. Você pode carregar múltiplos documentos — o agente usa todos como fonte de conhecimento.</div>
         </div>
         <button class="btn btn-accent" onclick="downloadTemplate()">⬇ Baixar modelo</button>
       </div>
@@ -765,8 +765,8 @@ label.field-label{display:block}
             <div class="card-head"><div class="card-title">💡 Dicas de preenchimento</div></div>
             <div style="padding:16px 22px;display:flex;flex-direction:column;gap:10px">
               <div class="info-item"><span class="info-ic">✅</span><span>Seja objetivo — 300 a 500 palavras são suficientes para um atendimento eficiente</span></div>
-              <div class="info-item"><span class="info-ic">✅</span><span>Inclua: nome do negócio, serviços, preços, horário de funcionamento e FAQ</span></div>
-              <div class="info-item"><span class="info-ic">✅</span><span>Para preços e tabelas, escreva no próprio .txt — ex: "Consulta: R$ 350"</span></div>
+              <div class="info-item"><span class="info-ic">✅</span><span>Inclua: nome da empresa, serviços, preços, horário de funcionamento e FAQ</span></div>
+              <div class="info-item"><span class="info-ic">✅</span><span>Para preços e tabelas, escreva no próprio .txt — ex: "Serviço A: R$ 350"</span></div>
               <div class="info-item"><span class="info-ic">✅</span><span>Indique o que o agente NÃO deve falar ou prometer</span></div>
               <div class="info-item"><span class="info-ic">✅</span><span>Atualize o documento quando algo mudar — suba a nova versão e o agente usa imediatamente</span></div>
               <div class="info-item"><span class="info-ic">⚠</span><span>Limite total: 1.000 palavras combinadas entre todos os documentos ativos</span></div>
@@ -834,7 +834,7 @@ label.field-label{display:block}
                 <label class="field-label" for="prof-price"><svg class="pc-ic ic-line" aria-hidden="true"><use href="#ic-precos"/></svg>Valor da consulta (R$)</label>
                 <div id="prof-price-input-box">
                   <input class="field" id="prof-price" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" oninput="validateProfForm()" aria-describedby="prof-price-hint prof-price-prev err-prof-price">
-                  <div class="pc-guard" id="prof-price-hint">Obrigatório: quem atende pela agenda precisa ter valor. Use 0 para consulta gratuita.</div>
+                  <div class="pc-guard" id="prof-price-hint">Obrigatório: quem recebe agendamentos precisa ter valor. Use 0 para consulta gratuita.</div>
                   <div class="pc-prev" id="prof-price-prev"></div>
                   <div class="field-error" id="err-prof-price"></div>
                 </div>
@@ -852,7 +852,7 @@ label.field-label{display:block}
                   <button type="button" class="password-toggle" id="prof-password-toggle" onclick="togglePwd('prof-password', this)" aria-label="Mostrar/ocultar senha">👁</button>
                 </div>
                 <div class="field-error" id="err-prof-password"></div>
-                <div class="field-hint">Combine com o profissional pra ele trocar depois.</div>
+                <div class="field-hint">Combine com o profissional para trocar depois.</div>
               </div>
               <button type="submit" class="btn btn-accent" id="btn-prof-submit" disabled style="width:100%">Cadastrar profissional</button>
             </form>
@@ -883,10 +883,10 @@ label.field-label{display:block}
       <!-- Como a clínica atende uma transferência (só Administrador) -->
       <div class="card hc-card admin-only" id="hc-card" style="margin-bottom:16px">
         <div class="cfg-section">
-          <div class="cfg-title">📞 Como sua clínica atende uma transferência para uma pessoa</div>
-          <div class="hc-pending-note" id="hc-pending-note" hidden>Falta escolher. Isto é necessário para o agente trabalhar em sua plenitude. Enquanto você não escolher, ele atende normalmente, mas não oferece encaminhar para uma pessoa.</div>
+          <div class="cfg-title">📞 Como sua empresa trata a transferência para atendimento humano?</div>
+          <div class="hc-pending-note" id="hc-pending-note" hidden>Falta escolher. Sem essa escolha, o agente atende normalmente, mas não oferece transferência para atendimento humano.</div>
           <div class="hc-opt" id="hc-opt-clinica_liga">
-            <label class="hc-opt-label"><input type="radio" name="hc-mode" value="clinica_liga" onchange="handoffChoicePick(this.value)"><span><b>A clínica liga para o cliente</b><span class="hc-opt-sub">O agente avisa a equipe aqui no painel e a clínica liga para o cliente em poucos minutos.</span></span></label>
+            <label class="hc-opt-label"><input type="radio" name="hc-mode" value="clinica_liga" onchange="handoffChoicePick(this.value)"><span><b>A empresa liga para o cliente</b><span class="hc-opt-sub">O agente avisa a equipe aqui no painel e a empresa liga para o cliente em poucos minutos.</span></span></label>
             <div class="hc-fields" id="hc-fields-clinica_liga" hidden>
               <div class="field-group">
                 <label class="field-label" for="hc-handoff-phone">Celular de atendimento (obrigatório)</label>
@@ -901,17 +901,17 @@ label.field-label{display:block}
             </div>
           </div>
           <div class="hc-opt" id="hc-opt-paciente_liga">
-            <label class="hc-opt-label"><input type="radio" name="hc-mode" value="paciente_liga" onchange="handoffChoicePick(this.value)"><span><b>O cliente liga para o consultório</b><span class="hc-opt-sub">O agente informa este número ao cliente e avisa a equipe aqui no painel, sem prometer ligação nem prazo.</span></span></label>
+            <label class="hc-opt-label"><input type="radio" name="hc-mode" value="paciente_liga" onchange="handoffChoicePick(this.value)"><span><b>O cliente liga para a empresa</b><span class="hc-opt-sub">O agente informa este número ao cliente e avisa a equipe aqui no painel, sem prometer ligação nem prazo.</span></span></label>
             <div class="hc-fields" id="hc-fields-paciente_liga" hidden>
               <div class="field-group">
-                <label class="field-label" for="hc-office-phone">Telefone do consultório (obrigatório)</label>
+                <label class="field-label" for="hc-office-phone">Telefone da empresa (obrigatório)</label>
                 <input class="field" id="hc-office-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="(11) 3333-4444" oninput="handoffChoiceClearErrors('office_phone')">
                 <div class="hc-err" id="hc-err-office_phone" hidden></div>
               </div>
             </div>
           </div>
           <div class="hc-opt" id="hc-opt-sem_transferencia">
-            <label class="hc-opt-label"><input type="radio" name="hc-mode" value="sem_transferencia" onchange="handoffChoicePick(this.value)"><span><b>A clínica não oferece transferência</b><span class="hc-opt-sub">O agente avisa ao cliente que não consegue encaminhar para uma pessoa e continua atendendo.</span></span></label>
+            <label class="hc-opt-label"><input type="radio" name="hc-mode" value="sem_transferencia" onchange="handoffChoicePick(this.value)"><span><b>A empresa não oferece transferência</b><span class="hc-opt-sub">O agente avisa ao cliente que não consegue transferir para atendimento humano e continua atendendo.</span></span></label>
           </div>
           <div class="hc-err" id="hc-err-handoff_mode" hidden></div>
           <div class="hc-err" id="hc-err-geral" hidden></div>
@@ -919,7 +919,7 @@ label.field-label{display:block}
             <button type="button" class="btn btn-accent" id="hc-save" onclick="saveHandoffChoice()">Salvar escolha</button>
             <button type="button" class="btn btn-ghost" onclick="handoffTestAlert()">Testar aviso</button>
           </div>
-          <div class="field-hint">“Testar aviso” só toca o bipe e mostra a faixa vermelha com um exemplo, neste navegador.</div>
+          <div class="field-hint">“Testar aviso” só toca o bipe e mostra a faixa de aviso no topo com um exemplo, neste navegador.</div>
         </div>
       </div>
       <div class="cfg-grid">
@@ -941,10 +941,10 @@ label.field-label{display:block}
                 </select>
               </div>
               <div class="field-group">
-                <div class="field-label">Mensagem ao transferir para humano</div>
-                <textarea class="field" id="cfg-transfer" style="min-height:55px">Entendido! Vou transferir você para um de nossos atendentes. Um momento! 👋</textarea>
-                <div class="field-hint">Enviada quando o agente detecta pedido de atendimento humano</div>
-                <div class="field-hint" id="cfg-transfer-note" hidden>Este texto só vale na opção em que a clínica liga para o cliente. Na opção escolhida acima ele não é usado.</div>
+                <div class="field-label">Mensagem ao transferir para atendimento humano</div>
+                <textarea class="field" id="cfg-transfer" style="min-height:55px">Certo! Já registrei seu pedido para a nossa equipe, que vai dar continuidade a esta conversa. 👋</textarea>
+                <div class="field-hint">Enviada ao cliente quando ele pede atendimento humano</div>
+                <div class="field-hint" id="cfg-transfer-note" hidden>Este texto só vale na opção em que a empresa liga para o cliente. Na opção escolhida acima ele não é usado.</div>
               </div>
             </div>
           </div>
@@ -1119,7 +1119,7 @@ label.field-label{display:block}
               <label class="field-label" for="wa-name">Nome de exibição</label>
               <input class="field" id="wa-name" type="text" maxlength="100" autocomplete="off" oninput="waValidate()" aria-describedby="err-wa-name">
               <div class="field-error" id="err-wa-name" role="alert"></div>
-              <div class="field-hint">É o nome que seus clientes verão no WhatsApp, no lugar do número. Use o nome do seu negócio. A Meta analisa o nome e pode recusar.</div>
+              <div class="field-hint">É o nome que seus clientes verão no WhatsApp, no lugar do número. Use o nome da sua empresa. A Meta analisa o nome e pode recusar.</div>
             </div>
           </div>
         </div>
@@ -1153,15 +1153,15 @@ label.field-label{display:block}
         <div class="test-info">
           <div class="info-card">
             <div class="info-title">🧪 Como funciona o teste</div>
-            <div class="info-item"><span class="info-ic">1️⃣</span><span>Carregue um documento na <strong>Base de Conhecimento</strong></span></div>
+            <div class="info-item"><span class="info-ic">1️⃣</span><span>Carregue um documento na <strong>Base de conhecimento</strong></span></div>
             <div class="info-item"><span class="info-ic">2️⃣</span><span>O agente usa esse documento para responder — sem precisar configurar mais nada</span></div>
-            <div class="info-item"><span class="info-ic">3️⃣</span><span>Converse como se fosse um cliente real do seu negócio</span></div>
+            <div class="info-item"><span class="info-ic">3️⃣</span><span>Converse como se fosse um cliente real da sua empresa</span></div>
             <div class="info-item"><span class="info-ic">4️⃣</span><span>Se algo não soar certo, ajuste o documento e teste novamente</span></div>
           </div>
 
           <div class="info-card" style="flex:1">
             <div class="info-title">📄 Conhecimento ativo do agente</div>
-            <div class="knowledge-preview" id="test-kb-preview">Nenhum documento carregado ainda.\n\nVá em "Base de Conhecimento" para adicionar o documento do seu negócio.</div>
+            <div class="knowledge-preview" id="test-kb-preview">Nenhum documento carregado ainda.\n\nVá em "Base de conhecimento" para adicionar o documento da sua empresa.</div>
             <div style="margin-top:12px;display:flex;gap:8px">
               <button class="btn btn-ghost btn-sm" onclick="setTab('conhecimento')">📤 Carregar documento</button>
               <button class="btn btn-ghost btn-sm" onclick="resetTestChat()">↺ Reiniciar conversa</button>
@@ -1200,7 +1200,7 @@ label.field-label{display:block}
         <div class="card-head">
           <div>
             <div class="card-title">⚠️ Retidos para decisão</div>
-            <div class="card-desc" id="held-count-desc">Pedidos de agendamento que o agente reteve</div>
+            <div class="card-desc" id="held-count-desc">Solicitações de agendamento que o agente reteve</div>
           </div>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);cursor:pointer"><input type="checkbox" id="held-show-all" onchange="heldToggleAll(this.checked)"> Mostrar decididas</label>
         </div>
@@ -1210,7 +1210,7 @@ label.field-label{display:block}
         <div class="card-head">
           <div>
             <div class="card-title">📅 Agendamentos</div>
-            <div class="card-desc" id="appt-count-desc">Agendamentos criados pelo agente via conversa</div>
+            <div class="card-desc" id="appt-count-desc">Agendamentos feitos pelo agente ou pela equipe</div>
           </div>
           <button class="btn btn-ghost btn-sm" onclick="loadAppointmentsFromServer()">↺ Atualizar</button>
         </div>
@@ -1255,11 +1255,11 @@ label.field-label{display:block}
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
         <div class="card">
-          <div class="card-head"><span class="card-title">📊 Receita Prevista</span><span class="card-desc" id="plat-rev-prev-comp">—</span></div>
+          <div class="card-head"><span class="card-title">📊 Receita prevista</span><span class="card-desc" id="plat-rev-prev-comp">—</span></div>
           <div style="padding:8px 22px 16px" id="plat-rev-prev-body"></div>
         </div>
         <div class="card">
-          <div class="card-head"><span class="card-title">✅ Receita Realizada</span><span class="card-desc" id="plat-rev-real-comp">—</span></div>
+          <div class="card-head"><span class="card-title">✅ Receita realizada</span><span class="card-desc" id="plat-rev-real-comp">—</span></div>
           <div style="padding:8px 22px 16px" id="plat-rev-real-body"></div>
         </div>
       </div>
@@ -1277,11 +1277,11 @@ label.field-label{display:block}
             <label for="wa-adm-filter" class="apu-muted">WhatsApp</label>
             <select id="wa-adm-filter" class="field" style="width:auto" onchange="waAdminSetFilter(this.value)">
               <option value="">Todos</option>
-              <option value="sem">Sem WhatsApp</option>
+              <option value="sem">Não conectado</option>
               <option value="iniciando">Iniciando</option>
               <option value="registrando">Em análise</option>
               <option value="online">Conectado</option>
-              <option value="offline">Offline</option>
+              <option value="offline">Fora do ar</option>
               <option value="falhou">Falhou</option>
             </select>
             <button class="btn btn-accent btn-sm" onclick="showAddClientForm()">+ Novo cliente</button>
@@ -1307,15 +1307,15 @@ label.field-label{display:block}
             <div class="field-label">Nome de exibição</div>
             <input class="field" id="client-displayName" type="text" autocomplete="off" oninput="validateClientForm()">
             <div class="field-error" id="err-client-displayName"></div>
-            <div class="field-hint">Como o negócio é conhecido pelos clientes. Não precisa ser a razão social.</div>
+            <div class="field-hint">Como a empresa é conhecida pelos clientes. Não precisa ser a razão social.</div>
           </div>
           <div class="field-group">
-            <div class="field-label">Nome do primeiro admin</div>
+            <div class="field-label">Nome do primeiro administrador</div>
             <input class="field" id="client-adminName" type="text" autocomplete="off" oninput="validateClientForm()">
             <div class="field-error" id="err-client-adminName"></div>
           </div>
           <div class="field-group">
-            <div class="field-label">E-mail de login do admin</div>
+            <div class="field-label">E-mail de login do administrador</div>
             <input class="field" id="client-adminEmail" type="email" autocomplete="off" oninput="validateClientForm()">
             <div class="field-error" id="err-client-adminEmail"></div>
           </div>
@@ -1326,7 +1326,7 @@ label.field-label{display:block}
               <button type="button" class="password-toggle" id="client-adminPassword-toggle" onclick="togglePwd('client-adminPassword', this)" aria-label="Mostrar/ocultar senha">👁</button>
             </div>
             <div class="field-error" id="err-client-adminPassword"></div>
-            <div class="field-hint">Combine com o admin pra ele trocar depois.</div>
+            <div class="field-hint">Combine com o administrador para trocar depois.</div>
           </div>
           <div class="field-group">
             <div class="field-label">Profissionais contratados <span style="font-weight:400;color:var(--muted)">(opcional)</span></div>
@@ -1430,7 +1430,7 @@ label.field-label{display:block}
                 <input class="field" id="apu-month" type="month" style="width:auto;max-width:100%">
                 <div class="field-hint">Vazio = mês fechado anterior. Só meses já fechados podem ser apurados de verdade.</div>
               </div>
-              <label class="apu-check"><input type="checkbox" id="apu-dry"><span>Só simular (dry-run): calcula e mostra o resultado, mas nunca aplica.</span></label>
+              <label class="apu-check"><input type="checkbox" id="apu-dry"><span>Só simular: calcula e mostra o resultado, mas nunca aplica.</span></label>
             </div>
           </details>
           <div class="apu-actions">
@@ -1478,7 +1478,7 @@ label.field-label{display:block}
             <div class="card-head">
               <div>
                 <div class="card-title">🤝 Pedidos de fechamento comercial</div>
-                <div class="card-desc">Pagamento confirmado, aguardando aprovação pra virar cliente</div>
+                <div class="card-desc">Pagamento confirmado, aguardando aprovação para virar cliente</div>
               </div>
             </div>
             <div style="padding:8px 0" id="comercial-list"></div>
@@ -1873,7 +1873,7 @@ function resetTenantState(){
   clearPlatformOverview();
   clearApuracao();
   const apptDesc = document.getElementById('appt-count-desc');
-  if(apptDesc) apptDesc.textContent = 'Agendamentos criados pelo agente via conversa';
+  if(apptDesc) apptDesc.textContent = 'Agendamentos feitos pelo agente ou pela equipe';
 
   // Fecha e limpa o formulário de "Adicionar profissional" caso tenha
   // ficado aberto (com dado digitado, ex: nome) no momento do logout —
@@ -2056,7 +2056,7 @@ async function checkExistingSession(){
 }
 
 // ── NAVIGATION ──
-const titles = {visao:'Visão Geral',conversas:'Conversas',conhecimento:'Base de Conhecimento',profissionais:'Profissionais',config:'Configurações',whatsapp:'WhatsApp',fiscal:'Dados fiscais',testar:'Testar Agente',agendamentos:'Agendamentos','plat-visao':'Visão Geral da Plataforma',clientes:'Clientes da Plataforma',precos:'Configuração de Preços',comercial:'Fechamentos Comerciais'};
+const titles = {visao:'Visão geral',conversas:'Conversas',conhecimento:'Base de conhecimento',profissionais:'Profissionais',config:'Configurações',whatsapp:'WhatsApp',fiscal:'Dados fiscais',testar:'Testar agente',agendamentos:'Agendamentos','plat-visao':'Visão geral da plataforma',clientes:'Clientes da plataforma',precos:'Configuração de Preços',comercial:'Fechamentos Comerciais'};
 
 // Views de nível cliente liberadas por papel. As views de plataforma
 // ('clientes'/'precos') ficam de fora — continuam controladas só por
@@ -2238,7 +2238,7 @@ async function loadKnowledgeFromServer(){
     console.error('[loadKnowledgeFromServer] erro:', e);
     const list = document.getElementById('doc-list');
     if(list) list.innerHTML = `<div style="color:var(--red);font-size:13px;text-align:center;padding:20px">
-      ⚠ Não foi possível conectar ao backend em ${BACKEND_URL}.<br>Verifique se ele está rodando e se o Supabase está configurado.
+      ⚠ Não foi possível conectar ao servidor em ${BACKEND_URL}.<br>Verifique se ele está rodando e se o Supabase está configurado.
     </div>`;
   }
 }
@@ -2279,7 +2279,7 @@ async function finishAdd(file, content, ext){
     syncKbToTest();
   }catch(e){
     console.error('[finishAdd] erro:', e);
-    showToast(`⚠ Não foi possível conectar ao backend em ${BACKEND_URL}.`);
+    showToast(`⚠ Não foi possível conectar ao servidor em ${BACKEND_URL}.`);
   }
 }
 
@@ -2355,7 +2355,7 @@ async function toggleDoc(id, toggleEl){
     syncKbToTest();
   }catch(e){
     console.error('[toggleDoc] erro:', e);
-    showToast(`⚠ Não foi possível conectar ao backend em ${BACKEND_URL}.`);
+    showToast(`⚠ Não foi possível conectar ao servidor em ${BACKEND_URL}.`);
   }
 }
 
@@ -2376,7 +2376,7 @@ async function removeDoc(id){
     document.getElementById('preview-label').textContent = 'Clique em um documento para visualizar';
   }catch(e){
     console.error('[removeDoc] erro:', e);
-    showToast(`⚠ Não foi possível conectar ao backend em ${BACKEND_URL}.`);
+    showToast(`⚠ Não foi possível conectar ao servidor em ${BACKEND_URL}.`);
   }
 }
 
@@ -2384,7 +2384,7 @@ function updateKbSummary(){
   const s = document.getElementById('kb-summary');
   if(!s) return;
   if(kbDocs.length === 0){
-    s.innerHTML='<div style="color:var(--muted);font-size:13px">Nenhum documento carregado ainda.<br>Vá em <strong>Base de Conhecimento</strong> para adicionar.</div>';
+    s.innerHTML='<div style="color:var(--muted);font-size:13px">Nenhum documento carregado ainda.<br>Vá em <strong>Base de conhecimento</strong> para adicionar.</div>';
     return;
   }
   const active = kbDocs.filter(d=>d.active);
@@ -2405,18 +2405,18 @@ function updateKbSummary(){
 function syncKbToTest(){
   const el = document.getElementById('test-kb-preview');
   if(!el) return;
-  el.textContent = knowledgeText || 'Nenhum documento carregado ainda.\n\nVá em "Base de Conhecimento" para adicionar.';
+  el.textContent = knowledgeText || 'Nenhum documento carregado ainda.\n\nVá em "Base de conhecimento" para adicionar.';
 }
 
 const TEMPLATE = `DOCUMENTO DE CONHECIMENTO DO AGENTE
 ====================================
-Preencha cada seção com as informações do seu negócio.
+Preencha cada seção com as informações da sua empresa.
 O agente usará este documento para responder aos seus clientes.
 
-NOME DO NEGÓCIO:
-[Ex: Clínica Bem Viver / Salão da Maria / Advocacia Silva & Associados]
+NOME DA EMPRESA:
+[Ex: Studio Bem Viver / Salão da Maria / Advocacia Silva & Associados]
 
-TIPO DE NEGÓCIO:
+TIPO DE EMPRESA:
 [Descreva brevemente o que faz]
 
 ENDEREÇO E COMO CHEGAR:
@@ -2446,7 +2446,7 @@ P: [Outra pergunta]
 R: [Resposta]
 
 O QUE O AGENTE NÃO DEVE FAZER:
-[Ex: Não dar diagnósticos / Não prometer prazos / Não falar de concorrentes]
+[Ex: Não dar garantias de resultado / Não prometer prazos / Não falar de concorrentes]
 
 TOM DE VOZ:
 [Como você quer que o agente converse: formal, informal, amigável]
@@ -2486,7 +2486,7 @@ function renderOverviewKpis(k){
   set('kpi-transferencias', k.transferencias ?? '—');
   const at = k.transferencias_atendidas ?? 0;
   const sa = k.transferencias_sem_atendimento ?? 0;
-  set('kpi-transferencias-sub', `atendidas pela equipe: ${at} · sem atendimento: ${sa}`);
+  set('kpi-transferencias-sub', `atendidas: ${at} · não atendidas: ${sa}`);
 }
 
 function clearOverviewKpis(){
@@ -2618,8 +2618,8 @@ const statusItems = [
   {icon:'🟢', label:'Agente respondendo', val:'Ativo'},
   {icon:'📄', label:'Base de conhecimento', val:'—', id:'kb-status'},
   {icon:'📅', label:'Agendamento automático', val:'Ativado'},
-  {icon:'🔔', label:'Lembrete automático', val:'Ativado'},
-  {icon:'⚠️', label:'Detecção de urgência', val:'Ativado'},
+  {icon:'🔔', label:'Lembrete 1h antes', val:'Ativado'},
+  {icon:'⚠️', label:'Triagem por urgência', val:'Ativado'},
 ];
 const sl = document.getElementById('status-list');
 statusItems.forEach(s=>{
@@ -2672,7 +2672,7 @@ function convJsArg(v){ return apuEsc(JSON.stringify(String(v))); }
 
 // Rótulo do identificador: o teste do painel não tem telefone real.
 function convIdentifier(c){
-  return c.channel === 'painel_teste' ? '(teste de painel)' : (c.customer_phone || '—');
+  return c.channel === 'painel_teste' ? '(teste do painel)' : (c.customer_phone || '—');
 }
 
 // "Quem falou por último" só a partir de role ('user' = cliente final,
@@ -2680,7 +2680,7 @@ function convIdentifier(c){
 // transferência for linkado aqui (próxima etapa).
 function convLastAuthorTag(role){
   return role === 'assistant'
-    ? `<span class="tag tag-accent">🤖 IA</span>`
+    ? `<span class="tag tag-accent">🤖 Agente</span>`
     : `<span class="tag" style="background:var(--bg);color:var(--muted)">👤 Cliente</span>`;
 }
 
@@ -2824,7 +2824,7 @@ function convPreviousSessionsHtml(rowKey, prev, viewCid){
       <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}</div>
     </div>`;
   }).join('');
-  return `<div style="margin-top:12px"><div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Sessões anteriores deste telefone</div>${itens}</div>`;
+  return `<div style="margin-top:12px"><div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Conversas anteriores deste telefone</div>${itens}</div>`;
 }
 
 // Abre (cid) ou fecha (null) uma sessão anterior dentro do acordeão da linha.
@@ -2906,7 +2906,7 @@ function clearConversations(){
 const feats=[
   {key:'agendamento_automatico', l:'Agendamento automático',s:'IA agenda sem intervenção',on:true},
   {key:'lembrete_1h', l:'Lembrete 1h antes',s:'Mensagem automática ao cliente',on:true},
-  {key:'triagem_urgencia', l:'Triagem por urgência',s:'Detecta emergências e notifica',on:true},
+  {key:'triagem_urgencia', l:'Triagem por urgência',s:'Detecta pedidos urgentes e notifica',on:true},
   {key:'pesquisa_satisfacao', l:'Pesquisa de satisfação',s:'Mensagem automática pós-atendimento',on:false},
 ];
 // "Transferência automática" não tem mais efeito nem aparece na tela, mas o objeto features
@@ -2970,7 +2970,7 @@ async function saveSettingsToServer(){
     if(nameDisplay) nameDisplay.textContent = payload.agent_name;
   }catch(e){
     console.error('[saveSettingsToServer] erro:', e);
-    showToast(`⚠ Não foi possível conectar ao backend em ${BACKEND_URL}.`);
+    showToast(`⚠ Não foi possível conectar ao servidor em ${BACKEND_URL}.`);
   }
 }
 
@@ -3080,7 +3080,7 @@ async function saveFiscalToServer(){
     await loadFiscalFromServer();
   }catch(e){
     console.error('[saveFiscalToServer] erro:', e);
-    setFormAlert('fiscal-alert', 'Não foi possível conectar ao backend.', 'error');
+    setFormAlert('fiscal-alert', 'Não foi possível conectar ao servidor.', 'error');
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = 'Salvar dados fiscais'; }
   }
@@ -3190,7 +3190,7 @@ async function testSend(){
   }catch(e){
     if(testHistory.length && testHistory[testHistory.length-1].role==='user') testHistory.pop();   // fala sem resposta não fica no histórico
     testRemoveTyping();
-    testAddBubble('Ops, não consegui falar com o backend. Verifique se ele está rodando em '+BACKEND_URL+' e tente novamente.','in');
+    testAddBubble('Ops, não consegui falar com o servidor. Tente novamente em instantes.','in');
     console.error('[testSend] erro ao chamar backend:', e);
   }
   testTyping=false;
@@ -3270,8 +3270,8 @@ const diasLabels = {seg:'Seg',ter:'Ter',qua:'Qua',qui:'Qui',sex:'Sex',sab:'Sáb'
 const diasOrdem = ['seg','ter','qua','qui','sex','sab','dom'];
 const permLabels = {
   proprias:'Vê só as próprias conversas',
-  todas_ver:'Vê todas, assume só as suas',
-  todas_assumir:'Vê e assume qualquer conversa'
+  todas_ver:'Vê todas; assume só as suas transferências',
+  todas_assumir:'Vê todas; assume qualquer transferência'
 };
 
 async function loadProfessionalsFromServer(){
@@ -3410,10 +3410,10 @@ function selectProf(id){
   let reduceFranchiseBlock = '';
   if(isAdmin && p.role === 'profissional' && p.active){
     if(franchiseRequestPending){
-      reduceFranchiseBlock = `<div style="padding-top:10px;margin-top:6px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.5">Já há um pedido de mudança de franquia em análise — você será avisado quando for decidido.</div>`;
+      reduceFranchiseBlock = `<div style="padding-top:10px;margin-top:6px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.5">Já há um pedido de mudança do limite de profissionais contratados em análise — você será avisado quando for decidido.</div>`;
     }else if(profContractedLimit != null && profContractedLimit > 1){
       reduceFranchiseBlock = `<div style="padding-top:10px;margin-top:6px;border-top:1px solid var(--border)">
-        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="requestFranchiseDecrease('${id}')">Desativar e reduzir franquia</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="requestFranchiseDecrease('${id}')">Desativar e reduzir o limite</button>
         <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5">Abre um pedido de redução (${profContractedLimit} → ${profContractedLimit - 1}). Precisa de aprovação da plataforma; enquanto isso, ${p.name} para de receber novos agendamentos.</div>
       </div>`;
     }
@@ -3430,7 +3430,7 @@ function selectProf(id){
         }
       </div>
       <div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Horário de atendimento</div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Horário de trabalho</div>
         <div style="display:flex;gap:8px;align-items:center">
           <input type="time" id="prof-inicio-${id}" value="${(p.horario_inicio||'08:00').slice(0,5)}" style="border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;outline:none;width:105px;flex-shrink:0" ${!canEditThis?'disabled':''}>
           <span style="font-size:12px;color:var(--muted);flex-shrink:0">até</span>
@@ -3438,14 +3438,14 @@ function selectProf(id){
         </div>
       </div>
       <div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Dias de atendimento</div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Dias de trabalho</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">${diasHtml}</div>
       </div>
       <div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Duração do atendimento</div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Duração de cada agendamento</div>
         <div style="display:flex;gap:8px;align-items:center">
           <input type="number" min="10" max="240" step="5" id="prof-duracao-${id}" value="${p.appointment_duration_minutes||60}" style="width:90px;border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;outline:none" ${!canEditThis?'disabled':''}>
-          <span style="font-size:12px;color:var(--muted)">minutos por atendimento</span>
+          <span style="font-size:12px;color:var(--muted)">minutos por agendamento</span>
         </div>
       </div>
       ${isAdmin ? `
@@ -3454,10 +3454,10 @@ function selectProf(id){
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Permissão de acesso ao painel</div>
         <select id="perm-${id}" onchange="updatePerm('${id}',this.value)" style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;width:100%;outline:none;color:var(--ink)" ${p.role==='admin'?'disabled':''}>
           <option value="proprias" ${p.permissao==='proprias'?'selected':''}>Vê só as próprias conversas</option>
-          <option value="todas_ver" ${p.permissao==='todas_ver'?'selected':''}>Vê todas, assume só as suas</option>
-          <option value="todas_assumir" ${p.permissao==='todas_assumir'?'selected':''}>Vê e assume qualquer conversa</option>
+          <option value="todas_ver" ${p.permissao==='todas_ver'?'selected':''}>Vê todas; assume só as suas transferências</option>
+          <option value="todas_assumir" ${p.permissao==='todas_assumir'?'selected':''}>Vê todas; assume qualquer transferência</option>
         </select>
-        ${p.role==='admin'?'<div style="font-size:11px;color:var(--muted);margin-top:6px">Administrador sempre vê e assume qualquer conversa</div>':''}
+        ${p.role==='admin'?'<div style="font-size:11px;color:var(--muted);margin-top:6px">Administrador sempre vê e assume qualquer transferência</div>':''}
       </div>
       <div style="display:flex;gap:8px;padding-top:4px">
         <button class="btn btn-accent btn-sm" onclick="saveProf('${id}')">Salvar alterações</button>
@@ -3556,7 +3556,7 @@ async function saveProf(id){
     showToast(`✓ ${p.name} atualizado com sucesso!`);
   }catch(e){
     console.error('[saveProf] erro:', e);
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }
 }
 
@@ -3575,14 +3575,14 @@ async function toggleAtivo(id){
     showToast(`${!p.active?'✓ Profissional ativado':'⚠ Profissional desativado'}`);
   }catch(e){
     console.error('[toggleAtivo] erro:', e);
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }
 }
 
 async function removeProf(id){
   const p = profissionais.find(x=>x.id===id);
   if(!p) return;
-  if(!confirm(`Remover ${p.name}? Isso também apaga o login dele. Não dá pra desfazer.`)) return;
+  if(!confirm(`Remover ${p.name}? Isso também apaga o login. Não dá para desfazer.`)) return;
   try{
     const res = await apiFetch(`/api/professionals/${id}`, { method:'DELETE' });
     if(!res.ok && res.status!==204){ const d = await res.json().catch(()=>({})); showToast(`⚠ ${d.error||'Erro ao remover.'}`, 7000); return; }
@@ -3591,7 +3591,7 @@ async function removeProf(id){
     showToast(`${p.name} removido`);
   }catch(e){
     console.error('[removeProf] erro:', e);
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }
 }
 
@@ -3608,19 +3608,19 @@ async function removeProf(id){
 // O cartão só existe se a raiz do GET /api/professionals trouxer consultation_price_mode (pode ser null).
 const PRICE_MODE_KEYS = ['clinica', 'profissional', 'nao_informa'];
 const PRICE_MODES = {
-  clinica:      { label:'Um valor para toda a clínica',         sub:'O mesmo valor vale para todos os profissionais.' },
+  clinica:      { label:'Um valor para toda a empresa',         sub:'O mesmo valor vale para todos os profissionais.' },
   profissional: { label:'Cada profissional com o seu valor',    sub:'Cada profissional tem o seu valor, que pode ser diferente dos outros.' },
-  nao_informa:  { label:'O agente não informa valor da consulta', sub:'Se o paciente perguntar, o agente diz que o valor é tratado direto com a clínica.' },
+  nao_informa:  { label:'O agente não informa valor da consulta', sub:'Se o cliente perguntar, o agente diz que o valor é tratado direto com a empresa.' },
 };
 const PRICE_MAX_CENTS = 9999999;     // R$ 99.999,99
 const PRICE_TXT_INVALID = 'Digite um valor de R$ 0,00 a R$ 99.999,99, com até 2 casas depois da vírgula. Use 0 para consulta gratuita.';
 const PRICE_TXT_GENERIC = 'Não foi possível salvar agora. O valor não foi alterado. Tente de novo.';
 const PRICE_MSG = {
   somente_admin:         'Só o administrador pode ver e alterar os valores da consulta.',
-  valor_da_clinica_ativo:'O modo atual é o valor único da clínica, então os valores individuais não podem ser alterados. Para editá-los, troque o modo para “Cada profissional com o seu valor”.',
+  valor_da_clinica_ativo:'O modo atual é o valor único da empresa, então os valores individuais não podem ser alterados. Para editá-los, troque o modo para “Cada profissional com o seu valor”.',
   valor_invalido:        PRICE_TXT_INVALID,
   modo_invalido:         'Escolha uma das três opções.',
-  valor_obrigatorio:     'Para usar o valor único da clínica, digite o valor da consulta.',
+  valor_obrigatorio:     'Para usar o valor único da empresa, digite o valor da consulta.',
   colaborador_sem_valor: 'Colaboradores não têm valor de consulta.',
   migracao_pendente:     'O recurso de valor por profissional ainda está sendo ativado no sistema. Nada foi alterado. Tente de novo em alguns minutos ou fale com o suporte.',
   conflito_tente_novamente: 'Outra alteração do valor da consulta estava em andamento. Nada foi alterado. Tente de novo em instantes.',
@@ -3629,8 +3629,8 @@ const PRICE_MSG = {
 };
 // 400 valor_obrigatorio muda de texto conforme quem pediu (o código é o mesmo; o contexto vem de quem chama).
 const PRICE_VALOR_OBRIGATORIO = {
-  inclusao: 'Informe o valor da consulta deste profissional. No modo “Cada profissional com o seu valor”, quem atende pela agenda precisa ter valor (0 para consulta gratuita). O profissional não foi cadastrado.',
-  ficha:    'Informe o valor da consulta. No modo “Cada profissional com o seu valor”, quem atende pela agenda precisa ter valor (0 para consulta gratuita). Nada foi salvo.',
+  inclusao: 'Informe o valor da consulta deste profissional. No modo “Cada profissional com o seu valor”, quem recebe agendamentos precisa ter valor (0 para consulta gratuita). O profissional não foi cadastrado.',
+  ficha:    'Informe o valor da consulta. No modo “Cada profissional com o seu valor”, quem recebe agendamentos precisa ter valor (0 para consulta gratuita). Nada foi salvo.',
   comum:    'O administrador precisa definir o valor da sua consulta antes de você concluir o cadastro. Peça a ele para informar o valor na aba Profissionais e tente de novo.',
 };
 const PRICE_ADD_CODES   = ['valor_obrigatorio', 'valor_invalido', 'colaborador_sem_valor', 'migracao_pendente', 'conflito_tente_novamente'];
@@ -3740,16 +3740,16 @@ function priceDetailBlock(p){
   if(st.mode === 'clinica'){
     return `<div>
         <div style="${lblStyle}">${icon}Valor da consulta</div>
-        <div style="font-size:13px;color:var(--ink);font-weight:500">${st.clinic !== null ? 'Valor da clínica: ' + apuEsc(priceShow(st.clinic)) + ' (vale para todos; só leitura)' : 'O valor único da clínica ainda não está definido (só leitura)'}</div>
+        <div style="font-size:13px;color:var(--ink);font-weight:500">${st.clinic !== null ? 'Valor da empresa: ' + apuEsc(priceShow(st.clinic)) + ' (vale para todos; só leitura)' : 'O valor único da empresa ainda não está definido (só leitura)'}</div>
         <div class="field-hint">Para alterar, use o cartão “Valor da consulta” no topo desta aba.</div>
       </div>`;
   }
   const id = apuEsc(p.id);
   return `<div>
         <label for="prof-price-${id}" style="${lblStyle}">${icon}Valor da consulta (R$)</label>
-        ${p.consultation_price_missing ? '<div class="pc-note warn" role="status">⚠ Sem valor: obrigatório para quem atende pela agenda.</div>' : ''}
+        ${p.consultation_price_missing ? '<div class="pc-note warn" role="status">⚠ Sem valor: obrigatório para quem recebe agendamentos.</div>' : ''}
         <input id="prof-price-${id}" class="pc-input" style="width:100%" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" value="${apuEsc(priceInputStr(priceNum(p.consultation_price)))}" aria-describedby="prof-price-hint-${id} prof-price-prev-${id}" oninput="priceFichaInput(${convJsArg(p.id)}, this.value)">
-        <div class="pc-guard" id="prof-price-hint-${id}">Obrigatório para quem atende pela agenda. Use 0 para consulta gratuita.</div>
+        <div class="pc-guard" id="prof-price-hint-${id}">Obrigatório para quem recebe agendamentos. Use 0 para consulta gratuita.</div>
         <div class="pc-prev" id="prof-price-prev-${id}"></div>
         <div id="prof-price-msg-${id}"></div>
       </div>`;
@@ -3794,11 +3794,11 @@ function priceChooserReadyText(){
 
 function priceChooserProfHtml(dis){
   const list = priceBookable();
-  if(!list.length) return `<div class="pc-guard">Nenhum profissional atende pela agenda agora, então não há valores a informar. Quem for cadastrado depois precisará ter valor.</div>`;
+  if(!list.length) return `<div class="pc-guard">Nenhum profissional recebe agendamentos agora, então não há valores a informar. Quem for cadastrado depois precisará ter valor.</div>`;
   const semValor = list.filter(p => priceNum(p.consultation_price) === null).length;
   let h = semValor
-    ? `<div class="pc-note warn" style="margin-top:8px">⚠ Antes de trocar: quem atende pela agenda precisa ter valor. ${semValor} de ${list.length} ${semValor === 1 ? 'está sem valor' : 'estão sem valor'}. Confira o valor de cada um abaixo e digite os que estão em branco (use 0 para consulta gratuita).</div>`
-    : `<div class="pc-note" style="margin-top:8px">✔ Todos os profissionais que atendem pela agenda já têm valor guardado. Confira abaixo; você pode alterar antes de aplicar.</div>`;
+    ? `<div class="pc-note warn" style="margin-top:8px">⚠ Antes de trocar: quem recebe agendamentos precisa ter valor. ${semValor} de ${list.length} ${semValor === 1 ? 'está sem valor' : 'estão sem valor'}. Confira o valor de cada um abaixo e digite os que estão em branco (use 0 para consulta gratuita).</div>`
+    : `<div class="pc-note" style="margin-top:8px">✔ Todos os profissionais que recebem agendamentos já têm valor guardado. Confira abaixo; você pode alterar antes de aplicar.</div>`;
   list.forEach(p => {
     const id = p.id, stored = priceNum(p.consultation_price), text = priceChooserProfText(p);
     const srv = priceDraft.serverMissing && priceDraft.serverMissing.has(id);
@@ -3825,7 +3825,7 @@ function priceChooserHtml(){
     let extra = '';
     if(k === 'clinica' && sel === 'clinica'){
       extra = st.clinic !== null
-        ? `<div class="pc-guard">Valor da clínica já guardado: <b>${apuEsc(priceShow(st.clinic))}</b>. Depois de ativar este modo, você pode alterá-lo no campo “Valor único da clínica”.</div>`
+        ? `<div class="pc-guard">Valor da empresa já guardado: <b>${apuEsc(priceShow(st.clinic))}</b>. Depois de ativar este modo, você pode alterá-lo no campo “Valor único da empresa”.</div>`
         : `<div style="margin-top:8px"><label class="pc-label" for="pc-chooser-clinic">Valor da consulta (obrigatório)</label>
             <input id="pc-chooser-clinic" class="pc-input" style="width:100%" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" value="${apuEsc(priceDraft.chooserClinic)}"${dis} oninput="priceChooserClinicInput(this.value)">
             <div class="pc-prev" id="pc-prev-chooser">${apuEsc(pricePreview(priceDraft.chooserClinic))}</div></div>`;
@@ -3852,18 +3852,18 @@ function priceCardHtml(){
   let h = `<div class="pc-status" role="status">${st.pending ? '⚠ Modo ainda não escolhido' : '✔ Modo ativo: ' + apuEsc(PRICE_MODES[mode].label)}</div>`;
   h += priceMsgHtml('top');
   if(st.pending){
-    h += `<div class="pc-note warn">⚠ Escolha como o agente deve tratar o valor da consulta. Enquanto isso, se o paciente perguntar, o agente diz que o valor é tratado direto com a clínica.</div>`;
+    h += `<div class="pc-note warn">⚠ Escolha como o agente deve tratar o valor da consulta. Enquanto isso, se o cliente perguntar, o agente diz que o valor é tratado direto com a empresa.</div>`;
   }else if(mode === 'nao_informa'){
-    h += `<div class="pc-note">O agente não informa o valor da consulta. Se o paciente perguntar, ele diz que o valor é tratado direto com a clínica.</div>`;
+    h += `<div class="pc-note">O agente não informa o valor da consulta. Se o cliente perguntar, ele diz que o valor é tratado direto com a empresa.</div>`;
   }else if(mode === 'profissional'){
     if(st.without > 0){
       const who = priceWhoText(priceMissing());
-      h += `<div class="pc-note warn">⚠ ${st.without === 1 ? '1 profissional sem valor' : st.without + ' profissionais sem valor'}${who ? ': ' + apuEsc(who) : ''}. Quem atende pela agenda precisa ter valor: abra a ficha do profissional na lista abaixo e informe. Até lá, para ${st.without === 1 ? 'esse profissional' : 'esses profissionais'}, o agente diz que o valor é tratado direto com a clínica.</div>`;
+      h += `<div class="pc-note warn">⚠ ${st.without === 1 ? '1 profissional sem valor' : st.without + ' profissionais sem valor'}${who ? ': ' + apuEsc(who) : ''}. Quem recebe agendamentos precisa ter valor: abra a ficha do profissional na lista abaixo e informe. Até lá, para ${st.without === 1 ? 'esse profissional' : 'esses profissionais'}, o agente diz que o valor é tratado direto com a empresa.</div>`;
     }else{
-      h += `<div class="pc-note">✔ Todos os profissionais que atendem pela agenda têm valor.</div>`;
+      h += `<div class="pc-note">✔ Todos os profissionais que recebem agendamentos têm valor.</div>`;
     }
   }
-  h += `<div class="pc-note">O agente só informa o valor da consulta quando o paciente pergunta, e usa apenas o valor cadastrado aqui. Preço escrito na Base de Conhecimento não é usado para o valor da consulta.</div>`;
+  h += `<div class="pc-note">O agente só informa o valor da consulta quando o cliente pergunta, e usa apenas o valor cadastrado aqui. Preço escrito na Base de conhecimento não é usado para o valor da consulta.</div>`;
 
   if(st.pending || priceChooserOpen) h += priceChooserHtml();
   else h += `<button type="button" class="btn btn-ghost pc-btn" onclick="priceOpenChooser()"${dis}>Trocar de modo</button>`;
@@ -3874,7 +3874,7 @@ function priceCardHtml(){
   const cVal = cDraft !== undefined ? cDraft : priceInputStr(st.clinic);
   const cDirty = cOn && cDraft !== undefined && cDraft !== priceInputStr(st.clinic);
   h += `<div class="pc-block${cOn ? '' : ' off'}" style="margin-top:14px">
-    <label class="pc-label" for="pc-clinic">Valor único da clínica<span class="pc-tag">${cOn ? '✔ Pode editar agora' : '🔒 Desabilitado'}</span></label>
+    <label class="pc-label" for="pc-clinic">Valor único da empresa<span class="pc-tag">${cOn ? '✔ Pode editar agora' : '🔒 Desabilitado'}</span></label>
     <div class="pc-row">
       <input id="pc-clinic" class="pc-input" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 350,00" value="${apuEsc(cVal)}"${cOn && !priceBusy ? '' : ' disabled'} oninput="priceClinicInput(this.value)">
       ${cOn ? `<button type="button" id="pc-clinic-save" class="btn btn-accent pc-btn" onclick="priceSaveClinic()"${dis}${cDirty ? '' : ' style="display:none"'}>${priceBusy ? 'Salvando…' : 'Salvar valor'}</button>` : ''}
@@ -3962,7 +3962,7 @@ function priceCodeText(code, ctx, data){
   data = data || {};
   if(code === 'profissionais_sem_valor'){
     const list = Array.isArray(data.missing) ? data.missing.map(m => m && m.name ? m.name + (m.especialidade ? ` (${m.especialidade})` : '') : 'um profissional') : [];
-    return `Não foi possível trocar de modo: falta o valor de ${list.length ? list.join(', ') : 'quem atende pela agenda'}. Nada foi alterado. Digite o valor de cada um (use 0 para consulta gratuita) e aplique de novo.`;
+    return `Não foi possível trocar de modo: falta o valor de ${list.length ? list.join(', ') : 'quem recebe agendamentos'}. Nada foi alterado. Digite o valor de cada um (use 0 para consulta gratuita) e aplique de novo.`;
   }
   if(code === 'valor_obrigatorio'){
     if(ctx === 'troca' && data.professional_id){
@@ -4031,15 +4031,15 @@ function priceConfirmContent(choice, typed, rows){
   }else if(choice === 'profissional'){
     L.push(line('Cada profissional passa a usar o seu próprio valor.'));
     L.push(line(st.clinic !== null
-      ? `O valor da clínica (${apuEsc(priceShow(st.clinic))}) continua guardado, mas fica bloqueado e não vale.`
-      : 'Não há valor da clínica guardado.'));
+      ? `O valor da empresa (${apuEsc(priceShow(st.clinic))}) continua guardado, mas fica bloqueado e não vale.`
+      : 'Não há valor da empresa guardado.'));
     if(rows && rows.length){
       L.push(line('<b>Valores que serão guardados agora:</b>'));
       L.push(`<ul style="margin:0;padding-left:18px;font-size:13px;color:var(--ink);line-height:1.6">${rows.map(r => `<li>${apuEsc(r.name)} — ${apuEsc(priceShow(r.value))}</li>`).join('')}</ul>`);
     }
   }else{
-    L.push(line('O agente deixa de informar o valor da consulta. Se o paciente perguntar, ele diz que o valor é tratado direto com a clínica.'));
-    L.push(line('Os valores guardados (da clínica e dos profissionais) continuam guardados, mas ficam bloqueados.'));
+    L.push(line('O agente deixa de informar o valor da consulta. Se o cliente perguntar, ele diz que o valor é tratado direto com a empresa.'));
+    L.push(line('Os valores guardados (da empresa e dos profissionais) continuam guardados, mas ficam bloqueados.'));
   }
   L.push(line('<b>Nada é apagado.</b> Você pode voltar a qualquer modo quando quiser.'));
   return {
@@ -4096,7 +4096,7 @@ async function priceSaveClinic(){
     renderPriceCard();
     return;
   }
-  const ok = await priceCommit('clinica', 'clinica', 'PUT', '/api/consultation-price', { default_consultation_price: r.value }, 'Valor da clínica salvo.', 'clinica');
+  const ok = await priceCommit('clinica', 'clinica', 'PUT', '/api/consultation-price', { default_consultation_price: r.value }, 'Valor da empresa salvo.', 'clinica');
   if(ok){ priceDraft.clinic = undefined; renderPriceCard(); }
 }
 
@@ -4124,7 +4124,7 @@ async function submitFranchiseRequest(payload, successMsg){
     return true;
   }catch(e){
     console.error('[submitFranchiseRequest] erro:', e);
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
     return false;
   }
 }
@@ -4163,7 +4163,7 @@ async function requestFranchiseDecrease(profId){
   }
   const target = profContractedLimit - 1;
   if(!confirm(
-    `Solicitar a desativação de ${p.name} e reduzir sua franquia de ${profContractedLimit} para ${target}?\n\n` +
+    `Solicitar a desativação de ${p.name} e reduzir seu limite de profissionais contratados de ${profContractedLimit} para ${target}?\n\n` +
     `O pedido vai para análise da plataforma. Enquanto isso, ${p.name} para de receber novos agendamentos.`
   )) return;
   franchiseReqBusy = true;
@@ -4226,8 +4226,8 @@ function updateAddProfGate(focusName){
       const target = profContractedLimit + 1;
       limitAlert.innerHTML = franchiseRequestPending
         ? `<div>Limite de profissionais contratados atingido (${profActiveCount} de ${profContractedLimit}).</div>
-           <div style="margin-top:10px;color:var(--muted)">Já há um pedido de mudança de franquia em análise — você será avisado quando for decidido.</div>`
-        : `<div style="margin-bottom:12px">Limite de profissionais contratados atingido (${profActiveCount} de ${profContractedLimit}). Para adicionar outro, solicite o aumento da sua franquia.</div>
+           <div style="margin-top:10px;color:var(--muted)">Já há um pedido de mudança do limite de profissionais contratados em análise — você será avisado quando for decidido.</div>`
+        : `<div style="margin-bottom:12px">Limite de profissionais contratados atingido (${profActiveCount} de ${profContractedLimit}). Para adicionar outro, solicite o aumento do limite de profissionais contratados.</div>
            <button type="button" class="btn btn-accent btn-sm" id="btn-request-increase" onclick="requestFranchiseIncrease()">Solicitar aumento (${profContractedLimit} → ${target})</button>`;
     }
   }
@@ -4267,8 +4267,8 @@ function updateAddProfPrice(){
   if(ro){
     ro.style.display = m === 'readonly' ? '' : 'none';
     if(m === 'readonly') ro.textContent = priceState.clinic !== null
-      ? `Valor da consulta: ${priceShow(priceState.clinic)} — valor único da clínica (só leitura).`
-      : 'O valor único da clínica ainda não está definido (só leitura).';
+      ? `Valor da consulta: ${priceShow(priceState.clinic)} — valor único da empresa (só leitura).`
+      : 'O valor único da empresa ainda não está definido (só leitura).';
   }
   if(m !== 'input'){
     const el = document.getElementById('prof-price');
@@ -4385,11 +4385,11 @@ async function submitAddProf(e){
       return;
     }
     await loadProfessionalsFromServer();
-    showToast(`✓ ${name} adicionado! Peça pra ele entrar com o e-mail e a senha combinada.`);
+    showToast(`✓ ${name} adicionado! Passe o e-mail de login e a senha combinada.`);
     hideAddProfForm();
   }catch(err){
     console.error('[submitAddProf] erro:', err);
-    setFormAlert('add-prof-alert', 'Não foi possível conectar ao backend.', 'error');
+    setFormAlert('add-prof-alert', 'Não foi possível conectar ao servidor.', 'error');
   }finally{
     btn.textContent = 'Cadastrar profissional';
     validateProfForm();
@@ -4577,7 +4577,7 @@ async function markCallbackDone(id){
     await loadAppointmentsFromServer();
   }catch(e){
     console.error('[markCallbackDone] erro:', e);
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }
 }
 
@@ -4597,9 +4597,9 @@ const HELD_ACTION = {
   confirmar:        { label:'Confirmar agendamento', route:'confirm', cls:'btn-green',
                       ask:'Confirmar este agendamento? Ele será criado de verdade na agenda.' },
   descartar:        { label:'Descartar',             route:'discard', cls:'btn-ghost',
-                      ask:'Descartar este pedido? Nenhum agendamento será criado.' },
-  retornar_ligacao: { label:'Retornar a ligação',    route:'treat',   cls:'btn-green',
-                      ask:'Marcar este pedido como "ligação retornada"?' },
+                      ask:'Descartar esta solicitação? Nenhum agendamento será criado.' },
+  retornar_ligacao: { label:'Marcar ligação como retornada',    route:'treat',   cls:'btn-green',
+                      ask:'Marcar esta solicitação como "ligação retornada"?' },
 };
 
 function heldIsAdmin(){ return currentUser?.role === 'admin'; }
@@ -4702,13 +4702,13 @@ function heldRowHtml(it){
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="font-size:12px;font-weight:700;padding:3px 9px;border-radius:8px;border:1px solid ${color};color:${color}"><span aria-hidden="true">${glyph}</span> ${apuEsc(it.status_label || it.status)}</span>
         ${isTest ? `<span style="font-size:12px;font-weight:700;padding:3px 9px;border-radius:8px;border:1px solid var(--muted);color:var(--muted)"><span aria-hidden="true">🧪</span> Teste</span>` : ''}
-        ${it.slot_passed ? `<span style="font-size:12px;font-weight:700;padding:3px 9px;border-radius:8px;border:1px solid var(--amber);color:#92400E"><span aria-hidden="true">⏰</span> O horário pedido já passou</span>` : ''}
+        ${it.slot_passed ? `<span style="font-size:12px;font-weight:700;padding:3px 9px;border-radius:8px;border:1px solid var(--amber);color:#92400E"><span aria-hidden="true">⏰</span> O horário solicitado já passou</span>` : ''}
       </div>
       <div style="font-size:13px;color:var(--ink);line-height:1.5;overflow-wrap:anywhere">${apuEsc(it.notice)}</div>
       <div style="display:flex;flex-direction:column;gap:4px">
         <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Nome informado:</span> ${apuEsc(it.customer_name_given || '—')}</div>
-        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Dia e horário pedidos:</span> ${when}</div>
-        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Profissional pedido:</span> ${it.professional_name ? apuEsc(it.professional_name) : 'não informado'}</div>
+        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Dia e horário solicitados:</span> ${when}</div>
+        <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Profissional solicitado:</span> ${it.professional_name ? apuEsc(it.professional_name) : 'não informado'}</div>
         <div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">Telefone:</span> ${heldPhoneHtml(it)}</div>
         ${it.agent_said ? `<div style="font-size:12px;color:var(--ink)"><span style="font-weight:600;color:var(--muted)">O agente respondeu:</span><div style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px">${apuEsc(it.agent_said)}</div></div>` : ''}
       </div>
@@ -4728,14 +4728,14 @@ function renderHeld(){
   card.style.display = (heldItems.length > 0 || heldShowAll || heldNotice) ? '' : 'none';
   const desc = document.getElementById('held-count-desc');
   if(desc) desc.textContent = openN
-    ? `${openN} pedido${openN!==1?'s':''} aguardando a sua decisão`
-    : 'Nenhum pedido aguardando a sua decisão';
+    ? `${openN} solicitaç${openN!==1?'ões':'ão'} aguardando a sua decisão`
+    : 'Nenhuma solicitação aguardando a sua decisão';
   if(heldNotice){
     list.innerHTML = `<div style="padding:16px 22px;color:var(--red);font-size:13px">${apuEsc(heldNotice.text)}</div>`;
     return;
   }
   if(!heldItems.length){
-    list.innerHTML = '<div style="padding:16px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhum pedido retido.</div>';
+    list.innerHTML = '<div style="padding:16px 22px;color:var(--muted);font-size:13px;text-align:center">Nenhuma solicitação retida.</div>';
     return;
   }
   // preserva o foco/cursor do campo de nome enquanto a lista é redesenhada
@@ -4824,7 +4824,7 @@ async function heldDecide(id, action, fromForm){
     const d = await res.json().catch(() => ({}));
     if(res.ok){
       delete heldFix[id];
-      showToast(action === 'confirmar' ? '✓ Agendamento confirmado' : action === 'descartar' ? '✓ Pedido descartado' : '✓ Ligação marcada como retornada');
+      showToast(action === 'confirmar' ? '✓ Agendamento confirmado' : action === 'descartar' ? '✓ Solicitação descartada' : '✓ Ligação marcada como retornada');
       await Promise.all([loadHeld(), action === 'confirmar' ? reloadAppointmentsQuiet() : null]);
       handoffPollSoon();
       return;
@@ -4832,7 +4832,7 @@ async function heldDecide(id, action, fromForm){
     const code = d.code;
     if(res.status === 409 && code === 'horario_ocupado'){
       delete heldFix[id];
-      showToast('⚠ Esse horário foi ocupado nesse meio-tempo. O pedido voltou a aguardar a sua decisão.', 9000);
+      showToast('⚠ Esse horário foi ocupado nesse meio-tempo. A solicitação voltou a aguardar a sua decisão.', 9000);
       await loadHeld();
     }else if(res.status === 409 && code === 'confirmacao_indisponivel_no_teste'){
       showToast('⚠ Conversa de teste: ela só pode ser descartada, não confirmada.', 9000);
@@ -4853,14 +4853,14 @@ async function heldDecide(id, action, fromForm){
     }else if(res.status === 503){
       showToast('⚠ Este recurso está indisponível agora. Tente de novo em alguns minutos.', 8000);
     }else if(res.status === 409 || res.status === 404){
-      showToast(`⚠ ${d.error || 'Este pedido já foi decidido.'}`, 7000);
+      showToast(`⚠ ${d.error || 'Esta solicitação já foi decidida.'}`, 7000);
       await loadHeld();
     }else{
       showToast(`⚠ ${d.error || 'Não foi possível concluir a decisão.'}`, 7000);
     }
   }catch(e){
     console.error('[heldDecide] erro:', e);
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }finally{
     heldBusy.delete(id);
     renderHeld();
@@ -4891,7 +4891,7 @@ async function cancelAppointmentFromPanel(id){
     await loadAppointmentsFromServer();
   }catch(e){
     console.error('[cancelAppointmentFromPanel] erro:', e);
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }
 }
 
@@ -4978,10 +4978,10 @@ function clientDetailHtml(c){
       <div>
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Nome de exibição</div>
         <input id="client-detail-displayName-${id}" style="border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;width:100%;outline:none" value="${apuEsc(c.display_name||'')}">
-        <div style="font-size:12px;color:var(--muted);margin-top:4px">Como o negócio é conhecido pelos clientes. Não precisa ser a razão social.</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Como a empresa é conhecida pelos clientes. Não precisa ser a razão social.</div>
       </div>
       <div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Nome do cliente/admin</div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Nome do administrador</div>
         <input id="client-detail-adminName-${id}" style="border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;width:100%;outline:none" value="${c.adminName||''}">
       </div>
       <div>
@@ -5002,7 +5002,7 @@ function clientDetailHtml(c){
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Profissionais contratados</div>
         <div id="client-franchise-view-${id}" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
           <div id="client-franchise-value-${id}" style="font-size:14px;color:var(--ink);font-weight:600">${c.contracted_professionals ?? '—'}</div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="showFranchiseForm('${id}')">Alterar franquia</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="showFranchiseForm('${id}')">Alterar limite de profissionais</button>
         </div>
         <div id="client-franchise-form-${id}" style="display:none;margin-top:12px">
           <div id="client-franchise-alert-${id}" class="form-alert" style="display:none"></div>
@@ -5212,7 +5212,7 @@ async function saveClient(id){
 
   if(name.length < 3){ setFormAlert(`client-detail-alert-${id}`, 'Informe a razão social (mín. 3 caracteres).', 'error'); return; }
   if(displayChanged && !displayName){ setFormAlert(`client-detail-alert-${id}`, 'O nome de exibição não pode ficar vazio.', 'error'); return; }
-  if(adminName.length < 3){ setFormAlert(`client-detail-alert-${id}`, 'Informe o nome do cliente/admin (mín. 3 caracteres).', 'error'); return; }
+  if(adminName.length < 3){ setFormAlert(`client-detail-alert-${id}`, 'Informe o nome do administrador (mín. 3 caracteres).', 'error'); return; }
   if(!Number.isInteger(contractedColaboradores) || contractedColaboradores < 0){ setFormAlert(`client-detail-alert-${id}`, 'Informe um número inteiro de colaboradores (0 ou mais).', 'error'); return; }
 
   setFormAlert(`client-detail-alert-${id}`, '', '');
@@ -5238,8 +5238,8 @@ async function saveClient(id){
 
   const clientOk = clientResult.status==='fulfilled' && clientResult.value.ok;
   const adminOk  = adminNameResult.status==='fulfilled' && adminNameResult.value.ok;
-  const clientErr = clientResult.status==='fulfilled' ? (clientResult.value.data.error||'Erro ao salvar negócio/status.') : 'Não foi possível conectar ao backend.';
-  const adminErr  = adminNameResult.status==='fulfilled' ? (adminNameResult.value.data.error||'Erro ao salvar nome do admin.') : 'Não foi possível conectar ao backend.';
+  const clientErr = clientResult.status==='fulfilled' ? (clientResult.value.data.error||'Erro ao salvar empresa/status.') : 'Não foi possível conectar ao servidor.';
+  const adminErr  = adminNameResult.status==='fulfilled' ? (adminNameResult.value.data.error||'Erro ao salvar nome do admin.') : 'Não foi possível conectar ao servidor.';
 
   await loadPlatformClientsFromServer();
   if(platformClients.find(x=>x.id===id)) selectClient(id);
@@ -5305,7 +5305,7 @@ async function submitFranchiseChange(id){
     });
     const data = await res.json().catch(()=>({}));
     if(!res.ok){
-      setFormAlert(`client-franchise-alert-${id}`, data.error || 'Não foi possível alterar a franquia.', 'error');
+      setFormAlert(`client-franchise-alert-${id}`, data.error || 'Não foi possível alterar o limite de profissionais.', 'error');
       return;
     }
     const idx = platformClients.findIndex(x=>x.id===id);
@@ -5313,7 +5313,7 @@ async function submitFranchiseChange(id){
     renderFranchiseResult(id, data.franchise_change);
   }catch(err){
     console.error('[submitFranchiseChange] erro:', err);
-    setFormAlert(`client-franchise-alert-${id}`, 'Não foi possível conectar ao backend.', 'error');
+    setFormAlert(`client-franchise-alert-${id}`, 'Não foi possível conectar ao servidor.', 'error');
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = 'Confirmar alteração'; }
   }
@@ -5332,7 +5332,7 @@ function renderFranchiseResult(id, change){
     : '—';
   result.innerHTML = `
     <div style="font-size:13px;color:var(--ink);line-height:1.7">
-      <div><strong>${change.change_type || 'Alteração de franquia'}</strong></div>
+      <div><strong>${change.change_type || 'Alteração do limite de profissionais'}</strong></div>
       <div>${change.contracted_before} → ${change.contracted_after} profissionais</div>
       <div>Preço unitário: ${unitFormatted}</div>
       <div>Valor proporcional: <strong>${formatted}</strong></div>
@@ -5447,7 +5447,7 @@ async function submitAddClient(e){
     hideAddClientForm();
   }catch(err){
     console.error('[submitAddClient] erro:', err);
-    setFormAlert('add-client-alert', 'Não foi possível conectar ao backend.', 'error');
+    setFormAlert('add-client-alert', 'Não foi possível conectar ao servidor.', 'error');
   }finally{
     btn.textContent = 'Cadastrar cliente';
     validateClientForm();
@@ -5543,10 +5543,10 @@ function selectCommercialCloseRequest(id){
           <div class="field-label">Nome de exibição</div>
           <input class="field" id="comercial-display-${apuEsc(id)}" type="text" value="${apuEsc(r.display_name||'')}" autocomplete="off" oninput="validateCommercialApproveForm(${convJsArg(id)})">
           <div class="field-error" id="err-comercial-display-${apuEsc(id)}"></div>
-          <div class="field-hint">Como o negócio é conhecido pelos clientes. Não precisa ser a razão social.</div>
+          <div class="field-hint">Como a empresa é conhecida pelos clientes. Não precisa ser a razão social.</div>
         </div>
         <div class="field-group">
-          <div class="field-label">E-mail de login do admin</div>
+          <div class="field-label">E-mail de login do administrador</div>
           <input class="field" id="comercial-email-${apuEsc(id)}" type="email" value="${apuEsc(r.contact_email||'')}" autocomplete="off" oninput="validateCommercialApproveForm(${convJsArg(id)})">
           <div class="field-error" id="err-comercial-email-${apuEsc(id)}"></div>
         </div>
@@ -5653,7 +5653,7 @@ async function approveCommercialClose(id){
     showToast(`✓ ${r.business_name} aprovado! Peça pro admin entrar com o e-mail e a senha combinada.`);
   }catch(err){
     console.error('[approveCommercialClose] erro:', err);
-    setFormAlert(`comercial-detail-alert-${id}`, 'Não foi possível conectar ao backend.', 'error');
+    setFormAlert(`comercial-detail-alert-${id}`, 'Não foi possível conectar ao servidor.', 'error');
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = 'Aprovar e criar cliente'; }
   }
@@ -5686,7 +5686,7 @@ async function rejectCommercialClose(id){
     showToast(`✓ Pedido de ${r.business_name} rejeitado.`);
   }catch(err){
     console.error('[rejectCommercialClose] erro:', err);
-    setFormAlert(`comercial-detail-alert-${id}`, 'Não foi possível conectar ao backend.', 'error');
+    setFormAlert(`comercial-detail-alert-${id}`, 'Não foi possível conectar ao servidor.', 'error');
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = 'Rejeitar pedido'; }
   }
@@ -5812,7 +5812,7 @@ async function submitPricingConfig(e){
     loadApuracaoStatus(); // o modo pode ter virado manual
   }catch(err){
     console.error('[submitPricingConfig] erro:', err);
-    setFormAlert('pricing-alert', 'Não foi possível conectar ao backend.', 'error');
+    setFormAlert('pricing-alert', 'Não foi possível conectar ao servidor.', 'error');
   }finally{
     btn.textContent = 'Salvar preços';
     validatePricingForm();
@@ -6101,7 +6101,7 @@ async function loadApuracaoStatus({ sync = false, keepMsg = false } = {}){
   }catch(e){
     console.error('[loadApuracaoStatus] erro:', e);
     apuWeightUnavailable();
-    apuShowError('card', 'Não foi possível conectar ao backend.', () => loadApuracaoStatus({ sync }));
+    apuShowError('card', 'Não foi possível conectar ao servidor.', () => loadApuracaoStatus({ sync }));
   }
 }
 
@@ -6173,7 +6173,7 @@ async function runApuracao(){
     });
     const data = await res.json().catch(() => ({}));
     if(!res.ok){ apuHandleError(res, data, 'card', runApuracao); return; }
-    if(!data.run){ apuShowError('card', 'Resposta inesperada do backend.', runApuracao); return; }
+    if(!data.run){ apuShowError('card', 'Resposta inesperada do servidor.', runApuracao); return; }
     apuRenderResult(data.run);
     showToast(data.run.status === 'falhou' ? '⚠ A apuração falhou — veja o motivo abaixo'
       : data.run.applied ? '✓ Apuração concluída e aplicada' : '✓ Apuração concluída — resultado como sugestão');
@@ -6181,7 +6181,7 @@ async function runApuracao(){
     loadCostConstants({ keepMsg:true }); // a apuração também verifica os fornecedores
   }catch(e){
     console.error('[runApuracao] erro:', e);
-    apuShowError('card', 'Não foi possível conectar ao backend.', runApuracao);
+    apuShowError('card', 'Não foi possível conectar ao servidor.', runApuracao);
   }finally{
     apuSetBusy(false);
     btn.textContent = 'Apurar mês';
@@ -6206,7 +6206,7 @@ async function applyApuracaoRun(id, target){
     loadApuracaoStatus({ sync:true, keepMsg:true });
   }catch(e){
     console.error('[applyApuracaoRun] erro:', e);
-    apuShowError(target, 'Não foi possível conectar ao backend.', () => applyApuracaoRun(id, target));
+    apuShowError(target, 'Não foi possível conectar ao servidor.', () => applyApuracaoRun(id, target));
   }finally{
     apuSetBusy(false);
   }
@@ -6225,7 +6225,7 @@ async function switchToAutomaticMode(){
     loadApuracaoStatus({ sync:true, keepMsg:true });
   }catch(e){
     console.error('[switchToAutomaticMode] erro:', e);
-    apuShowError('cost', 'Não foi possível conectar ao backend.', switchToAutomaticMode);
+    apuShowError('cost', 'Não foi possível conectar ao servidor.', switchToAutomaticMode);
   }finally{
     apuSetBusy(false);
   }
@@ -6245,7 +6245,7 @@ async function openApuracaoRun(id){
     if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
   }catch(e){
     console.error('[openApuracaoRun] erro:', e);
-    apuShowError('cost', 'Não foi possível conectar ao backend.', () => openApuracaoRun(id));
+    apuShowError('cost', 'Não foi possível conectar ao servidor.', () => openApuracaoRun(id));
   }finally{
     apuSetBusy(false);
   }
@@ -6455,7 +6455,7 @@ async function loadCostConstants({ keepMsg = false } = {}){
   }catch(e){
     console.error('[loadCostConstants] erro:', e);
     if(apuConsts === null){ const l = document.getElementById('apu-sup-list'); if(l){ l.dataset.failed = '1'; l.innerHTML = '<div class="apu-muted">Não foi possível carregar os custos dos fornecedores.</div>'; } }
-    apuShowError('sup', 'Não foi possível conectar ao backend.', () => loadCostConstants());
+    apuShowError('sup', 'Não foi possível conectar ao servidor.', () => loadCostConstants());
   }
 }
 
@@ -6480,7 +6480,7 @@ async function verifyCostConstants(){
     showToast('✓ Verificação dos fornecedores concluída');
   }catch(e){
     console.error('[verifyCostConstants] erro:', e);
-    apuShowError('sup', 'Não foi possível conectar ao backend.', verifyCostConstants);
+    apuShowError('sup', 'Não foi possível conectar ao servidor.', verifyCostConstants);
   }finally{
     apuSetBusy(false);
     btn.textContent = 'Só verificar fornecedores';
@@ -6506,7 +6506,7 @@ async function adoptCostConstant(key){
     showToast('✓ Valor adotado');
   }catch(e){
     console.error('[adoptCostConstant] erro:', e);
-    apuShowError('sup', 'Não foi possível conectar ao backend.', () => adoptCostConstant(key));
+    apuShowError('sup', 'Não foi possível conectar ao servidor.', () => adoptCostConstant(key));
   }finally{
     apuSetBusy(false);
   }
@@ -6568,7 +6568,7 @@ const NOTIF_SOURCES = [
     id: 'platformFranchise',
     icon: 'users', color: '#5B21B6', time: it => it.requested_at,
     kind: 'decision',
-    title: 'Pedidos de franquia',
+    title: 'Pedidos de mudança de limite',
     applies: () => isPlatformAdmin,
     load: () => apiFetch('/api/admin/franchise-requests', { skipAuthGuard: true }),
     pick: d => notifAsArray(d, 'requests'),
@@ -6577,7 +6577,7 @@ const NOTIF_SOURCES = [
     id: 'clientFranchise',
     icon: 'userCheck', color: '#4338CA', time: it => it.resolved_at || it.requested_at,
     kind: 'seen',
-    title: 'Seus pedidos de franquia',
+    title: 'Seus pedidos de mudança de limite',
     applies: () => currentUser?.role === 'admin' && !isPlatformAdmin,
     load: () => apiFetch('/api/franchise/requests', { skipAuthGuard: true }),
     pick: d => notifAsArray(d, 'requests').filter(x => x.status !== 'pendente' && !x.client_seen_at),
@@ -6772,7 +6772,7 @@ function fmtFranchiseChange(r){
   const a = r.contracted_before, b = r.requested_contracted;
   if(r.request_type === 'aumento') return `aumentar de ${a} para ${b} profissionais`;
   if(r.request_type === 'reducao') return `reduzir de ${a} para ${b} profissionais`;
-  return `mudar a franquia de ${a} para ${b}`;
+  return `mudar o limite de profissionais de ${a} para ${b}`;
 }
 
 function notifRowHtml(source, it){
@@ -6892,7 +6892,7 @@ async function decideFranchise(id, decision){
     const data = await res.json().catch(() => ({}));
     if(!res.ok){ showToast(`⚠ ${data.error || 'Não foi possível resolver o pedido.'}`, 7000); return; }
     if(notifCache.platformFranchise) notifCache.platformFranchise = notifCache.platformFranchise.filter(r => r.id !== id);
-    showToast(decision === 'aprovar' ? '✓ Pedido de franquia aprovado' : '✓ Pedido de franquia rejeitado');
+    showToast(decision === 'aprovar' ? '✓ Pedido de mudança de limite aprovado' : '✓ Pedido de mudança de limite rejeitado');
     renderNotifBadge();
     renderNotifPanel();
     refreshNotifications();
@@ -6901,7 +6901,7 @@ async function decideFranchise(id, decision){
     if(currentUser?.role === 'admin') refreshProfessionalsView();
   }catch(e){
     console.error('[decideFranchise] erro:', e);
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }finally{
     notifBusy = false;
     setNotifActionsDisabled(false);
@@ -6940,7 +6940,7 @@ async function markOneSeen(sourceId, id){
     refreshNotifications();
   }catch(e){
     console.error('[markOneSeen] erro:', e);
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }finally{
     notifBusy = false;
     setNotifActionsDisabled(false);
@@ -6962,7 +6962,7 @@ async function notifMarkAllVisible(){
     refreshNotifications();
   }catch(e){
     console.error('[notifMarkAllVisible] erro:', e);
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }finally{
     notifBusy = false;
     setNotifActionsDisabled(false);
@@ -7184,7 +7184,7 @@ function handoffBannerInfoRowHtml(h){
     ? ` · ${apuEsc(h.customer_phone)}` : '';
   const motivo = handoffReasonShort(h);
   return `<div class="ho-row">
-    <span class="ho-main">🔴 <b>${apuEsc(nome || 'Um cliente')}</b> pediu atendimento: o telefone do consultório já foi informado ao cliente${tel}${motivo ? `<span class="ho-reason">Motivo: ${apuEsc(motivo)}</span>` : ''}</span>
+    <span class="ho-main">🔴 <b>${apuEsc(nome || 'Um cliente')}</b> pediu atendimento humano: o telefone da empresa já foi informado ao cliente${tel}${motivo ? `<span class="ho-reason">Motivo: ${apuEsc(motivo)}</span>` : ''}</span>
     <span class="ho-actions">
       <button type="button" class="ho-btn ho-btn-main" ${busy ? 'disabled' : ''} onclick="ackHandoffInfo(${convJsArg(h.id)})">${busy ? 'Marcando…' : 'Marcar como visto'}</button>
     </span>
@@ -7199,7 +7199,7 @@ function handoffBannerRowHtml(h){
     ? ` · ${apuEsc(h.customer_phone)}` : '';
   const dl = handoffDeadlineText(h);
   return `<div class="ho-row">
-    <span class="ho-main">🔴 <b>${apuEsc(h.customer_name || 'Cliente')}</b> pediu atendimento humano${tel}${motivo ? `<span class="ho-reason">Motivo: ${apuEsc(motivo)}</span>` : ''}${handoffIsTeste(h) ? `<span class="ho-reason">${HANDOFF_TESTE_NOTA}</span>` : ''}</span>
+    <span class="ho-main">🔴 <b>${apuEsc(h.customer_name || 'Cliente')}</b> pediu transferência para atendimento humano${tel}${motivo ? `<span class="ho-reason">Motivo: ${apuEsc(motivo)}</span>` : ''}${handoffIsTeste(h) ? `<span class="ho-reason">${HANDOFF_TESTE_NOTA}</span>` : ''}</span>
     <span class="ho-deadline" data-deadline="${apuEsc(h.deadline_at || '')}"${dl ? '' : ' hidden'}>${apuEsc(dl)}</span>
     <span class="ho-actions">
       <button type="button" class="ho-btn ho-btn-main" ${busy ? 'disabled' : ''} onclick="claimHandoff(${convJsArg(h.id)})">${busy ? 'Assumindo…' : 'Vou atender'}</button>
@@ -7284,7 +7284,7 @@ function handoffSyncAlert(newArrived){
       handoffTitleTimer = setInterval(() => {
         handoffTitleOn = !handoffTitleOn;
         const n = handoffAlertItems().length;
-        const rotulo = handoffPendingForMe().length ? 'Transferência!' : 'Cliente pediu atendimento!';
+        const rotulo = 'Transferência!';
         document.title = handoffTitleOn ? `🔴 (${n}) ${rotulo}` : HANDOFF_BASE_TITLE;
       }, 1000);
     }
@@ -7456,24 +7456,24 @@ async function claimHandoff(id){
     const data = await res.json().catch(() => ({}));
     if(res.ok && data && data.claimed){
       handoffMerge(id, data.handoff);
-      showToast(`✓ Você assumiu o atendimento ${handoffDeNome(handoffList.find(x => x.id === id) || h)}.`);
+      showToast(`✓ Você assumiu a transferência ${handoffDeNome(handoffList.find(x => x.id === id) || h)}.`);
       handoffOpenHistoryFor(handoffList.find(x => x.id === id) || h);
     }else if(res.status === 409){
       // Perdeu a corrida (ou já concluída): não é erro — mostra quem está atendendo e atualiza a lista.
       const st = data && data.handoff;
       if(data && data.code === 'ja_concluida'){
         handoffRemove(id);
-        showToast('ℹ️ Este atendimento já foi concluído.');
+        showToast('ℹ️ Esta transferência já foi concluída.');
       }else if(data && data.code === 'prazo_vencido'){
         // O prazo acabou com o item ainda na tela: mostra como sem atendimento e recarrega a lista.
         handoffMerge(id, Object.assign({ sem_atendimento: true }, st || {}));
-        showToast('ℹ️ O prazo para atender este pedido já venceu. Ele aparece agora como sem atendimento.');
+        showToast('ℹ️ O prazo desta transferência já venceu. Ela aparece agora como não atendida.');
         handoffPollAt = 0;
       }else{
         if(st) handoffMerge(id, st);
         if(data && data.code === 'ja_assumida'){
-          showToast(st && st.mine ? '✓ Você já assumiu este atendimento.'
-            : `ℹ️ ${(st && st.claimed_by_name) || 'Outra pessoa'} já assumiu este atendimento.`);
+          showToast(st && st.mine ? '✓ Você já assumiu esta transferência.'
+            : `ℹ️ ${(st && st.claimed_by_name) || 'Outra pessoa'} já assumiu esta transferência.`);
         }else{
           showToast('ℹ️ Não foi possível assumir agora. Tente novamente.');
         }
@@ -7487,7 +7487,7 @@ async function claimHandoff(id){
       showToast('⚠ Não foi possível assumir agora. Tente de novo.');
     }
   }catch(e){
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }finally{
     handoffClaimBusy.delete(id);
     handoffRenderAll();
@@ -7502,7 +7502,7 @@ async function claimHandoff(id){
 const HANDOFF_NOTE_MAX = 500;
 const HANDOFF_RESULT_OPTIONS = [
   ['resolvido', 'Resolvido'],
-  ['agendou_consulta', 'Agendou consulta'],
+  ['agendou_consulta', 'Agendamento feito'],
   ['cliente_vai_retornar', 'Cliente vai retornar'],
   ['nao_consegui_falar', 'Não consegui falar'],
   ['outro', 'Outro'],
@@ -7572,7 +7572,7 @@ function handoffConcludeFormHtml(it){
     `<label class="ho-opt"><input type="radio" name="ho-result" value="${apuEsc(val)}" ${f.result === val ? 'checked' : ''} ${busy ? 'disabled' : ''} onchange="handoffPickResult(this.value)"> ${apuEsc(label)}</label>`
   ).join('');
   return `<div class="ho-conclude">
-      <div class="ho-conclude-title">Como terminou o atendimento?</div>
+      <div class="ho-conclude-title">Como terminou a transferência?</div>
       <div class="ho-opts">${opts}</div>
       <textarea id="ho-note" class="field" maxlength="${HANDOFF_NOTE_MAX}" rows="3" placeholder="Observação (opcional)" ${busy ? 'disabled' : ''} oninput="handoffNoteInput(this)">${apuEsc(f.note)}</textarea>
       <div class="ho-note-count" id="ho-note-count">${f.note.length}/${HANDOFF_NOTE_MAX}</div>
@@ -7586,7 +7586,7 @@ function handoffConcludeFormHtml(it){
 async function concludeHandoff(id){
   const f = handoffConclude;
   if(!f || f.id !== id || handoffConcludeBusy.has(id)) return;
-  if(!HANDOFF_RESULT_OPTIONS.some(o => o[0] === f.result)){ showToast('ℹ️ Escolha como o atendimento terminou.'); return; }
+  if(!HANDOFF_RESULT_OPTIONS.some(o => o[0] === f.result)){ showToast('ℹ️ Escolha como a transferência terminou.'); return; }
   const note = f.note.trim();
   if(note.length > HANDOFF_NOTE_MAX){ showToast(`ℹ️ A observação deve ter até ${HANDOFF_NOTE_MAX} caracteres.`); return; }
   const h = handoffList.find(x => x.id === id);
@@ -7607,19 +7607,19 @@ async function concludeHandoff(id){
       done = true;
       let aviso = '';
       if(f.result === 'agendou_consulta' && Array.isArray(data.appointments)){
-        if(!data.appointments.length) aviso = ' ⚠ Nenhuma consulta ligada a esta transferência.';
-        else if(data.appointments.every(a => a && a.status === 'cancelado')) aviso = ' ⚠ As consultas ligadas a esta transferência estão canceladas.';
+        if(!data.appointments.length) aviso = ' ⚠ Nenhum agendamento ligado a esta transferência.';
+        else if(data.appointments.every(a => a && a.status === 'cancelado')) aviso = ' ⚠ Os agendamentos ligados a esta transferência estão cancelados.';
       }
-      showToast(`✓ Atendimento ${handoffDeNome(h)} concluído.${aviso}`);
+      showToast(`✓ Transferência ${handoffDeNome(h)} concluída.${aviso}`);
     }else if(res.status === 400){
       showToast(data && data.code === 'observacao_longa'
         ? `ℹ️ A observação deve ter até ${HANDOFF_NOTE_MAX} caracteres.`
-        : 'ℹ️ Escolha como o atendimento terminou.');
+        : 'ℹ️ Escolha como a transferência terminou.');
     }else if(res.status === 403){
       if(data && data.code === 'so_quem_assumiu'){
         if(st) handoffMerge(id, st);
         handoffConclude = null;
-        showToast(`ℹ️ Só quem assumiu pode concluir. Este atendimento está com ${(st && st.claimed_by_name) || (h && h.claimed_by_name) || 'outra pessoa'}.`);
+        showToast(`ℹ️ Só quem assumiu pode concluir. Esta transferência está com ${(st && st.claimed_by_name) || (h && h.claimed_by_name) || 'outra pessoa'}.`);
       }else{
         handoffConclude = null;
         showToast('⚠ Você não tem permissão para concluir transferências.');
@@ -7630,19 +7630,19 @@ async function concludeHandoff(id){
     }else if(res.status === 409){
       if(st && st.status === 'atendido'){
         done = true;
-        showToast('ℹ️ Este atendimento já foi concluído.');
+        showToast('ℹ️ Esta transferência já foi concluída.');
       }else{
         if(st) handoffMerge(id, st);
         handoffConclude = null;
         showToast(st && st.status === 'pendente'
-          ? 'ℹ️ Ninguém assumiu este atendimento ainda. Clique em "Vou atender" primeiro.'
-          : 'ℹ️ Este atendimento não pode mais ser concluído por você agora.');
+          ? 'ℹ️ Ninguém assumiu esta transferência ainda. Clique em "Vou atender" primeiro.'
+          : 'ℹ️ Esta transferência não pode mais ser concluída por você agora.');
       }
     }else if(res.status !== 401){
       showToast('⚠ Não foi possível concluir agora. Tente de novo.');
     }
   }catch(e){
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }finally{
     handoffConcludeBusy.delete(id);
     if(done){
@@ -7670,7 +7670,7 @@ const HANDOFF_BOOK_ERRORS = {
   profissional_nao_encontrado: 'Profissional não encontrado. Escolha outro.',
   transferencia_nao_encontrada: 'Esta transferência não existe mais.',
   horario_ocupado: 'Horário ocupado. Escolha outro.',
-  transferencia_nao_assumida: 'Assuma a transferência antes de agendar a consulta.',
+  transferencia_nao_assumida: 'Assuma a transferência antes de agendar.',
   transferencia_ja_concluida: 'Esta transferência já foi concluída.',
   profissional_inativo: 'Esse profissional está inativo e não pode receber agendamentos.',
   profissional_nao_aceita_agendamento: 'Esse profissional não está aceitando agendamentos no momento.',
@@ -7777,7 +7777,7 @@ async function handoffBookLoadProfs(){
       b.profsError = handoffBookErrorText(res.status, d);
     }
   }catch(e){
-    if(handoffBook === b) b.profsError = 'Não foi possível conectar ao backend.';
+    if(handoffBook === b) b.profsError = 'Não foi possível conectar ao servidor.';
   }finally{
     if(handoffBook === b){
       b.profsLoading = false;
@@ -7839,7 +7839,7 @@ async function handoffBookLoadSlots(){
       b.err = handoffBookErrorText(res.status, data);
     }
   }catch(e){
-    if(handoffBook === b && seq === b.seq) b.err = 'Não foi possível conectar ao backend.';
+    if(handoffBook === b && seq === b.seq) b.err = 'Não foi possível conectar ao servidor.';
   }finally{
     if(handoffBook === b && seq === b.seq){
       b.loading = false;
@@ -7856,7 +7856,7 @@ function handoffBookGridHtml(b){
   if(!b.slots) return '';
   if(!b.works) return '<div class="ho-book-note">Este profissional não atende neste dia da semana.</div>';
   if(!b.slots.length) return '<div class="ho-book-note">Sem horários livres neste dia.</div>';
-  const dur = b.duration ? ` · consulta de ${apuEsc(b.duration)} min` : '';
+  const dur = b.duration ? ` · duração de ${apuEsc(b.duration)} min` : '';
   const btns = b.slots.map(s => `<button type="button" class="ho-slot${b.slot === s.time ? ' on' : ''}" onclick="handoffBookPickSlot(${convJsArg(s.time)})">${apuEsc(s.time)}</button>`).join('');
   return `<div class="ho-book-note">Horários livres (horário de Brasília)${dur}</div><div class="ho-slots">${btns}</div>`;
 }
@@ -7881,7 +7881,7 @@ function handoffBookFormHtml(it){
   const temNome = handoffHasName(it);
   const quem = `${temNome ? apuEsc(it.customer_name.trim()) : 'sem nome'}${it.customer_phone && !/teste/i.test(String(it.customer_phone)) && it.channel !== 'painel_teste' ? ' · ' + apuEsc(it.customer_phone) : ''}`;
   return `<div class="ho-conclude ho-book">
-      <div class="ho-conclude-title">Agendar consulta</div>
+      <div class="ho-conclude-title">Novo agendamento</div>
       <div class="ho-book-note">Cliente: <b>${quem}</b> (vem da transferência)</div>
       ${temNome ? '' : `<label class="ho-book-label">Nome do cliente <span class="ho-book-note">(obrigatório — a transferência não tem nome)</span> <input id="ho-book-name" class="field" type="text" maxlength="${HANDOFF_NAME_MAX}" autocomplete="off" placeholder="Nome do cliente" value="${apuEsc(b.name)}" ${busy ? 'disabled' : ''} oninput="handoffBookNameInput(this)"></label>`}
       <label class="ho-book-label">Profissional ${profField}</label>
@@ -7900,7 +7900,7 @@ function handoffBookedHtml(it){
   const list = handoffBooked[it.id] || [];
   return list.map(a => {
     const quando = a.start_time ? handoffFmtWhen(a.start_time) : `${handoffFmtDateKey(a.date)} às ${a.time}`;
-    return `<div class="notif-row-text" style="color:var(--green);font-weight:600">📅 Consulta marcada: ${apuEsc(quando)}${a.professional_name ? ' · ' + apuEsc(a.professional_name) : ''}${a.customer_name ? ' · ' + apuEsc(a.customer_name) : ''}</div>`;
+    return `<div class="notif-row-text" style="color:var(--green);font-weight:600">📅 Agendamento marcado: ${apuEsc(quando)}${a.professional_name ? ' · ' + apuEsc(a.professional_name) : ''}${a.customer_name ? ' · ' + apuEsc(a.customer_name) : ''}</div>`;
   }).join('');
 }
 
@@ -7939,7 +7939,7 @@ async function handoffConfirmBook(id){
       fechar = true;
       const quando = ap.start_time ? handoffFmtWhen(ap.start_time) : `${handoffFmtDateKey(date)} às ${time}`;
       const paraQuem = nomeInformado || (h && handoffHasName(h) ? h.customer_name.trim() : '');
-      showToast(`✓ Consulta marcada${paraQuem ? ' para ' + paraQuem : ''}: ${quando}${pr.name ? ' com ' + pr.name : ''}.`);
+      showToast(`✓ Agendamento marcado${paraQuem ? ' para ' + paraQuem : ''}: ${quando}${pr.name ? ' com ' + pr.name : ''}.`);
     }else if(res.status === 401){
       /* o apiFetch já cuidou da sessão */
     }else if(code === 'horario_ocupado'){
@@ -7969,7 +7969,7 @@ async function handoffConfirmBook(id){
       showToast(`${res.status >= 500 ? '⚠' : 'ℹ️'} ${msg}`);
     }
   }catch(e){
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }finally{
     handoffBookBusy.delete(id);
     if(fechar && handoffBook === b) handoffBook = null;
@@ -8010,7 +8010,7 @@ function handoffDesfechoTexto(it){
   const dados = df.dados && typeof df.dados === 'object' ? df.dados : {};
   switch(df.tipo){
     case 'aguarda_retorno':
-      return 'O cliente escolheu manter o pedido registrado e aguarda o retorno da equipe.';
+      return 'O cliente escolheu manter a transferência registrada e aguarda o retorno da equipe.';
     case 'retorno_marcado': {
       // data AAAA-MM-DD (ou null), hora HH:MM (ou null), periodo manha|tarde
       const m = typeof dados.data === 'string' ? /^(\d{4})-(\d{2})-(\d{2})/.exec(dados.data) : null;
@@ -8028,7 +8028,7 @@ function handoffDesfechoTexto(it){
     case 'consulta_marcada': {
       const q = handoffFmtDiaHora(dados.inicio);
       const prof = typeof dados.profissional === 'string' ? dados.profissional.trim() : '';
-      return `O agente marcou uma consulta para o cliente${q ? ' em ' + q : ''}${prof ? ' com ' + prof : ''}.`;
+      return `O agente fez um agendamento para o cliente${q ? ' em ' + q : ''}${prof ? ' com ' + prof : ''}.`;
     }
     case 'resolvido_pelo_agente':
       return 'O agente resolveu o atendimento e o cliente não precisa mais da equipe.';
@@ -8067,15 +8067,15 @@ async function ownerSeenHandoff(id){
       const st = data && data.handoff;
       handoffMerge(id, Object.assign({}, st && typeof st === 'object' ? st : {}, st && st.ciencia_em ? {} : { ciencia_em: new Date().toISOString() }));
     }else if(res.status === 403){
-      showToast('ℹ️ Você não tem permissão para dar ciência neste pedido.');
+      showToast('ℹ️ Você não tem permissão para dar ciência nesta transferência.');
     }else if(res.status === 404){
       remover = true;
-      showToast('ℹ️ Este pedido não existe mais.');
+      showToast('ℹ️ Esta transferência não existe mais.');
     }else if(res.status !== 401){
       showToast('⚠ Não foi possível registrar a ciência agora. Tente de novo.');
     }
   }catch(e){
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }finally{
     handoffSemBusy.delete(id);
     if(remover) handoffRemove(id); else handoffRenderAll();
@@ -8086,7 +8086,7 @@ async function ownerSeenHandoff(id){
 // "Arquivar": fecha o pedido e tira da lista. Só depois de vencido (409 prazo_nao_vencido).
 async function archiveHandoff(id){
   if(handoffSemBusy.has(id)) return;
-  if(!confirm('Arquivar este pedido? Ele sai da lista.')) return;
+  if(!confirm('Arquivar esta transferência? Ela sai da lista.')) return;
   handoffSemBusy.add(id);
   handoffRenderAll();
   let remover = false;
@@ -8095,19 +8095,19 @@ async function archiveHandoff(id){
     const data = await res.json().catch(() => ({}));
     if(res.ok){
       remover = true;
-      showToast('✓ Pedido arquivado.');
+      showToast('✓ Transferência arquivada.');
     }else if(res.status === 409 && data && data.code === 'prazo_nao_vencido'){
-      showToast('ℹ️ O prazo deste pedido ainda não venceu.');
+      showToast('ℹ️ O prazo desta transferência ainda não venceu.');
     }else if(res.status === 403){
-      showToast('ℹ️ Você não tem permissão para arquivar este pedido.');
+      showToast('ℹ️ Você não tem permissão para arquivar esta transferência.');
     }else if(res.status === 404){
       remover = true;
-      showToast('ℹ️ Este pedido não existe mais.');
+      showToast('ℹ️ Esta transferência não existe mais.');
     }else if(res.status !== 401){
       showToast('⚠ Não foi possível arquivar agora. Tente de novo.');
     }
   }catch(e){
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }finally{
     handoffSemBusy.delete(id);
     if(remover) handoffRemove(id); else handoffRenderAll();
@@ -8139,7 +8139,7 @@ async function ackHandoffInfo(id){
       showToast('⚠ Não foi possível marcar como visto agora. Tente de novo.');
     }
   }catch(e){
-    showToast('⚠ Não foi possível conectar ao backend.');
+    showToast('⚠ Não foi possível conectar ao servidor.');
   }finally{
     handoffAckBusy.delete(id);
     if(remover) handoffRemove(id); else handoffRenderAll();
@@ -8173,7 +8173,7 @@ function handoffInfoRowHtml(it){
   const visto = handoffCanAssume()
     ? `<button class="btn btn-accent btn-sm" ${busy ? 'disabled' : ''} onclick="ackHandoffInfo(${convJsArg(it.id)})">${busy ? 'Marcando…' : 'Marcar como visto'}</button>` : '';
   return `<div class="notif-row" data-ho-id="${apuEsc(it.id)}">
-      <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu atendimento. O telefone do consultório já foi informado ao cliente.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
+      <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu atendimento humano. O telefone da empresa já foi informado ao cliente.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
       ${motivo}
       <div class="notif-row-actions">${visto}</div>
       <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span><button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${convJsArg(it.conversation_id || '')},${convJsArg(it.customer_phone)},${convJsArg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button></div>
@@ -8195,7 +8195,7 @@ function handoffRowHtml(it){
   const prazo = pendente
     ? `<span class="notif-row-time" data-deadline="${apuEsc(it.deadline_at || '')}"${dl ? '' : ' hidden'}>${apuEsc(dl)}</span>` : '';
   const estado = it.status !== 'assumido' ? '' : `<div class="notif-row-text" style="color:var(--green);font-weight:600">${
-    it.mine ? '✅ Você assumiu este atendimento' : `✅ Assumido por ${apuEsc(it.claimed_by_name || 'outra pessoa')}`}</div>`;
+    it.mine ? '✅ Você assumiu esta transferência' : `✅ Assumido por ${apuEsc(it.claimed_by_name || 'outra pessoa')}`}</div>`;
   const busy = handoffClaimBusy.has(it.id);
   const assumir = pendente && handoffCanAssume()
     ? `<button class="btn btn-accent btn-sm" ${busy ? 'disabled' : ''} onclick="claimHandoff(${convJsArg(it.id)})">${busy ? 'Assumindo…' : 'Vou atender'}</button>` : '';
@@ -8206,10 +8206,10 @@ function handoffRowHtml(it){
       `<button class="btn btn-ghost btn-sm" ${semBusy ? 'disabled' : ''} onclick="archiveHandoff(${convJsArg(it.id)})">Arquivar</button>`
     : '';
   const marcar = pendente
-    ? `<button class="notif-dismiss" onclick="markOneSeen('handoffs',${convJsArg(it.id)})">Marcar atendida</button>` : '';
+    ? `<button class="notif-dismiss" title="Não registra como a transferência terminou" style="white-space:nowrap" onclick="markOneSeen('handoffs',${convJsArg(it.id)})">Marcar como atendida</button>` : '';
   const formAberto = !!handoffConclude && handoffConclude.id === it.id;
   const concluir = handoffCanConclude(it) && !formAberto
-    ? `<button class="btn btn-accent btn-sm" onclick="handoffOpenConclude(${convJsArg(it.id)})">Concluir atendimento</button>` : '';
+    ? `<button class="btn btn-accent btn-sm" onclick="handoffOpenConclude(${convJsArg(it.id)})">Concluir transferência</button>` : '';
   const agendarAberto = !!handoffBook && handoffBook.id === it.id;
   const agendar = handoffCanConclude(it) && !agendarAberto
     ? `<button class="btn btn-ghost btn-sm" onclick="handoffOpenBook(${convJsArg(it.id)})">Agendar</button>` : '';
@@ -8224,7 +8224,8 @@ function handoffRowHtml(it){
       <div class="notif-row-actions">${assumir}${concluir}${agendar}${handoffContactHtml(it, 'btn btn-ghost btn-sm')}${semAcoes}</div>
       ${handoffCanConclude(it) ? handoffConcludeFormHtml(it) : ''}
       ${handoffCanConclude(it) ? handoffBookFormHtml(it) : ''}
-      <div class="notif-row-actions"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span>${prazo}<button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${convJsArg(it.conversation_id || '')},${convJsArg(it.customer_phone)},${convJsArg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button>${marcar}</div>
+      <div class="notif-row-actions" style="flex-wrap:wrap"><span class="notif-row-time">${notifFmtDate(it.requested_at)}</span>${prazo}<button class="btn btn-ghost btn-sm" onclick="toggleHandoffHistory(${convJsArg(it.conversation_id || '')},${convJsArg(it.customer_phone)},${convJsArg(ch)})">${open ? 'Ocultar histórico' : 'Ver histórico'}</button>${marcar}</div>
+      ${pendente ? '<div class="notif-row-text muted" style="font-size:11px">“Marcar como atendida” não registra como a transferência terminou.</div>' : ''}
       ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px;margin-top:4px">${convHistoryHtml(key)}</div>` : ''}
     </div>`;
 }
@@ -8350,7 +8351,7 @@ async function saveHandoffChoice(){
     body.handoff_wait_minutes = wait;
   }else if(handoffChoice === 'paciente_liga'){
     const phone = document.getElementById('hc-office-phone').value.trim();
-    if(!phone){ handoffChoiceShowError('office_phone', 'Informe o telefone do consultório.'); return; }
+    if(!phone){ handoffChoiceShowError('office_phone', 'Informe o telefone da empresa.'); return; }
     body.office_phone = phone;
   }
   handoffChoiceBusy = true;
@@ -8381,7 +8382,7 @@ async function saveHandoffChoice(){
       handoffChoiceShowError('geral', 'Não foi possível salvar agora. Tente de novo em instantes.');
     }
   }catch(e){
-    handoffChoiceShowError('geral', 'Não foi possível conectar ao backend.');
+    handoffChoiceShowError('geral', 'Não foi possível conectar ao servidor.');
   }finally{
     handoffChoiceBusy = false;
     handoffCfgRender();
@@ -8431,7 +8432,7 @@ const WA_STATUS_UI = {
   iniciando:    { cls:'wa-b-warn', label:'Iniciando',    text:'Recebemos seus dados e estamos iniciando a conexão…' },
   registrando:  { cls:'wa-b-warn', label:'Em análise',   text:'Seu número está em análise pela Meta. Esta tela atualiza sozinha enquanto estiver aberta.' },
   online:       { cls:'wa-b-ok',   label:'Conectado',    text:'Conectado! Seu agente já atende por este número.' },
-  offline:      { cls:'wa-b-bad',  label:'Offline',      text:'O número saiu do ar e o agente não está recebendo mensagens.' },
+  offline:      { cls:'wa-b-bad',  label:'Fora do ar',      text:'O número saiu do ar e o agente não está recebendo mensagens.' },
   falhou:       { cls:'wa-b-bad',  label:'Falhou',       text:'Não conseguimos concluir a conexão.' },
   desconectado: { cls:'wa-b-off',  label:'Desconectado', text:'Este número foi desconectado do agente.' },
 };
@@ -8971,7 +8972,7 @@ function waAdminMatches(clientId){
 function waAdminBadgeHtml(id){
   if(waAdmin.error) return '';
   const c = waAdmin.byClient[id];
-  const inner = c ? waBadgeHtml(c.status, false) : '<span class="wa-badge wa-b-off">Sem WhatsApp</span>';
+  const inner = c ? waBadgeHtml(c.status, false) : '<span class="wa-badge wa-b-off">Não conectado</span>';
   return `<span id="wa-adm-badge-${id}">${inner}</span>`;
 }
 
@@ -9015,7 +9016,7 @@ function waAdminBlockInner(id){
       <div class="wa-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="waAdminReload()">Tentar de novo</button></div>`;
   }
   const c = waAdmin.byClient[id];
-  if(!c) return title + '<div style="font-size:13px;color:var(--muted)">Sem WhatsApp.</div>';
+  if(!c) return title + '<div style="font-size:13px;color:var(--muted)">WhatsApp não conectado.</div>';
   const f = c.failure;
   const failTxt = f ? `${f.code || '—'}${f.step ? ' (' + f.step + ')' : ''}${f.message ? ': ' + f.message : ''}` : '—';
   const sim = waAdmin.mode === 'simulado';
@@ -9059,7 +9060,7 @@ function waAdminRerender(id){
   const badge = document.getElementById(`wa-adm-badge-${id}`);
   if(badge){
     const c = waAdmin.byClient[id];
-    badge.innerHTML = c ? waBadgeHtml(c.status, false) : '<span class="wa-badge wa-b-off">Sem WhatsApp</span>';
+    badge.innerHTML = c ? waBadgeHtml(c.status, false) : '<span class="wa-badge wa-b-off">Não conectado</span>';
   }
 }
 
