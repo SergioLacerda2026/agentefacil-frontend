@@ -182,6 +182,7 @@ button.st-btn{cursor:pointer}
 .ho-slot{border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
 .ho-slot:hover{border-color:var(--accent)}
 .ho-slot.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.ho-slot.on::before{content:'✓ '}
 
 .content{flex:1;overflow-y:auto;padding:28px}
 .content::-webkit-scrollbar{width:4px}
@@ -1946,18 +1947,27 @@ function showCompleteProfileModal(){
   validateCompleteProfileForm();
 }
 
+// Chip de dia da semana (ficha do profissional e modal "Complete seu cadastro"): dia marcado ganha "✓" além da cor.
+// `onclick` vazio = só leitura. Mesma altura nos dois estados (a linha da marca fica reservada).
+function diaChipHtml(d, on, onclick){
+  const edit = !!onclick;
+  return `<span role="checkbox" aria-checked="${on}" data-dia="${d}" ${edit ? `tabindex="0" onclick="${onclick}" onkeydown="diaChipKey(event)"` : 'aria-disabled="true"'} style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:34px;height:46px;border-radius:8px;font-size:12px;font-weight:600;background:${on?'var(--accent-l)':'var(--bg)'};color:${on?'var(--accent)':'var(--light)'};border:1px solid ${on?'var(--accent-l)':'var(--border)'};cursor:${edit?'pointer':'default'}">${diasLabels[d]}<span class="dia-mark" aria-hidden="true" style="font-size:11px;line-height:1;margin-top:3px;min-height:11px">${on?'✓':''}</span></span>`;
+}
+function diaChipKey(e){
+  if(e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); e.currentTarget.click(); }
+}
+
 function renderCpDias(){
   const box = document.getElementById('cp-dias');
   if(!box) return;
-  box.innerHTML = diasOrdem.map(d=>{
-    const v = cpDiasSelected.has(d);
-    return `<span onclick="toggleCpDia('${d}')" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;font-size:12px;font-weight:600;background:${v?'var(--accent-l)':'var(--bg)'};color:${v?'var(--accent)':'var(--light)'};border:1px solid ${v?'var(--accent-l)':'var(--border)'};cursor:pointer">${diasLabels[d]}</span>`;
-  }).join('');
+  box.innerHTML = diasOrdem.map(d => diaChipHtml(d, cpDiasSelected.has(d), `toggleCpDia('${d}')`)).join('');
 }
 
 function toggleCpDia(dia){
   if(cpDiasSelected.has(dia)) cpDiasSelected.delete(dia); else cpDiasSelected.add(dia);
   renderCpDias();
+  const chip = document.querySelector(`#cp-dias [data-dia="${dia}"]`);
+  if(chip) chip.focus({ preventScroll:true });
   validateCompleteProfileForm();
 }
 
@@ -3397,11 +3407,7 @@ function selectProf(id){
   const isAdmin = currentUser.role === 'admin';
   const canEditThis = isAdmin || p.id === currentUser.id; // admin edita qualquer um; profissional só a si mesmo
   const dias = p.dias_atendimento || [];
-  const diasHtml = diasOrdem.map(d=>{
-    const v = dias.includes(d);
-    return `<span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;font-size:12px;font-weight:600;background:${v?'var(--accent-l)':'var(--bg)'};color:${v?'var(--accent)':'var(--light)'};border:1px solid ${v?'var(--accent-l)':'var(--border)'};cursor:${canEditThis?'pointer':'default'}"
-      ${canEditThis?`onclick="toggleDia('${id}','${d}',this)"`:''}>${diasLabels[d]}</span>`;
-  }).join('');
+  const diasHtml = diasOrdem.map(d => diaChipHtml(d, dias.includes(d), canEditThis ? `toggleDia('${id}','${d}',this)` : '')).join('');
 
   // Ação de redução de franquia — só admin, só profissional ativo não-admin.
   // `franchiseRequestPending` (reconciliado com o servidor) bloqueia enquanto
@@ -3485,6 +3491,9 @@ function toggleDia(id, dia, el){
   el.style.background = on ? 'var(--accent-l)' : 'var(--bg)';
   el.style.color       = on ? 'var(--accent)' : 'var(--light)';
   el.style.borderColor = on ? 'var(--accent-l)' : 'var(--border)';
+  el.setAttribute('aria-checked', on);
+  const mark = el.querySelector('.dia-mark');
+  if(mark) mark.textContent = on ? '✓' : '';
 }
 
 function updatePerm(id, val){
@@ -7857,8 +7866,8 @@ function handoffBookGridHtml(b){
   if(!b.works) return '<div class="ho-book-note">Este profissional não atende neste dia da semana.</div>';
   if(!b.slots.length) return '<div class="ho-book-note">Sem horários livres neste dia.</div>';
   const dur = b.duration ? ` · duração de ${apuEsc(b.duration)} min` : '';
-  const btns = b.slots.map(s => `<button type="button" class="ho-slot${b.slot === s.time ? ' on' : ''}" onclick="handoffBookPickSlot(${convJsArg(s.time)})">${apuEsc(s.time)}</button>`).join('');
-  return `<div class="ho-book-note">Horários livres (horário de Brasília)${dur}</div><div class="ho-slots">${btns}</div>`;
+  const btns = b.slots.map(s => `<button type="button" role="radio" aria-checked="${b.slot === s.time}" class="ho-slot${b.slot === s.time ? ' on' : ''}" onclick="handoffBookPickSlot(${convJsArg(s.time)})">${apuEsc(s.time)}</button>`).join('');
+  return `<div class="ho-book-note">Horários livres (horário de Brasília)${dur}</div><div class="ho-slots" role="radiogroup" aria-label="Horários livres">${btns}</div>`;
 }
 
 function handoffBookFormHtml(it){
