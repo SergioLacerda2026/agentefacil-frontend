@@ -183,6 +183,10 @@ button.st-btn{cursor:pointer}
 .ho-slot:hover{border-color:var(--accent)}
 .ho-slot.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .ho-slot.on::before{content:'✓ '}
+.dias-row{display:flex;gap:6px;flex-wrap:wrap}
+.dia-chip{flex:1 1 0;min-width:29px;max-width:34px;font-size:12px}
+@media(max-width:480px){.dias-row{gap:4px}}
+@media(max-width:400px){.dia-chip{min-width:25px;font-size:11px}}
 
 .content{flex:1;overflow-y:auto;padding:28px}
 .content::-webkit-scrollbar{width:4px}
@@ -1951,7 +1955,7 @@ function showCompleteProfileModal(){
 // `onclick` vazio = só leitura. Mesma altura nos dois estados (a linha da marca fica reservada).
 function diaChipHtml(d, on, onclick){
   const edit = !!onclick;
-  return `<span role="checkbox" aria-checked="${on}" data-dia="${d}" ${edit ? `tabindex="0" onclick="${onclick}" onkeydown="diaChipKey(event)"` : 'aria-disabled="true"'} style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:34px;height:46px;border-radius:8px;font-size:12px;font-weight:600;background:${on?'var(--accent-l)':'var(--bg)'};color:${on?'var(--accent)':'var(--light)'};border:1px solid ${on?'var(--accent-l)':'var(--border)'};cursor:${edit?'pointer':'default'}">${diasLabels[d]}<span class="dia-mark" aria-hidden="true" style="font-size:11px;line-height:1;margin-top:3px;min-height:11px">${on?'✓':''}</span></span>`;
+  return `<span class="dia-chip" role="checkbox" aria-checked="${on}" data-dia="${d}" ${edit ? `tabindex="0" onclick="${onclick}" onkeydown="diaChipKey(event)"` : 'aria-disabled="true"'} style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;height:46px;border-radius:8px;font-weight:600;background:${on?'var(--accent-l)':'var(--bg)'};color:${on?'var(--accent)':'var(--light)'};border:1px solid ${on?'var(--accent-l)':'var(--border)'};cursor:${edit?'pointer':'default'}">${diasLabels[d]}<span class="dia-mark" aria-hidden="true" style="font-size:11px;line-height:1;margin-top:3px;min-height:11px">${on?'✓':''}</span></span>`;
 }
 function diaChipKey(e){
   if(e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); e.currentTarget.click(); }
@@ -3445,7 +3449,7 @@ function selectProf(id){
       </div>
       <div>
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Dias de trabalho</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">${diasHtml}</div>
+        <div class="dias-row">${diasHtml}</div>
       </div>
       <div>
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Duração de cada agendamento</div>
