@@ -190,6 +190,8 @@ button.st-btn{cursor:pointer}
 .btn[aria-disabled="true"]{pointer-events:none;opacity:.85}
 .busy-spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:apuspin .8s linear infinite;vertical-align:-2px;margin-right:7px}
 @media(prefers-reduced-motion:reduce){.busy-spin{animation:none}}
+.busy-strip{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9998;width:max-content;max-width:min(560px,calc(100vw - 32px));background:var(--accent-l);color:var(--accent);border:2px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;line-height:1.5;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.busy-strip[hidden]{display:none}
 .busy-hint{flex-basis:100%;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-l);border:1px solid var(--accent);border-radius:8px;padding:8px 10px;margin-top:8px;line-height:1.5}
 /* Agenda semanal da ficha: um cartão por dia, um ou mais intervalos. Estado sempre com texto, nunca só cor. */
 .ag-day{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--card)}
@@ -1542,6 +1544,7 @@ label.field-label{display:block}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div id="busy-live" class="sr-only" role="status" aria-live="polite"></div>
+<div id="busy-strip" class="busy-strip" aria-hidden="true" hidden></div>
 
 <script>
 // ── BACKEND ──
@@ -1821,10 +1824,23 @@ function busyAnnounce(txt){
   el.textContent = '';
   if(txt) setTimeout(() => { el.textContent = txt; }, 30);   // o intervalo faz o leitor de tela reanunciar
 }
-async function withBusy(key, btn, label, work){
+// Faixa fixa no topo para o que não tem botão (envio de arquivo, interruptor, ação de lista) e para o aviso de espera
+// quando o botão sumiu da tela. Só visual (aria-hidden): o leitor de tela recebe o mesmo texto pela região #busy-live.
+const busyStrip = new Map();
+function busyLbl(t){ return `<span class="busy-spin" aria-hidden="true"></span>${t}`; }
+function busyStripSet(key, txt){
+  if(txt === null) busyStrip.delete(key); else busyStrip.set(key, txt);
+  const el = document.getElementById('busy-strip');
+  if(!el) return;
+  el.hidden = busyStrip.size === 0;
+  el.innerHTML = Array.from(busyStrip.values()).map(t => `<div>${busyLbl(apuEsc(t))}</div>`).join('');
+}
+async function withBusy(key, btn, label, work, opts){
+  opts = opts || {};   // opts.state: a tela já mostra o estado ocupado por conta própria (render por estado); aqui só trava, anuncia e avisa
   if(busyKeys.has(key)){ showToast('Já estou salvando. Aguarde um instante.'); return; }
   busyKeys.add(key);
   if(busyKeys.size === 1) window.addEventListener('beforeunload', busyBeforeUnload);
+  if(btn && !btn.isConnected) btn = null;
   const row = btn && btn.parentElement;
   const locked = row ? Array.from(row.querySelectorAll('button')) : (btn ? [btn] : []);
   const saved = locked.map(b => ({ b, html:b.innerHTML, minW:b.style.minWidth, aria:b.getAttribute('aria-disabled') }));
@@ -1835,6 +1851,7 @@ async function withBusy(key, btn, label, work){
     btn.innerHTML = `<span class="busy-spin" aria-hidden="true"></span>${label}`;
   }
   busyAnnounce(label);
+  if(!btn && !opts.state) busyStripSet(key, label);   // sem botão para mostrar o estado: faixa no topo
   let hint = null;
   const timer = setTimeout(() => {
     hint = document.createElement('div');
@@ -1842,6 +1859,7 @@ async function withBusy(key, btn, label, work){
     hint.setAttribute('role', 'status');
     hint.textContent = BUSY_SLOW_TEXT;
     if(row && row.isConnected){ row.insertAdjacentElement('afterend', hint); hint.scrollIntoView({ block:'nearest' }); }
+    else{ hint = null; busyStripSet(key, `${label} ${BUSY_SLOW_TEXT}`); }
     busyAnnounce(BUSY_SLOW_TEXT);
   }, BUSY_SLOW_MS);
   try{
@@ -1849,6 +1867,7 @@ async function withBusy(key, btn, label, work){
   }finally{
     clearTimeout(timer);
     if(hint) hint.remove();
+    busyStripSet(key, null);
     saved.forEach(s => {
       s.b.innerHTML = s.html;
       s.b.style.minWidth = s.minW;
@@ -2383,6 +2402,9 @@ function processFile(file){
 }
 
 async function finishAdd(file, content, ext){
+  return withBusy('kb-add:'+file.name, null, 'Salvando documento…', () => finishAddWork(file, content, ext));
+}
+async function finishAddWork(file, content, ext){
   try{
     const res = await apiFetch('/api/knowledge', {
       method:'POST',
@@ -2458,6 +2480,11 @@ function previewDoc(id){
 async function toggleDoc(id, toggleEl){
   const d = kbDocs.find(x=>x.id===id);
   if(!d) return;
+  return withBusy('doc:'+id, null, d.active ? 'Desativando documento…' : 'Ativando documento…', () => toggleDocWork(id));
+}
+async function toggleDocWork(id){
+  const d = kbDocs.find(x=>x.id===id);
+  if(!d) return;
   const nextActive = !d.active;
   try{
     const res = await apiFetch(`/api/knowledge/${id}`, {
@@ -2480,6 +2507,11 @@ async function toggleDoc(id, toggleEl){
 }
 
 async function removeDoc(id){
+  const d = kbDocs.find(x=>x.id===id);
+  if(!d) return;
+  return withBusy('doc:'+id, null, 'Removendo documento…', () => removeDocWork(id));
+}
+async function removeDocWork(id){
   const d = kbDocs.find(x=>x.id===id);
   if(!d) return;
   try{
@@ -4992,7 +5024,7 @@ function apptRowHtml(a){
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${apptStatusColor[a.status]||'var(--muted)'}22;color:${apptStatusColor[a.status]||'var(--muted)'}">${apuEsc(apptStatusLabel[a.status]||a.status)}</span>
-        ${a.status==='confirmado' ? `<button class="btn btn-ghost btn-sm" onclick="cancelAppointmentFromPanel(${convJsArg(a.id)})">Cancelar</button>` : ''}
+        ${a.status==='confirmado' ? `<button class="btn btn-ghost btn-sm" onclick="cancelAppointmentFromPanel(${convJsArg(a.id)},this)">Cancelar</button>` : ''}
       </div>
     </div>`;
 }
@@ -5023,7 +5055,7 @@ function callbackRowHtml(c){
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${done?'var(--muted)':'var(--amber)'}22;color:${done?'var(--muted)':'var(--amber)'}">${done?'Concluído':'Pendente'}</span>
         ${verConversa}
-        ${done ? '' : `<button class="btn btn-ghost btn-sm" onclick="markCallbackDone(${convJsArg(c.id)})">Marcar como concluído</button>`}
+        ${done ? '' : `<button class="btn btn-ghost btn-sm" onclick="markCallbackDone(${convJsArg(c.id)},this)">Marcar como concluído</button>`}
       </div>
       ${open ? `<div style="border-left:3px solid var(--accent-l);padding-left:10px">${convHistoryHtml(key)}</div>` : ''}
     </div>`;
@@ -5068,8 +5100,11 @@ function toggleCallbackConversation(id){
   if(need) loadConversationHistory(c.conversation_id || '', c.customer_phone, ch);
 }
 
-async function markCallbackDone(id){
+async function markCallbackDone(id, btn){
   if(!confirm('Marcar este retorno de ligação como concluído?')) return;
+  return withBusy('callback:'+id, btn, 'Concluindo…', () => markCallbackDoneWork(id));
+}
+async function markCallbackDoneWork(id){
   try{
     const res = await apiFetch(`/api/callbacks/${id}`, {
       method:'PATCH',
@@ -5382,8 +5417,11 @@ async function reloadAppointmentsQuiet(){
   }catch(e){}
 }
 
-async function cancelAppointmentFromPanel(id){
+async function cancelAppointmentFromPanel(id, btn){
   if(!confirm('Cancelar este agendamento?')) return;
+  return withBusy('appt:'+id, btn, 'Cancelando…', () => cancelAppointmentWork(id));
+}
+async function cancelAppointmentWork(id){
   try{
     const res = await apiFetch(`/api/appointments/${id}`, {
       method:'PATCH',
@@ -6508,7 +6546,7 @@ function renderApuracaoRun(run){
       (run.applied_reason ? `<div class="apu-muted">${apuEsc(run.applied_reason)}</div>` : '') +
       (apuNum(run.previous_value) !== null ? `<div class="apu-muted">Valor em uso antes da apuração: ${apuBRL(run.previous_value)}</div>` : '') +
       (run.applied && run.applied_at ? `<div class="apu-muted">Aplicada em ${apuDateTime(run.applied_at)}</div>` : '') +
-      (canApply ? `<button type="button" class="btn btn-accent btn-sm apu-btn" onclick="applyApuracaoRun('${apuEsc(run.id)}','card')">Aplicar esta sugestão</button>` : '') +
+      (canApply ? `<button type="button" class="btn btn-accent btn-sm apu-btn" onclick="applyApuracaoRun('${apuEsc(run.id)}','card',this)">Aplicar esta sugestão</button>` : '') +
       `</div>`;
   }
   h += apuSection('Componentes do custo (IA, Twilio, Meta)', apuComponentsHtml(run.components), true) +
@@ -6639,14 +6677,14 @@ function renderApuracaoStatus(st, sync){
     apuRow('Modo', manual ? '<span class="tag tag-amber">Manual (valor travado)</span>' : '<span class="tag tag-green">Automático</span>');
   h += manual
     ? `<div class="apu-muted">No modo manual a apuração só sugere um valor; ela não aplica sozinha.</div>` +
-      `<div class="apu-actions"><button type="button" class="btn btn-ghost btn-sm apu-btn" onclick="switchToAutomaticMode()">Voltar ao automático</button></div>`
+      `<div class="apu-actions"><button type="button" class="btn btn-ghost btn-sm apu-btn" onclick="switchToAutomaticMode(this)">Voltar ao automático</button></div>`
     : `<div class="apu-muted">No modo automático a apuração aplica o resultado quando a amostra e as constantes permitem.</div>`;
 
   const lr = st.last_concluded_run;
   if(lr && lr.applied === false && apuNum(lr.result_brl) !== null && APU_UUID.test(String(lr.id || ''))){
     h += `<div class="apu-warn" style="margin-top:10px"><b>Sugestão da apuração de ${apuMonth(lr.month)}: ${apuBRL(lr.result_brl)}</b> — não aplicada.` +
       (lr.applied_reason ? `<br>${apuEsc(lr.applied_reason)}` : '') +
-      `<div class="apu-actions" style="margin-top:8px"><button type="button" class="btn btn-accent btn-sm apu-btn" onclick="applyApuracaoRun('${apuEsc(lr.id)}','cost')">Aplicar sugestão</button>` +
+      `<div class="apu-actions" style="margin-top:8px"><button type="button" class="btn btn-accent btn-sm apu-btn" onclick="applyApuracaoRun('${apuEsc(lr.id)}','cost',this)">Aplicar sugestão</button>` +
       `<button type="button" class="btn btn-ghost btn-sm apu-btn" onclick="openApuracaoRun('${apuEsc(lr.id)}')">Ver detalhamento</button></div></div>`;
   }
   document.getElementById('apu-cost-info').innerHTML = h;
@@ -6657,6 +6695,9 @@ function renderApuracaoStatus(st, sync){
 // ── Ações ──
 async function runApuracao(){
   if(apuBusy) return;
+  return withBusy('apu', null, 'Apurando…', runApuracaoWork, { state:true });
+}
+async function runApuracaoWork(){
   const body = {};
   const month = (document.getElementById('apu-month').value || '').trim();
   if(month) body.month = month;
@@ -6693,12 +6734,15 @@ async function runApuracao(){
   }
 }
 
-async function applyApuracaoRun(id, target){
+async function applyApuracaoRun(id, target, btn){
   if(apuBusy || !APU_UUID.test(String(id || ''))) return;
   target = target === 'card' ? 'card' : 'cost';
   const run = (apuShownRun && apuShownRun.id === id) ? apuShownRun : (apuStatus && apuStatus.last_concluded_run && apuStatus.last_concluded_run.id === id ? apuStatus.last_concluded_run : null);
   const cur = apuStatus && apuStatus.in_use ? apuBRL(apuStatus.in_use.message_cost_internal) : '—';
   if(!confirm(`Aplicar ${run && apuNum(run.result_brl) !== null ? apuBRL(Math.round(run.result_brl * 1e4) / 1e4) : 'o valor sugerido'} como custo interno por mensagem?\n\nValor em uso agora: ${cur}. O valor é gravado com 4 casas decimais. Isso altera a margem exibida nesta tela.`)) return;
+  return withBusy('apu', btn, 'Aplicando…', () => applyApuracaoWork(id, target));
+}
+async function applyApuracaoWork(id, target){
   apuClearError(target);
   apuSetBusy(true);
   try{
@@ -6716,9 +6760,12 @@ async function applyApuracaoRun(id, target){
   }
 }
 
-async function switchToAutomaticMode(){
+async function switchToAutomaticMode(btn){
   if(apuBusy) return;
   if(!confirm('Voltar ao modo automático?\n\nO valor deixa de ficar travado e as próximas apurações poderão aplicar o resultado sozinhas. Nada é alterado agora.')) return;
+  return withBusy('apu', btn, 'Alterando…', switchToAutomaticWork);
+}
+async function switchToAutomaticWork(){
   apuClearError('cost');
   apuSetBusy(true);
   try{
@@ -6882,7 +6929,7 @@ function apuSupConstHtml(c){
     apuRow('Última verificação', c.checked_at ? apuDateTime(c.checked_at) : 'nunca verificada') +
     (c.effective_from ? apuRow('Vale a partir de', apuDate(c.effective_from) + (apuIsFuture(c) ? ' (ainda não vigente)' : '')) : '') +
     (st === 'divergente' && apuNum(c.value_found) !== null
-      ? `<div class="apu-actions" style="margin-top:6px"><button type="button" class="btn btn-accent btn-sm apu-btn" data-key="${apuEsc(c.key)}" onclick="adoptCostConstant(this.dataset.key)">Adotar valor encontrado</button></div>` : '') +
+      ? `<div class="apu-actions" style="margin-top:6px"><button type="button" class="btn btn-accent btn-sm apu-btn" data-key="${apuEsc(c.key)}" onclick="adoptCostConstant(this.dataset.key,this)">Adotar valor encontrado</button></div>` : '') +
     `</div>`;
 }
 function apuSupBlockHtml(label, key, list, openKeys){
@@ -6965,6 +7012,9 @@ async function loadCostConstants({ keepMsg = false } = {}){
 
 async function verifyCostConstants(){
   if(apuBusy) return;
+  return withBusy('apu', null, 'Verificando…', verifyCostConstantsWork, { state:true });
+}
+async function verifyCostConstantsWork(){
   const btn = document.getElementById('btn-verify-sup'), prog = document.getElementById('apu-sup-progress');
   apuClearError('sup');
   apuSupMsg('');
@@ -6992,11 +7042,15 @@ async function verifyCostConstants(){
   }
 }
 
-async function adoptCostConstant(key){
+async function adoptCostConstant(key, btn){
   if(apuBusy || !key) return;
   const c = (apuConsts || []).find(x => x.key === key);
   if(!c || c.status !== 'divergente' || apuNum(c.value_found) === null) return;
   if(!confirm(`Adotar o valor encontrado para esta constante?\n\n${c.key}${c.description ? '\n' + c.description : ''}\n\nValor gravado hoje: ${apuConstText(c)}\nValor que será adotado: ${apuConstText(c, c.value_found)}\n\nAs próximas apurações passarão a usar o novo valor.`)) return;
+  return withBusy('apu', btn, 'Adotando…', () => adoptCostConstantWork(key));
+}
+async function adoptCostConstantWork(key){
+  const c = (apuConsts || []).find(x => x.key === key);
   apuClearError('sup');
   apuSupMsg('');
   apuSetBusy(true);
@@ -7287,8 +7341,8 @@ function notifRowHtml(source, it){
       <div class="notif-row-text"><span class="muted">${it.client_name || 'Cliente'}</span> pediu para ${fmtFranchiseChange(it)}${alvo}</div>
       <div class="notif-row-time">${notifFmtDate(it.requested_at)}</div>
       <div class="notif-row-actions">
-        <button class="btn btn-green btn-sm" onclick="decideFranchise('${it.id}','aprovar')">Aprovar</button>
-        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="decideFranchise('${it.id}','rejeitar')">Rejeitar</button>
+        <button class="btn btn-green btn-sm" onclick="decideFranchise('${it.id}','aprovar',this)">Aprovar</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="decideFranchise('${it.id}','rejeitar',this)">Rejeitar</button>
       </div>
     </div>`;
   }
@@ -7383,8 +7437,11 @@ function setNotifActionsDisabled(v){
   document.querySelectorAll('#notif-panel-body button, #notif-markall').forEach(b => { b.disabled = v; });
 }
 
-async function decideFranchise(id, decision){
+async function decideFranchise(id, decision, btn){
   if(notifBusy) return;
+  return withBusy('franchise:'+id, btn, decision === 'aprovar' ? 'Aprovando…' : 'Rejeitando…', () => decideFranchiseWork(id, decision));
+}
+async function decideFranchiseWork(id, decision){
   notifBusy = true;
   setNotifActionsDisabled(true);
   try{
@@ -7535,6 +7592,7 @@ let handoffServerOffset = 0;           // server_time - relógio local, para a c
 let handoffClaimBusy = new Set();
 let handoffAckBusy = new Set();
 let handoffSemBusy = new Set();          // ciência/arquivar em andamento
+let handoffSemWhat = {};                 // id -> 'ciencia' | 'arquivar' (só para o rótulo do botão ocupado)
 let handoffTestOn = false, handoffTestTimer = null;   // "Testar aviso": só no navegador
 let handoffBeepTimer = null, handoffTitleTimer = null, handoffTickTimer = null;
 let handoffTitleOn = false;
@@ -7690,7 +7748,7 @@ function handoffBannerInfoRowHtml(h){
   return `<div class="ho-row">
     <span class="ho-main">🔴 <b>${apuEsc(nome || 'Um cliente')}</b> pediu atendimento humano: o telefone da empresa já foi informado ao cliente${tel}${motivo ? `<span class="ho-reason">Motivo: ${apuEsc(motivo)}</span>` : ''}</span>
     <span class="ho-actions">
-      <button type="button" class="ho-btn ho-btn-main" ${busy ? 'disabled' : ''} onclick="ackHandoffInfo(${convJsArg(h.id)})">${busy ? 'Marcando…' : 'Marcar como visto'}</button>
+      <button type="button" class="ho-btn ho-btn-main" ${busy ? 'disabled' : ''} onclick="ackHandoffInfo(${convJsArg(h.id)})">${busy ? busyLbl('Marcando…') : 'Marcar como visto'}</button>
     </span>
   </div>`;
 }
@@ -7706,7 +7764,7 @@ function handoffBannerRowHtml(h){
     <span class="ho-main">🔴 <b>${apuEsc(h.customer_name || 'Cliente')}</b> pediu transferência para atendimento humano${tel}${motivo ? `<span class="ho-reason">Motivo: ${apuEsc(motivo)}</span>` : ''}${handoffIsTeste(h) ? `<span class="ho-reason">${HANDOFF_TESTE_NOTA}</span>` : ''}</span>
     <span class="ho-deadline" data-deadline="${apuEsc(h.deadline_at || '')}"${dl ? '' : ' hidden'}>${apuEsc(dl)}</span>
     <span class="ho-actions">
-      <button type="button" class="ho-btn ho-btn-main" ${busy ? 'disabled' : ''} onclick="claimHandoff(${convJsArg(h.id)})">${busy ? 'Assumindo…' : 'Vou atender'}</button>
+      <button type="button" class="ho-btn ho-btn-main" ${busy ? 'disabled' : ''} onclick="claimHandoff(${convJsArg(h.id)})">${busy ? busyLbl('Assumindo…') : 'Vou atender'}</button>
       ${handoffContactHtml(h, 'ho-btn')}
     </span>
   </div>`;
@@ -7924,6 +7982,7 @@ function stopHandoffs(){
   handoffClaimBusy = new Set();
   handoffAckBusy = new Set();
   handoffSemBusy = new Set();
+  handoffSemWhat = {};
   handoffConclude = null;
   handoffConcludeBusy = new Set();
   handoffBook = null;
@@ -7952,6 +8011,9 @@ document.addEventListener('visibilitychange', () => {
 // ── "Vou atender" ──
 async function claimHandoff(id){
   if(handoffClaimBusy.has(id)) return;
+  return withBusy('ho-claim:'+id, null, 'Assumindo…', () => claimHandoffWork(id), { state:true });
+}
+async function claimHandoffWork(id){
   const h = handoffList.find(x => x.id === id);
   handoffClaimBusy.add(id);
   handoffRenderAll();
@@ -8561,6 +8623,10 @@ function handoffSemBlocoHtml(it){
 // "Estou ciente": só silencia. O item continua na lista e o desfecho segue atualizando no polling.
 async function ownerSeenHandoff(id){
   if(handoffSemBusy.has(id)) return;
+  return withBusy('ho-sem:'+id, null, 'Registrando ciência…', () => ownerSeenHandoffWork(id), { state:true });
+}
+async function ownerSeenHandoffWork(id){
+  handoffSemWhat[id] = 'ciencia';
   handoffSemBusy.add(id);
   handoffRenderAll();
   let remover = false;
@@ -8591,6 +8657,10 @@ async function ownerSeenHandoff(id){
 async function archiveHandoff(id){
   if(handoffSemBusy.has(id)) return;
   if(!confirm('Arquivar esta transferência? Ela sai da lista.')) return;
+  return withBusy('ho-sem:'+id, null, 'Arquivando…', () => archiveHandoffWork(id), { state:true });
+}
+async function archiveHandoffWork(id){
+  handoffSemWhat[id] = 'arquivar';
   handoffSemBusy.add(id);
   handoffRenderAll();
   let remover = false;
@@ -8623,6 +8693,9 @@ async function archiveHandoff(id){
 // 403 e 409 não são erro para o atendente: viram aviso neutro.
 async function ackHandoffInfo(id){
   if(handoffAckBusy.has(id)) return;
+  return withBusy('ho-ack:'+id, null, 'Marcando…', () => ackHandoffInfoWork(id), { state:true });
+}
+async function ackHandoffInfoWork(id){
   handoffAckBusy.add(id);
   handoffRenderAll();
   let remover = false;
@@ -8675,7 +8748,7 @@ function handoffInfoRowHtml(it){
   const motivo = it.reason ? `<div class="notif-row-text muted">Motivo: ${apuEsc(it.reason)}</div>` : '';
   const busy = handoffAckBusy.has(it.id);
   const visto = handoffCanAssume()
-    ? `<button class="btn btn-accent btn-sm" ${busy ? 'disabled' : ''} onclick="ackHandoffInfo(${convJsArg(it.id)})">${busy ? 'Marcando…' : 'Marcar como visto'}</button>` : '';
+    ? `<button class="btn btn-accent btn-sm" ${busy ? 'disabled' : ''} onclick="ackHandoffInfo(${convJsArg(it.id)})">${busy ? busyLbl('Marcando…') : 'Marcar como visto'}</button>` : '';
   return `<div class="notif-row" data-ho-id="${apuEsc(it.id)}">
       <div class="notif-row-text"><span class="muted">${apuEsc(it.customer_name || 'Cliente')}</span> pediu atendimento humano. O telefone da empresa já foi informado ao cliente.<br>${apuEsc(formatApptPhone(it.customer_phone) || 'sem telefone')}${canal}</div>
       ${motivo}
@@ -8702,12 +8775,12 @@ function handoffRowHtml(it){
     it.mine ? '✅ Você assumiu esta transferência' : `✅ Assumido por ${apuEsc(it.claimed_by_name || 'outra pessoa')}`}</div>`;
   const busy = handoffClaimBusy.has(it.id);
   const assumir = pendente && handoffCanAssume()
-    ? `<button class="btn btn-accent btn-sm" ${busy ? 'disabled' : ''} onclick="claimHandoff(${convJsArg(it.id)})">${busy ? 'Assumindo…' : 'Vou atender'}</button>` : '';
+    ? `<button class="btn btn-accent btn-sm" ${busy ? 'disabled' : ''} onclick="claimHandoff(${convJsArg(it.id)})">${busy ? busyLbl('Assumindo…') : 'Vou atender'}</button>` : '';
   const semBusy = handoffSemBusy.has(it.id);
   const semBloco = sem ? handoffSemBlocoHtml(it) : '';
   const semAcoes = sem
-    ? (it.ciencia_em ? '' : `<button class="btn btn-accent btn-sm" ${semBusy ? 'disabled' : ''} onclick="ownerSeenHandoff(${convJsArg(it.id)})">Estou ciente</button>`) +
-      `<button class="btn btn-ghost btn-sm" ${semBusy ? 'disabled' : ''} onclick="archiveHandoff(${convJsArg(it.id)})">Arquivar</button>`
+    ? (it.ciencia_em ? '' : `<button class="btn btn-accent btn-sm" ${semBusy ? 'disabled' : ''} onclick="ownerSeenHandoff(${convJsArg(it.id)})">${semBusy && handoffSemWhat[it.id] === 'ciencia' ? busyLbl('Registrando…') : 'Estou ciente'}</button>`) +
+      `<button class="btn btn-ghost btn-sm" ${semBusy ? 'disabled' : ''} onclick="archiveHandoff(${convJsArg(it.id)})">${semBusy && handoffSemWhat[it.id] === 'arquivar' ? busyLbl('Arquivando…') : 'Arquivar'}</button>`
     : '';
   const marcar = pendente
     ? `<button class="notif-dismiss" title="Não registra como a transferência terminou" style="white-space:nowrap" onclick="markOneSeen('handoffs',${convJsArg(it.id)})">Marcar como atendida</button>` : '';
