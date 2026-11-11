@@ -1782,7 +1782,18 @@ async function tokenLooksExpired(res, token){
 // { skipAuthGuard:true } e não disparam o logout.
 // Token vencido: renova antes de chamar; se mesmo assim vier 401 por vencimento, renova e
 // repete a chamada uma vez. Sem rede na renovação, devolve o 401 sem derrubar a sessão.
+// `quiet: true` (consultas de fundo: sino, transferências, conversa de teste, WhatsApp) não acende o aviso de espera.
 async function apiFetch(path, options = {}) {
+  const { quiet = false, ...rest } = options;
+  const isRead = !rest.method || String(rest.method).toUpperCase() === 'GET';
+  const stop = isRead && !quiet ? busyReadWatch() : null;
+  try{
+    return await apiFetchCore(path, rest);
+  }finally{
+    if(stop) stop();
+  }
+}
+async function apiFetchCore(path, options = {}) {
   const { skipAuthGuard = false, ...init } = options;
   await ensureFreshToken();
   const send = () => fetch(`${BACKEND_URL}${path}`, {
@@ -1827,6 +1838,26 @@ function busyAnnounce(txt){
 // Faixa fixa no topo para o que não tem botão (envio de arquivo, interruptor, ação de lista) e para o aviso de espera
 // quando o botão sumiu da tela. Só visual (aria-hidden): o leitor de tela recebe o mesmo texto pela região #busy-live.
 const busyStrip = new Map();
+// Leituras lentas (> ~5 s, o servidor gratuito acordando): mesma faixa do topo, sem depender de botão. Só quando
+// nenhuma ação com botão está ocupada (essa já mostra o próprio aviso) e uma só linha, mesmo com várias leituras.
+const BUSY_READ_TEXT = 'Carregando os dados. ' + BUSY_SLOW_TEXT;
+let busyReadSlowN = 0;
+function busyReadWatch(){
+  let shown = false;
+  const timer = setTimeout(() => {
+    if(busyKeys.size) return;
+    shown = true;
+    busyReadSlowN++;
+    busyStripSet('read', BUSY_READ_TEXT);
+    busyAnnounce(BUSY_READ_TEXT);
+  }, BUSY_SLOW_MS);
+  return () => {
+    clearTimeout(timer);
+    if(!shown) return;
+    busyReadSlowN--;
+    if(busyReadSlowN === 0){ busyStripSet('read', null); if(!busyKeys.size) busyAnnounce(''); }
+  };
+}
 function busyLbl(t){ return `<span class="busy-spin" aria-hidden="true"></span>${t}`; }
 function busyStripSet(key, txt){
   if(txt === null) busyStrip.delete(key); else busyStrip.set(key, txt);
@@ -3369,7 +3400,7 @@ async function testPollNow(){
   testPollBusy=true;
   const cid=testConversationId;
   try{
-    const res=await apiFetch(`/api/conversations/history?${new URLSearchParams({conversation_id:cid})}`,{skipAuthGuard:true});
+    const res=await apiFetch(`/api/conversations/history?${new URLSearchParams({conversation_id:cid})}`,{skipAuthGuard:true,quiet:true});
     if(!res.ok||cid!==testConversationId) return;
     const data=await res.json().catch(()=>null);
     const msgs=data&&Array.isArray(data.messages)?data.messages:[];
@@ -5409,7 +5440,7 @@ async function heldDecide(id, action, fromForm){
 // Recarrega só a lista de agendamentos (após confirmar um retido), sem refazer a seção de retidos.
 async function reloadAppointmentsQuiet(){
   try{
-    const r = await apiFetch('/api/appointments');
+    const r = await apiFetch('/api/appointments', { quiet: true });
     if(!r.ok) return;
     const data = await r.json();
     appointments = (data.appointments || []).sort((a,b)=> new Date(a.start_time) - new Date(b.start_time));
@@ -7128,7 +7159,7 @@ const NOTIF_SOURCES = [
     kind: 'decision',
     title: 'Pedidos de mudança de limite',
     applies: () => isPlatformAdmin,
-    load: () => apiFetch('/api/admin/franchise-requests', { skipAuthGuard: true }),
+    load: () => apiFetch('/api/admin/franchise-requests', { skipAuthGuard: true, quiet: true }),
     pick: d => notifAsArray(d, 'requests'),
   },
   {
@@ -7137,7 +7168,7 @@ const NOTIF_SOURCES = [
     kind: 'seen',
     title: 'Seus pedidos de mudança de limite',
     applies: () => currentUser?.role === 'admin' && !isPlatformAdmin,
-    load: () => apiFetch('/api/franchise/requests', { skipAuthGuard: true }),
+    load: () => apiFetch('/api/franchise/requests', { skipAuthGuard: true, quiet: true }),
     pick: d => notifAsArray(d, 'requests').filter(x => x.status !== 'pendente' && !x.client_seen_at),
     markAll: () => apiFetch('/api/franchise/requests/seen', { method:'PATCH' }),
     markOne: id => apiFetch(`/api/franchise/requests/${id}/seen`, { method:'PATCH' }),
@@ -7148,7 +7179,7 @@ const NOTIF_SOURCES = [
     kind: 'seen',
     title: 'Cancelamentos de clientes',
     applies: () => !!currentUser && currentUser.role !== 'admin',
-    load: () => apiFetch('/api/appointments/cancellations', { skipAuthGuard: true }),
+    load: () => apiFetch('/api/appointments/cancellations', { skipAuthGuard: true, quiet: true }),
     pick: d => notifAsArray(d, 'cancellations'),
     markAll: () => apiFetch('/api/appointments/cancellations/seen', { method:'PATCH' }),
     markOne: id => apiFetch(`/api/appointments/${id}/cancel-seen`, { method:'PATCH' }),
@@ -7182,7 +7213,7 @@ const NOTIF_SOURCES = [
     kind: 'link',
     title: 'Fechamentos comerciais',
     applies: () => isPlatformAdmin,
-    load: () => apiFetch('/api/admin/commercial-close-requests', { skipAuthGuard: true }),
+    load: () => apiFetch('/api/admin/commercial-close-requests', { skipAuthGuard: true, quiet: true }),
     pick: d => notifAsArray(d, 'requests'),
   },
   {
@@ -7206,7 +7237,7 @@ const NOTIF_SOURCES = [
     kind: 'seen',
     title: 'Ligar para clientes novos',
     applies: () => isPlatformAdmin,
-    load: () => apiFetch('/api/admin/commercial-close-requests/pending-contact', { skipAuthGuard: true }),
+    load: () => apiFetch('/api/admin/commercial-close-requests/pending-contact', { skipAuthGuard: true, quiet: true }),
     pick: d => notifAsArray(d, 'requests'),
     markOne: id => apiFetch(`/api/admin/commercial-close-requests/${id}/contacted`, {
       method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}'
@@ -7235,7 +7266,7 @@ async function waAttendPoll(){
   const to = setTimeout(() => ctrl.abort(), 10000);
   let st = 'off';
   try{
-    const res = await apiFetch('/api/whatsapp-attending', { signal: ctrl.signal });
+    const res = await apiFetch('/api/whatsapp-attending', { signal: ctrl.signal, quiet: true });
     if(res && res.ok){
       const d = await res.json().catch(() => null);
       st = d && d.attending === true ? 'on' : 'off';
@@ -7939,7 +7970,7 @@ async function handoffPollNow(){
   let nextMs = null;                   // null = no ritmo que o servidor acabar de indicar
   try{
     // skipAuthGuard: um 401 residual do polling não derruba a sessão (vira luz vermelha abaixo)
-    const res = await apiFetch(`/api/handoffs?v=2${askPresence ? '' : '&presence=0'}`, { skipAuthGuard: true });
+    const res = await apiFetch(`/api/handoffs?v=2${askPresence ? '' : '&presence=0'}`, { skipAuthGuard: true, quiet: true });
     if(!handoffRunning) return;
     if(res.ok){
       const data = await res.json().catch(() => null);
@@ -9065,9 +9096,10 @@ function waFailureText(f){
 
 // Wrapper de fetch: devolve sempre { ok, status, data | code, field } — nunca lança
 // (exceto abort, sinalizado por aborted:true). Corpo só em JSON, nunca em query string.
-async function waRequest(method, path, body, signal){
+async function waRequest(method, path, body, signal, quiet){
   const init = { method };
   if(signal) init.signal = signal;
+  if(quiet) init.quiet = true;   // consulta de fundo (polling): sem aviso de servidor acordando
   if(body !== undefined){
     init.headers = { 'Content-Type':'application/json' };
     init.body = JSON.stringify(body);
@@ -9318,7 +9350,7 @@ async function waPollTick(){
   waPollInFlight = true;
   const seq = waSeq;
   waPollAbort = new AbortController();
-  const r = await waRequest('GET', '/api/whatsapp-connection', undefined, waPollAbort.signal);
+  const r = await waRequest('GET', '/api/whatsapp-connection', undefined, waPollAbort.signal, true);
   waPollInFlight = false; waPollAbort = null;
   if(seq !== waSeq || r.aborted) return;
   if(r.ok){
