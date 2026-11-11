@@ -2540,6 +2540,8 @@ async function toggleDocWork(id){
 async function removeDoc(id){
   const d = kbDocs.find(x=>x.id===id);
   if(!d) return;
+  // O backend apaga de vez (DELETE sem lixeira nem recuperação): por isso o aviso. Para só pausar o uso, há o interruptor.
+  if(!confirm(`Remover "${d.name}"?\n\nO documento é apagado de vez e o agente deixa de usá-lo. Não dá para desfazer.\n\nPara só pausar o uso, cancele e desative o documento pelo interruptor.`)) return;
   return withBusy('doc:'+id, null, 'Removendo documento…', () => removeDocWork(id));
 }
 async function removeDocWork(id){
