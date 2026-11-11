@@ -184,6 +184,32 @@ button.st-btn{cursor:pointer}
 .ho-slot.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .ho-slot.on::before{content:'✓ '}
 .dias-row{display:flex;gap:6px;flex-wrap:wrap}
+/* Agenda semanal da ficha: um cartão por dia, um ou mais intervalos. Estado sempre com texto, nunca só cor. */
+.ag-day{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--card)}
+.ag-day.has-err{border:2px solid var(--red);padding:9px 11px}
+.ag-head{display:flex;justify-content:space-between;align-items:baseline;gap:4px 10px;flex-wrap:wrap}
+.ag-name{font-size:13px;font-weight:700;color:var(--ink)}
+.ag-sum{font-size:12px;font-weight:600;color:var(--muted)}
+.ag-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px}
+.ag-times{display:flex;align-items:center;gap:8px;flex:1 1 210px;min-width:0}
+.ag-times .ag-time{flex:1 1 0;min-width:0;width:auto;padding:7px 8px}
+.ag-ate{font-size:12px;color:var(--muted);flex-shrink:0}
+.ag-time.ag-bad{border:2px solid var(--red);padding:6px 7px}
+.ag-rm,.ag-btn{min-height:36px}
+@media(max-width:900px){.ag-rm,.ag-btn,.ag-time{min-height:44px}}
+.ag-err{font-size:12px;font-weight:600;color:#991B1B;background:var(--red-l);border-radius:8px;padding:6px 10px;margin-top:6px;line-height:1.45}
+.ag-note{font-size:12px;font-weight:600;color:#92400E;background:var(--amber-l);border-radius:8px;padding:6px 10px;margin-top:6px;line-height:1.45}
+.ag-note:empty{display:none}
+.ag-off{font-size:12px;color:var(--muted);margin-top:8px}
+.ag-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.ag-copy{margin-top:10px;border-top:1px dashed var(--border);padding-top:10px;font-size:12px;color:var(--ink)}
+.ag-copy-days{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0}
+.ag-copy-days label{display:inline-flex;align-items:center;gap:6px;font-weight:600;min-height:32px;cursor:pointer}
+.ag-banner{border-radius:10px;padding:10px 12px;font-size:12px;font-weight:600;line-height:1.5;margin-bottom:10px}
+.ag-banner.err{background:var(--red-l);color:#991B1B;border:2px solid var(--red)}
+.ag-banner.warn{background:var(--amber-l);color:#92400E;border:2px solid var(--amber)}
+.ag-banner.info{background:var(--accent-l);color:var(--accent);border:1px solid var(--accent)}
+.ag-banner button{margin-top:8px}
 .dia-chip{flex:1 1 0;min-width:29px;max-width:34px;font-size:12px}
 @media(max-width:480px){.dias-row{gap:4px}}
 @media(max-width:400px){.dia-chip{min-width:25px;font-size:11px}}
@@ -533,6 +559,7 @@ label.field-label{display:block}
     <div class="field-group">
       <div class="field-label">Dias de trabalho</div>
       <div id="cp-dias" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5">Nos dias marcados, o atendimento começa com o horário das 8h às 18h. Você ajusta os horários depois, na sua ficha.</div>
     </div>
     <button class="btn btn-accent" id="cp-submit-btn" type="button" disabled style="width:100%;padding:11px;margin-top:6px" onclick="submitCompleteProfile()">Salvar e continuar</button>
     <button class="btn btn-ghost btn-sm" type="button" style="width:100%;margin-top:10px" onclick="doLogout()">Sair</button>
@@ -1850,6 +1877,7 @@ function resetTenantState(){
   callbacks = [];
   heldReset();
   profissionais = [];
+  agendaReset();
   profContractedLimit = null;
   profActiveCount = null;
   colabContractedLimit = null;
@@ -1940,7 +1968,10 @@ function afterLoginSuccess(){
 let cpDiasSelected = new Set();
 
 function showCompleteProfileModal(){
-  cpDiasSelected = new Set(currentUser.dias_atendimento || []);
+  const cpAg = currentUser.agenda_semanal;
+  cpDiasSelected = new Set(cpAg && typeof cpAg === 'object'
+    ? diasOrdem.filter(d => Array.isArray(cpAg[d]) && cpAg[d].length > 0)
+    : (currentUser.dias_atendimento || []));
   const espEl = document.getElementById('cp-especialidade');
   if(espEl) espEl.value = currentUser.especialidade || '';
   renderCpDias();
@@ -1992,7 +2023,15 @@ function validateCompleteProfileForm(){
 async function submitCompleteProfile(){
   if(!validateCompleteProfileForm()) return;
   const especialidade = document.getElementById('cp-especialidade').value.trim();
-  const dias_atendimento = diasOrdem.filter(d=>cpDiasSelected.has(d));
+  // Só agenda_semanal: dia marcado mantém os intervalos que já existirem; sem nenhum, começa em 08:00–18:00.
+  // Dia desmarcado vai como [] (não atende).
+  const cpAg = currentUser.agenda_semanal || {};
+  const agenda_semanal = {};
+  diasOrdem.forEach(d => {
+    if(!cpDiasSelected.has(d)){ agenda_semanal[d] = []; return; }
+    const atuais = Array.isArray(cpAg[d]) ? cpAg[d] : [];
+    agenda_semanal[d] = atuais.length ? atuais.map(r => ({ inicio:String(r.inicio).slice(0,5), fim:String(r.fim).slice(0,5) })) : [{ inicio:'08:00', fim:'18:00' }];
+  });
   const btn = document.getElementById('cp-submit-btn');
   setFormAlert('cp-form-alert', '', '');
   btn.disabled = true;
@@ -2001,12 +2040,15 @@ async function submitCompleteProfile(){
     const res = await apiFetch(`/api/professionals/${currentUser.id}`, {
       method:'PATCH',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ especialidade, dias_atendimento })
+      body: JSON.stringify({ especialidade, agenda_semanal })
     });
     const data = await res.json();
     if(!res.ok){
       // Profissional comum não define valor (só o administrador): aqui só a explicação do 400 valor_obrigatorio.
-      const msg = data.code === 'valor_obrigatorio' ? '⚠ ' + priceCodeText('valor_obrigatorio', 'comum') : (data.error || 'Não foi possível salvar.');
+      const msg = data.code === 'valor_obrigatorio' ? '⚠ ' + priceCodeText('valor_obrigatorio', 'comum')
+        : data.code === 'migracao_pendente' ? 'O sistema está em atualização. Tente de novo em alguns minutos.'
+        : data.code === 'agenda_detalhada_use_novo_formato' ? 'Recarregue a página para editar.'
+        : (data.error || 'Não foi possível salvar.');
       setFormAlert('cp-form-alert', msg, 'error');
       return;
     }
@@ -3363,7 +3405,7 @@ function renderProfList(){
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--ink)">${p.name}${p.role==='admin'?' 👑':''}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">${p.role==='colaborador' ? 'Colaborador' : `${p.especialidade||'—'} · ${(p.dias_atendimento||[]).map(d=>diasLabels[d]).join(', ')}`}${isAdmin ? priceListTag(p) : ''}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${p.role==='colaborador' ? 'Colaborador' : `${p.especialidade||'—'} · ${agendaDiasDe(p).map(d=>diasLabels[d]).join(', ')}`}${isAdmin ? priceListTag(p) : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${p.role==='colaborador' ? `<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--bg);color:var(--muted);border:1px solid var(--border)">🤝 Colaborador</span>` : ''}
@@ -3407,11 +3449,10 @@ async function refreshProfessionalsView(){
 function selectProf(id){
   const p = profissionais.find(x=>x.id===id);
   if(!p) return;
+  agendaSaiDaFicha(selectedProfId, id);   // faixas e painel de cópia não passam para outra pessoa
   selectedProfId = id;
   const isAdmin = currentUser.role === 'admin';
-  const canEditThis = isAdmin || p.id === currentUser.id; // admin edita qualquer um; profissional só a si mesmo
-  const dias = p.dias_atendimento || [];
-  const diasHtml = diasOrdem.map(d => diaChipHtml(d, dias.includes(d), canEditThis ? `toggleDia('${id}','${d}',this)` : '')).join('');
+  const canEditThis = podeEditarProf(id); // admin edita qualquer um; profissional só a si mesmo (regra única, usada também ao repintar a agenda)
 
   // Ação de redução de franquia — só admin, só profissional ativo não-admin.
   // `franchiseRequestPending` (reconciliado com o servidor) bloqueia enquanto
@@ -3440,21 +3481,14 @@ function selectProf(id){
         }
       </div>
       <div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Horário de trabalho</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="time" id="prof-inicio-${id}" value="${(p.horario_inicio||'08:00').slice(0,5)}" style="border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;outline:none;width:105px;flex-shrink:0" ${!canEditThis?'disabled':''}>
-          <span style="font-size:12px;color:var(--muted);flex-shrink:0">até</span>
-          <input type="time" id="prof-fim-${id}" value="${(p.horario_fim||'18:00').slice(0,5)}" style="border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;outline:none;width:105px;flex-shrink:0" ${!canEditThis?'disabled':''}>
-        </div>
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Dias de trabalho</div>
-        <div class="dias-row">${diasHtml}</div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Agenda semanal</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px">Informe os horários de atendimento em cada dia. Dia sem horário = não atende. Depois de ajustar, clique em ${isAdmin ? 'Salvar alterações' : 'Salvar minha agenda'}.</div>
+        <div id="ag-wrap-${id}">${agendaHtml(id, canEditThis)}</div>
       </div>
       <div>
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Duração de cada agendamento</div>
         <div style="display:flex;gap:8px;align-items:center">
-          <input type="number" min="10" max="240" step="5" id="prof-duracao-${id}" value="${p.appointment_duration_minutes||60}" style="width:90px;border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;outline:none" ${!canEditThis?'disabled':''}>
+          <input type="number" min="10" max="240" step="5" id="prof-duracao-${id}" value="${p.appointment_duration_minutes||60}" oninput="agendaAtualizaTodos('${id}')" style="width:90px;border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;outline:none" ${!canEditThis?'disabled':''}>
           <span style="font-size:12px;color:var(--muted)">minutos por agendamento</span>
         </div>
       </div>
@@ -3485,19 +3519,364 @@ function selectProf(id){
     </div>`;
 }
 
-function toggleDia(id, dia, el){
-  const p = profissionais.find(x=>x.id===id);
-  if(!p) return;
-  const dias = new Set(p.dias_atendimento || []);
-  if(dias.has(dia)) dias.delete(dia); else dias.add(dia);
-  p.dias_atendimento = diasOrdem.filter(d=>dias.has(d));
-  const on = dias.has(dia);
-  el.style.background = on ? 'var(--accent-l)' : 'var(--bg)';
-  el.style.color       = on ? 'var(--accent)' : 'var(--light)';
-  el.style.borderColor = on ? 'var(--accent-l)' : 'var(--border)';
-  el.setAttribute('aria-checked', on);
-  const mark = el.querySelector('.dia-mark');
-  if(mark) mark.textContent = on ? '✓' : '';
+// ── AGENDA SEMANAL DA FICHA ──────────────────────────────────────────────────
+// Por profissional e por dia da semana: zero ou mais intervalos {inicio:"HH:MM", fim:"HH:MM"}.
+// Dia sem intervalo = não atende. Lê e grava só `agenda_semanal` (nunca dias_atendimento nem horario_*).
+// A edição acontece num RASCUNHO separado de `profissionais`: nada vaza para a lista antes de salvar, e o
+// rascunho sobrevive a um recarregamento da ficha (ex.: erro de valor da consulta) enquanto o servidor não mudar.
+const agendaDiasNome = {seg:'Segunda-feira',ter:'Terça-feira',qua:'Quarta-feira',qui:'Quinta-feira',sex:'Sexta-feira',sab:'Sábado',dom:'Domingo'};
+const AGENDA_MAX_INTERVALOS = 6;
+const agendaDraft = {};   // id -> { snap, dias:{seg:[{inicio,fim}],...} }
+const agendaUi = {};      // id -> { errors:{dia:{head:[],idx:{i:[msgs]}}}, banner, aviso, msg, copy:{from,sel[]} }
+
+function agendaReset(){
+  Object.keys(agendaDraft).forEach(k => delete agendaDraft[k]);
+  Object.keys(agendaUi).forEach(k => delete agendaUi[k]);
+}
+function agEsc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function agMin(h){ const m = /^(\d{2}):(\d{2})$/.exec(h || ''); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+function agFmtDur(min){ const h = Math.floor(min / 60), m = min % 60; return h && m ? `${h}h${String(m).padStart(2,'0')}` : h ? `${h}h` : `${m} min`; }
+function agSorted(rows){ return rows.slice().sort((a, b) => a.inicio < b.inicio ? -1 : a.inicio > b.inicio ? 1 : 0); }
+function podeEditarProf(id){ return currentUser.role === 'admin' || id === currentUser.id; }
+function agUi(id){ return agendaUi[id] || (agendaUi[id] = { errors:{}, banner:null, aviso:null, msg:null, copy:null }); }
+
+// Cópia normalizada da agenda que veio do servidor; null se o servidor não a enviou.
+function agBase(p){
+  const a = p && p.agenda_semanal;
+  if(!a || typeof a !== 'object') return null;
+  const o = {};
+  diasOrdem.forEach(d => { o[d] = (Array.isArray(a[d]) ? a[d] : []).map(x => ({ inicio:String(x.inicio || '').slice(0,5), fim:String(x.fim || '').slice(0,5) })); });
+  return o;
+}
+function agDraft(id){
+  const p = profissionais.find(x => x.id === id);
+  const base = agBase(p);
+  if(!base) return null;
+  const snap = JSON.stringify(base);
+  let d = agendaDraft[id];
+  if(!d || d.snap !== snap) d = agendaDraft[id] = { snap, dias: JSON.parse(snap) };
+  return d.dias;
+}
+// Dias com atendimento (para a lista de profissionais).
+function agendaDiasDe(p){
+  const a = p.agenda_semanal;
+  if(a && typeof a === 'object') return diasOrdem.filter(d => Array.isArray(a[d]) && a[d].length > 0);
+  return p.dias_atendimento || [];
+}
+// Ao abrir a ficha de outra pessoa: faixas, mensagens e painel de cópia não acompanham.
+function agendaSaiDaFicha(antigo, novo){
+  if(!antigo || antigo === novo || !agendaUi[antigo]) return;
+  Object.assign(agendaUi[antigo], { errors:{}, banner:null, aviso:null, msg:null, copy:null });
+}
+
+function agDuracao(id){
+  const el = document.getElementById(`prof-duracao-${id}`);
+  const v = el ? parseInt(el.value, 10) : NaN;
+  if(v > 0) return v;
+  const p = profissionais.find(x => x.id === id);
+  return (p && p.appointment_duration_minutes) || 60;
+}
+// Aviso local, sem bloquear: intervalo menor que a duração do agendamento nunca gera horário.
+function agNote(id, d, i){
+  const dias = agDraft(id);
+  const r = dias && dias[d][i];
+  if(!r) return '';
+  const a = agMin(r.inicio), b = agMin(r.fim);
+  if(a == null || b == null || b <= a) return '';
+  const dur = agDuracao(id);
+  return b - a < dur ? `Atenção: este intervalo tem ${b - a} min, menos que a duração do agendamento (${dur} min). Ele não terá horários para marcar.` : '';
+}
+function agSumText(rows){
+  const n = rows.length;
+  if(!n) return 'Não atende';
+  let tot = 0;
+  rows.forEach(r => { const a = agMin(r.inicio), b = agMin(r.fim); if(a != null && b != null && b > a) tot += b - a; });
+  return `✓ Atende · ${n} ${n === 1 ? 'intervalo' : 'intervalos'}${tot ? ' · ' + agFmtDur(tot) + ' no total' : ''}`;
+}
+
+function agendaHtml(id, edit){
+  const dias = agDraft(id);
+  if(!dias) return `<div class="ag-banner warn" role="status"><strong>Atenção:</strong> o servidor ainda não enviou a agenda semanal, então ela não pode ser editada agora. Recarregue a página mais tarde.</div>`;
+  const ui = agUi(id);
+  let h = '';
+  if(ui.banner){
+    const warn = ui.banner.kind === 'warn';
+    h += `<div class="ag-banner ${warn ? 'warn' : 'err'}" role="alert"><strong>${warn ? 'Atenção' : 'Erro'}:</strong> ${agEsc(ui.banner.text)}</div>`;
+  }
+  if(ui.aviso){
+    const txt = ui.aviso.message || `${ui.aviso.count} agendamento(s) futuro(s) ficam fora da nova agenda. Revise esses agendamentos.`;
+    h += `<div class="ag-banner warn" id="ag-aviso-${id}" role="status"><strong>Agenda salva. Atenção:</strong> ${agEsc(txt)}<br><button type="button" class="btn btn-ghost btn-sm ag-btn" onclick="agendaFechaAviso('${id}')">Entendi</button></div>`;
+  }
+  if(ui.msg) h += `<div class="ag-banner info" role="status">${agEsc(ui.msg)}</div>`;
+  h += `<div style="display:flex;flex-direction:column;gap:8px">${diasOrdem.map(d => agendaDiaHtml(id, d, dias[d], edit)).join('')}</div>`;
+  return h;
+}
+
+function agendaDiaHtml(id, d, rows, edit){
+  const ui = agUi(id);
+  const er = ui.errors[d] || { head:[], idx:{} };
+  const nome = agendaDiasNome[d];
+  const temErro = er.head.length > 0 || Object.keys(er.idx).length > 0;
+  const linhas = rows.map((r, i) => {
+    const msgs = er.idx[i] || [];
+    const bad = msgs.length ? ' ag-bad' : '';
+    const attrs = msgs.length ? ` aria-invalid="true" aria-describedby="ag-err-${id}-${d}-${i}"` : '';
+    const dis = edit ? '' : ' disabled';
+    return `<div class="ag-row">
+      <div class="ag-times">
+        <input type="time" class="field ag-time${bad}" aria-label="${nome}, intervalo ${i + 1}, início" value="${agEsc(r.inicio)}"${attrs}${dis} onchange="agendaSetHora('${id}','${d}',${i},'inicio',this)">
+        <span class="ag-ate">até</span>
+        <input type="time" class="field ag-time${bad}" aria-label="${nome}, intervalo ${i + 1}, fim" value="${agEsc(r.fim)}"${attrs}${dis} onchange="agendaSetHora('${id}','${d}',${i},'fim',this)">
+      </div>
+      ${edit ? `<button type="button" class="btn btn-ghost btn-sm ag-rm" aria-label="Remover intervalo ${i + 1} de ${nome}" onclick="agendaRemove('${id}','${d}',${i})">Remover</button>` : ''}
+    </div>
+    ${msgs.length ? `<div class="ag-err" id="ag-err-${id}-${d}-${i}" role="alert"><strong>Erro:</strong> ${msgs.map(agEsc).join(' ')}</div>` : ''}
+    <div class="ag-note" id="ag-note-${id}-${d}-${i}">${agEsc(agNote(id, d, i))}</div>`;
+  }).join('');
+  const headErr = er.head.length ? `<div class="ag-err" role="alert"><strong>Erro:</strong> ${er.head.map(agEsc).join(' ')}</div>` : '';
+  let acoes = '';
+  if(edit){
+    const cheio = rows.length >= AGENDA_MAX_INTERVALOS;
+    acoes = `<div class="ag-actions">
+      ${cheio ? `<span class="ag-off" style="margin:0;align-self:center">Limite de ${AGENDA_MAX_INTERVALOS} intervalos neste dia.</span>`
+              : `<button type="button" class="btn btn-ghost btn-sm ag-btn" id="ag-add-${id}-${d}" onclick="agendaAdd('${id}','${d}')">Adicionar intervalo</button>`}
+      ${rows.length ? `<button type="button" class="btn btn-ghost btn-sm ag-btn" id="ag-cpbtn-${id}-${d}" aria-expanded="${ui.copy && ui.copy.from === d ? 'true' : 'false'}" onclick="agendaCopiarAbre('${id}','${d}')">Copiar para…</button>` : ''}
+    </div>`;
+  }
+  const copia = ui.copy && ui.copy.from === d ? agCopyHtml(id, d) : '';
+  return `<div class="ag-day${temErro ? ' has-err' : ''}" id="ag-day-${id}-${d}">
+    <div class="ag-head"><span class="ag-name">${nome}</span><span class="ag-sum" id="ag-sum-${id}-${d}">${agEsc(agSumText(rows))}</span></div>
+    ${headErr}${rows.length ? linhas : `<div class="ag-off">Não atende neste dia.</div>`}${acoes}${copia}
+  </div>`;
+}
+
+function agCopyHtml(id, d){
+  const dias = agDraft(id);
+  const c = agUi(id).copy;
+  const outros = diasOrdem.filter(x => x !== d);
+  const subst = outros.filter(x => c.sel.includes(x) && dias[x].length).map(x => diasLabels[x]);
+  return `<div class="ag-copy" role="group" aria-label="Copiar a agenda de ${agendaDiasNome[d]} para outros dias">
+    <div style="font-weight:700">Copiar a agenda de ${agendaDiasNome[d]} para:</div>
+    <div class="ag-copy-days">${outros.map(x => `<label><input type="checkbox" id="ag-cp-${id}-${x}" ${c.sel.includes(x) ? 'checked' : ''} onchange="agendaCopiarSel('${id}','${x}',this.checked)"> ${diasLabels[x]}</label>`).join('')}</div>
+    <div class="ag-actions" style="margin-top:0">
+      <button type="button" class="btn btn-ghost btn-sm ag-btn" onclick="agendaCopiarAtalho('${id}','uteis')">Dias úteis</button>
+      <button type="button" class="btn btn-ghost btn-sm ag-btn" onclick="agendaCopiarAtalho('${id}','todos')">Todos os dias</button>
+    </div>
+    <div class="ag-note" role="status">${subst.length ? `Atenção: isto substitui a agenda de ${subst.join(', ')}.` : ''}</div>
+    <div class="ag-actions">
+      <button type="button" class="btn btn-accent btn-sm ag-btn" ${c.sel.length ? '' : 'disabled'} onclick="agendaCopiarAplica('${id}')">Aplicar</button>
+      <button type="button" class="btn btn-ghost btn-sm ag-btn" onclick="agendaCopiarCancela('${id}')">Cancelar</button>
+    </div>
+  </div>`;
+}
+
+function agendaRepaint(id){
+  const w = document.getElementById(`ag-wrap-${id}`);
+  if(w) w.innerHTML = agendaHtml(id, podeEditarProf(id));
+}
+function agFoco(sel){ const el = document.querySelector(sel); if(el) el.focus({ preventScroll:false }); }
+
+// Atualiza só o resumo e os avisos do dia, sem repintar (repintar tiraria o foco do campo de hora).
+function agendaAtualizaDia(id, d){
+  const dias = agDraft(id);
+  if(!dias) return;
+  const sum = document.getElementById(`ag-sum-${id}-${d}`);
+  if(sum) sum.textContent = agSumText(dias[d]);
+  dias[d].forEach((_, i) => { const n = document.getElementById(`ag-note-${id}-${d}-${i}`); if(n) n.textContent = agNote(id, d, i); });
+}
+function agendaAtualizaTodos(id){ diasOrdem.forEach(d => agendaAtualizaDia(id, d)); }
+
+function agendaSetHora(id, d, i, campo, el){
+  const dias = agDraft(id);
+  if(!dias || !dias[d][i]) return;
+  dias[d][i][campo] = el.value;
+  // o campo foi mexido: some o erro dessa linha (o servidor/validação refaz na próxima tentativa de salvar)
+  const e = agUi(id).errors[d];
+  if(e && e.idx[i]) delete e.idx[i];
+  const row = el.closest('.ag-row');
+  if(row) row.querySelectorAll('.ag-time').forEach(x => { x.classList.remove('ag-bad'); x.removeAttribute('aria-invalid'); x.removeAttribute('aria-describedby'); });
+  const er = document.getElementById(`ag-err-${id}-${d}-${i}`);
+  if(er) er.remove();
+  agendaAtualizaDia(id, d);
+}
+
+function agendaAdd(id, d){
+  const dias = agDraft(id);
+  if(!dias || dias[d].length >= AGENDA_MAX_INTERVALOS) return;
+  let novo = { inicio:'08:00', fim:'12:00' };
+  if(dias[d].length){
+    const ult = agSorted(dias[d]).pop();
+    const fimMin = agMin(ult.fim);
+    if(fimMin != null && fimMin < 14 * 60) novo = { inicio:'14:00', fim:'18:00' };
+    else if(fimMin != null && fimMin < 23 * 60){
+      const ini = fimMin, fim = Math.min(ini + 60, 23 * 60 + 59);
+      const f = m => String(Math.floor(m / 60)).padStart(2,'0') + ':' + String(m % 60).padStart(2,'0');
+      novo = { inicio:f(ini), fim:f(fim) };
+    }
+  }
+  dias[d].push(novo);
+  const ui = agUi(id);
+  delete ui.errors[d];   // os índices mudaram
+  ui.msg = null;
+  agendaRepaint(id);
+  const ins = document.querySelectorAll(`#ag-day-${id}-${d} .ag-time`);
+  if(ins.length >= 2) ins[ins.length - 2].focus();
+}
+function agendaRemove(id, d, i){
+  const dias = agDraft(id);
+  if(!dias || !dias[d][i]) return;
+  dias[d].splice(i, 1);
+  const ui = agUi(id);
+  delete ui.errors[d];
+  ui.msg = null;
+  agendaRepaint(id);
+  agFoco(`#ag-add-${id}-${d}`);
+}
+
+// ── Copiar a agenda de um dia para outros ──
+function agendaCopiarAbre(id, d){
+  const ui = agUi(id);
+  ui.copy = (ui.copy && ui.copy.from === d) ? null : { from:d, sel:[] };
+  agendaRepaint(id);
+  if(ui.copy) agFoco(`#ag-day-${id}-${d} .ag-copy-days input`); else agFoco(`#ag-cpbtn-${id}-${d}`);
+}
+function agendaCopiarSel(id, x, on){
+  const c = agUi(id).copy;
+  if(!c) return;
+  c.sel = c.sel.filter(v => v !== x);
+  if(on) c.sel.push(x);
+  agendaRepaint(id);
+  agFoco(`#ag-cp-${id}-${x}`);
+}
+function agendaCopiarAtalho(id, tipo){
+  const c = agUi(id).copy;
+  if(!c) return;
+  const alvo = tipo === 'uteis' ? ['seg','ter','qua','qui','sex'] : diasOrdem;
+  c.sel = alvo.filter(x => x !== c.from);
+  agendaRepaint(id);
+  agFoco(`#ag-day-${id}-${c.from} .ag-copy-days input`);
+}
+function agendaCopiarCancela(id){
+  const c = agUi(id).copy;
+  agUi(id).copy = null;
+  agendaRepaint(id);
+  if(c) agFoco(`#ag-cpbtn-${id}-${c.from}`);
+}
+function agendaCopiarAplica(id){
+  const ui = agUi(id), c = ui.copy, dias = agDraft(id);
+  if(!c || !dias || !c.sel.length) return;
+  const modelo = dias[c.from].map(r => ({ inicio:r.inicio, fim:r.fim }));
+  diasOrdem.forEach(x => { if(c.sel.includes(x)){ dias[x] = modelo.map(r => ({ ...r })); delete ui.errors[x]; } });
+  ui.msg = `Agenda de ${agendaDiasNome[c.from]} copiada para ${diasOrdem.filter(x => c.sel.includes(x)).map(x => diasLabels[x]).join(', ')}. Falta salvar.`;
+  ui.copy = null;
+  agendaRepaint(id);
+  agFoco(`#ag-cpbtn-${id}-${c.from}`);
+}
+
+// ── Salvar ──
+// Erros locais de um dia (mesmo formato dos details do servidor); null se estiver tudo certo.
+function agValida(rows){
+  const e = { head:[], idx:{} };
+  let any = false;
+  const add = (i, m) => { (e.idx[i] = e.idx[i] || []).push(m); any = true; };
+  if(rows.length > AGENDA_MAX_INTERVALOS){ e.head.push(`No máximo ${AGENDA_MAX_INTERVALOS} intervalos por dia.`); any = true; }
+  const ord = rows.map((r, i) => ({ i, a:agMin(r.inicio), b:agMin(r.fim) }));
+  ord.forEach(o => {
+    if(o.a == null) add(o.i, 'Informe a hora de início.');
+    else if(o.b == null) add(o.i, 'Informe a hora de término.');
+    else if(o.a >= o.b) add(o.i, 'O início precisa ser antes do término.');
+  });
+  const ok = ord.filter(o => o.a != null && o.b != null && o.a < o.b).sort((x, y) => x.a - y.a);
+  for(let k = 1; k < ok.length; k++){
+    if(ok[k].a < ok[k - 1].b) add(ok[k].i, 'Este intervalo se sobrepõe a outro do mesmo dia.');
+  }
+  return any ? e : null;
+}
+// Devolve { dia:[intervalos] } só com os dias alterados; null se nada mudou (ou agenda indisponível);
+// false se há erro (já mostrado no dia e no intervalo) e o salvamento deve parar.
+function agendaParaSalvar(id){
+  const p = profissionais.find(x => x.id === id);
+  const base = agBase(p);
+  const dias = agDraft(id);
+  if(!base || !dias) return null;
+  const ui = agUi(id);
+  ui.banner = null; ui.errors = {}; ui.aviso = null; ui.msg = null;
+  const mudados = diasOrdem.filter(d => JSON.stringify(agSorted(dias[d])) !== JSON.stringify(base[d]));
+  let ruim = false;
+  mudados.forEach(d => { const e = agValida(dias[d]); if(e){ ui.errors[d] = e; ruim = true; } });
+  if(ruim){
+    agendaRepaint(id);
+    showToast('Atenção: corrija os problemas assinalados na agenda.', 7000);
+    agFocaPrimeiroErro(id);
+    return false;
+  }
+  const out = {};
+  mudados.forEach(d => {
+    dias[d] = agSorted(dias[d]);   // a ordem enviada é a exibida: os índices de erro do servidor batem com a tela
+    out[d] = dias[d].map(r => ({ inicio:r.inicio, fim:r.fim }));
+  });
+  return mudados.length ? out : null;
+}
+function agFocaPrimeiroErro(id){
+  const el = document.querySelector(`#ag-wrap-${id} .ag-err`);
+  if(!el) return;
+  el.scrollIntoView({ block:'center' });
+  const campo = document.querySelector(`#ag-wrap-${id} .ag-time[aria-invalid="true"]`);
+  if(campo) campo.focus({ preventScroll:true });
+}
+
+// Erros do servidor próprios da agenda. Devolve true se tratou (e o saveProf para por aí).
+// `temAgenda`: o PATCH enviado levava agenda_semanal. migracao_pendente é um código compartilhado com o módulo
+// de valor da consulta; sem agenda no payload ele NÃO é erro da agenda e segue o tratamento do valor.
+function agendaTrataErro(id, code, data, temAgenda){
+  const ui = agUi(id);
+  if(code === 'agenda_invalida'){
+    ui.errors = {}; ui.banner = null; ui.msg = null;
+    const det = Array.isArray(data.details) ? data.details : [];
+    const gerais = [];
+    det.forEach(x => {
+      const msg = x && x.message ? String(x.message) : 'Agenda inválida.';
+      if(x && diasOrdem.includes(x.dia)){
+        const e = ui.errors[x.dia] || (ui.errors[x.dia] = { head:[], idx:{} });
+        if(Number.isInteger(x.indice)) (e.idx[x.indice] = e.idx[x.indice] || []).push(msg); else e.head.push(msg);
+      } else gerais.push(msg);
+    });
+    if(gerais.length || !det.length) ui.banner = { kind:'err', text:gerais.length ? gerais.join(' ') : (data.error || 'A agenda tem problemas.') };
+    agendaRepaint(id);
+    showToast('Atenção: corrija os problemas assinalados na agenda.', 7000);
+    agFocaPrimeiroErro(id);
+    return true;
+  }
+  if(code === 'agenda_detalhada_use_novo_formato'){
+    ui.banner = { kind:'err', text:'Recarregue a página para editar.' };
+    agendaRepaint(id);
+    showToast('Atenção: recarregue a página para editar.', 7000);
+    return true;
+  }
+  if(code === 'migracao_pendente' && temAgenda){
+    ui.banner = { kind:'err', text:'O sistema está em atualização. Tente salvar de novo em alguns minutos.' };
+    agendaRepaint(id);
+    showToast('Atenção: o sistema está em atualização. Tente salvar de novo em alguns minutos.', 7000);
+    return true;
+  }
+  return false;
+}
+// Sucesso: descarta o rascunho (a tela volta a refletir o servidor) e guarda o aviso, se vier.
+function agendaSalvou(id, data){
+  delete agendaDraft[id];
+  const ui = agUi(id);
+  ui.errors = {}; ui.banner = null; ui.msg = null; ui.copy = null; ui.aviso = null;
+  const w = (data && Array.isArray(data.warnings) ? data.warnings : []).find(x => x && x.code === 'agendamentos_fora_da_agenda');
+  if(w) ui.aviso = { count:w.count, message:w.message };
+}
+function agendaMostraAviso(id){
+  if(!agendaUi[id] || !agendaUi[id].aviso) return;
+  const el = document.getElementById(`ag-aviso-${id}`);
+  if(el) el.scrollIntoView({ block:'nearest' });
+}
+function agendaFechaAviso(id){
+  agUi(id).aviso = null;
+  agendaRepaint(id);
 }
 
 function updatePerm(id, val){
@@ -3509,17 +3888,17 @@ async function saveProf(id){
   const p = profissionais.find(x=>x.id===id);
   if(!p) return;
   const espEl = document.getElementById(`prof-esp-${id}`);
-  const inicioEl = document.getElementById(`prof-inicio-${id}`);
-  const fimEl = document.getElementById(`prof-fim-${id}`);
   const duracaoEl = document.getElementById(`prof-duracao-${id}`);
   const payload = {
     especialidade: espEl ? espEl.value : p.especialidade,
-    dias_atendimento: p.dias_atendimento,
-    horario_inicio: inicioEl ? inicioEl.value : p.horario_inicio,
-    horario_fim: fimEl ? fimEl.value : p.horario_fim,
     appointment_duration_minutes: duracaoEl ? parseInt(duracaoEl.value, 10) : p.appointment_duration_minutes,
   };
   if(currentUser.role === 'admin') payload.permissao = p.permissao;
+
+  // Agenda: só os dias alterados, só em agenda_semanal. Se algo na agenda está inválido, nada é enviado.
+  const agenda = agendaParaSalvar(id);
+  if(agenda === false) return;
+  if(agenda) payload.agenda_semanal = agenda;
 
   // Valor da consulta (só administrador, modo 'profissional', quem não é colaborador): vai junto dos outros campos,
   // e só se mudou. Quem já tem valor não pode esvaziar o campo (não existe "limpar"); sem valor guardado e campo
@@ -3553,6 +3932,15 @@ async function saveProf(id){
     const data = await res.json();
     if(!res.ok){
       const code = typeof data.code === 'string' ? data.code : '';
+      if(agendaTrataErro(id, code, data, !!payload.agenda_semanal)){
+        // Payload com agenda E valor: o código não diz qual módulo está pendente. Mostra os dois avisos (cada
+        // um fala só de "nada foi alterado / tente de novo"), em vez de culpar um só.
+        if(code === 'migracao_pendente' && payload.consultation_price !== undefined){
+          const txtV = priceCodeText(code, currentUser.role === 'admin' ? 'ficha' : 'comum', data);
+          if(txtV) profPriceMsg(id, txtV);
+        }
+        return;
+      }
       if(PRICE_FICHA_CODES.includes(code)){
         const txt = priceCodeText(code, currentUser.role === 'admin' ? 'ficha' : 'comum', data);
         // Só relê se o painel estava com o modo desatualizado (sem campo de valor e o servidor exigiu, ou o servidor
@@ -3564,8 +3952,10 @@ async function saveProf(id){
       showToast(`⚠ ${data.error||'Não foi possível salvar.'}`, 7000);
       return;
     }
+    agendaSalvou(id, data);
     await loadProfessionalsFromServer();
     selectProf(id);   // reflete o valor e o aviso "Sem valor" vindos do servidor
+    agendaMostraAviso(id);
     showToast(`✓ ${p.name} atualizado com sucesso!`);
   }catch(e){
     console.error('[saveProf] erro:', e);
