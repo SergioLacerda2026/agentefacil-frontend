@@ -184,6 +184,13 @@ button.st-btn{cursor:pointer}
 .ho-slot.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .ho-slot.on::before{content:'✓ '}
 .dias-row{display:flex;gap:6px;flex-wrap:wrap}
+/* Botão ocupado (withBusy): texto "Salvando…" + anel, nunca só cor. Cliques ignorados; o foco do teclado fica. */
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.btn.is-busy{cursor:progress;white-space:nowrap}
+.btn[aria-disabled="true"]{pointer-events:none;opacity:.85}
+.busy-spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:apuspin .8s linear infinite;vertical-align:-2px;margin-right:7px}
+@media(prefers-reduced-motion:reduce){.busy-spin{animation:none}}
+.busy-hint{flex-basis:100%;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-l);border:1px solid var(--accent);border-radius:8px;padding:8px 10px;margin-top:8px;line-height:1.5}
 /* Agenda semanal da ficha: um cartão por dia, um ou mais intervalos. Estado sempre com texto, nunca só cor. */
 .ag-day{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--card)}
 .ag-day.has-err{border:2px solid var(--red);padding:9px 11px}
@@ -990,7 +997,7 @@ label.field-label{display:block}
             </div>
           </div>
           <div style="text-align:right">
-            <button class="btn btn-accent" onclick="saveSettingsToServer()">Salvar configurações</button>
+            <button class="btn btn-accent" onclick="saveSettingsToServer(this)">Salvar configurações</button>
           </div>
         </div>
       </div>
@@ -1533,7 +1540,8 @@ label.field-label{display:block}
 </main>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="busy-live" class="sr-only" role="status" aria-live="polite"></div>
 
 <script>
 // ── BACKEND ──
@@ -1795,6 +1803,62 @@ async function apiFetch(path, options = {}) {
   }
   if(res.status === 401 && !skipAuthGuard) handleSessionExpired();
   return res;
+}
+
+// ── BOTÃO OCUPADO (salvar/enviar) ─────────────────────────────────────────────────────────────────────────
+// withBusy(chave, botão, rótulo, trabalho): o botão reage na hora ("Salvando…" + anel), cliques repetidos são ignorados
+// e, passados ~5 s, aparece o texto de apoio (o backend gratuito pode levar 1 min para acordar). Ao terminar, de
+// sucesso ou de erro, tudo volta ao normal (finally); as mensagens de erro continuam sendo as do próprio `trabalho`.
+// A trava é por CHAVE (ex.: 'prof:<id>'), não pelo botão: a ficha é redesenhada e criaria um botão novo "livre".
+// Os botões da mesma fileira ficam travados juntos. Usa aria-disabled (não disabled) para o foco do teclado não sumir.
+const BUSY_SLOW_MS = 5000;
+const BUSY_SLOW_TEXT = 'O servidor está acordando, isso pode levar até 1 minuto. Não feche a página.';
+const busyKeys = new Set();
+function busyBeforeUnload(e){ e.preventDefault(); e.returnValue = ''; return ''; }
+function busyAnnounce(txt){
+  const el = document.getElementById('busy-live');
+  if(!el) return;
+  el.textContent = '';
+  if(txt) setTimeout(() => { el.textContent = txt; }, 30);   // o intervalo faz o leitor de tela reanunciar
+}
+async function withBusy(key, btn, label, work){
+  if(busyKeys.has(key)){ showToast('Já estou salvando. Aguarde um instante.'); return; }
+  busyKeys.add(key);
+  if(busyKeys.size === 1) window.addEventListener('beforeunload', busyBeforeUnload);
+  const row = btn && btn.parentElement;
+  const locked = row ? Array.from(row.querySelectorAll('button')) : (btn ? [btn] : []);
+  const saved = locked.map(b => ({ b, html:b.innerHTML, minW:b.style.minWidth, aria:b.getAttribute('aria-disabled') }));
+  locked.forEach(b => { b.style.minWidth = b.offsetWidth + 'px'; b.setAttribute('aria-disabled', 'true'); });   // largura fixa: o botão não "pula"
+  if(btn){
+    btn.classList.add('is-busy');
+    btn.setAttribute('aria-busy', 'true');
+    btn.innerHTML = `<span class="busy-spin" aria-hidden="true"></span>${label}`;
+  }
+  busyAnnounce(label);
+  let hint = null;
+  const timer = setTimeout(() => {
+    hint = document.createElement('div');
+    hint.className = 'busy-hint';
+    hint.setAttribute('role', 'status');
+    hint.textContent = BUSY_SLOW_TEXT;
+    if(row && row.isConnected){ row.insertAdjacentElement('afterend', hint); hint.scrollIntoView({ block:'nearest' }); }
+    busyAnnounce(BUSY_SLOW_TEXT);
+  }, BUSY_SLOW_MS);
+  try{
+    return await work();
+  }finally{
+    clearTimeout(timer);
+    if(hint) hint.remove();
+    saved.forEach(s => {
+      s.b.innerHTML = s.html;
+      s.b.style.minWidth = s.minW;
+      if(s.aria === null) s.b.removeAttribute('aria-disabled'); else s.b.setAttribute('aria-disabled', s.aria);
+    });
+    if(btn){ btn.classList.remove('is-busy'); btn.removeAttribute('aria-busy'); }
+    busyKeys.delete(key);
+    if(!busyKeys.size) window.removeEventListener('beforeunload', busyBeforeUnload);
+    busyAnnounce('');
+  }
 }
 
 // ── LOGIN / LOGOUT ──
@@ -3001,7 +3065,10 @@ async function loadSettingsFromServer(){
   }
 }
 
-async function saveSettingsToServer(){
+async function saveSettingsToServer(btn){
+  return withBusy('settings', btn, 'Salvando…', saveSettingsWork);
+}
+async function saveSettingsWork(){
   const features = { ...loadedFeatures };
   if(!('transferencia_automatica' in features)) features.transferencia_automatica = true;   // padrão de antes, sem tela
   document.querySelectorAll('[data-feature-key]').forEach(el=>{
@@ -3503,14 +3570,14 @@ function selectProf(id){
         </select>
         ${p.role==='admin'?'<div style="font-size:11px;color:var(--muted);margin-top:6px">Administrador sempre vê e assume qualquer transferência</div>':''}
       </div>
-      <div style="display:flex;gap:8px;padding-top:4px">
-        <button class="btn btn-accent btn-sm" onclick="saveProf('${id}')">Salvar alterações</button>
-        ${p.role!=='admin'?`<button class="btn btn-ghost btn-sm" onclick="toggleAtivo('${id}')">${p.active?'Desativar':'Ativar'}</button>
-        <button class="btn btn-ghost btn-sm" onclick="removeProf('${id}')" style="color:var(--red)">Remover</button>`:''}
+      <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:4px">
+        <button class="btn btn-accent btn-sm" onclick="saveProf('${id}',this)">Salvar alterações</button>
+        ${p.role!=='admin'?`<button class="btn btn-ghost btn-sm" onclick="toggleAtivo('${id}',this)">${p.active?'Desativar':'Ativar'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="removeProf('${id}',this)" style="color:var(--red)">Remover</button>`:''}
       </div>
       ${reduceFranchiseBlock}` : canEditThis ? `
-      <div style="display:flex;gap:8px;padding-top:4px">
-        <button class="btn btn-accent btn-sm" onclick="saveProf('${id}')">Salvar minha agenda</button>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:4px">
+        <button class="btn btn-accent btn-sm" onclick="saveProf('${id}',this)">Salvar minha agenda</button>
       </div>` : `
       <div style="background:var(--bg);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.5">
         🔒 Permissão: <strong style="color:var(--ink)">${permLabels[p.permissao]}</strong><br>
@@ -3884,7 +3951,31 @@ function updatePerm(id, val){
   if(p) p.permissao = val;
 }
 
-async function saveProf(id){
+async function saveProf(id, btn){
+  return withBusy('prof:'+id, btn, 'Salvando…', () => saveProfWork(id));
+}
+
+// A resposta do PATCH traz o profissional na MESMA visão da lista (toProfessionalView: mesmas chaves, inclusive as de
+// valor e de convite; conferido comparando GET e PATCH no backend). Aplica-a no lugar de reler a lista inteira (e a
+// franquia), cortando duas chamadas da espera. Devolve false (e o chamador relê tudo, como antes) se faltar qualquer
+// campo que a lista já tinha. O resumo "N sem valor" do cartão do valor é recalculado da lista, que é como o backend
+// o define (consultation_price_missing).
+function profAplicaRespostaPatch(id, data){
+  const novo = data && data.professional;
+  const p = profissionais.find(x => x.id === id);
+  if(!p || !novo || typeof novo !== 'object' || novo.id !== id) return false;
+  if(!novo.agenda_semanal || typeof novo.agenda_semanal !== 'object') return false;
+  if(Object.keys(p).some(k => !(k in novo))) return false;   // qualquer campo que a lista tinha e o PATCH não trouxe (ex.: invite_status, flags de valor): relê tudo
+  Object.assign(p, novo);
+  if(priceState && priceState.mode === 'profissional'){
+    priceState.without = priceMissing().length;
+    renderPriceCard();
+  }
+  renderProfList();
+  return true;
+}
+
+async function saveProfWork(id){
   const p = profissionais.find(x=>x.id===id);
   if(!p) return;
   const espEl = document.getElementById(`prof-esp-${id}`);
@@ -3953,7 +4044,7 @@ async function saveProf(id){
       return;
     }
     agendaSalvou(id, data);
-    await loadProfessionalsFromServer();
+    if(!profAplicaRespostaPatch(id, data)) await loadProfessionalsFromServer();
     selectProf(id);   // reflete o valor e o aviso "Sem valor" vindos do servidor
     agendaMostraAviso(id);
     showToast(`✓ ${p.name} atualizado com sucesso!`);
@@ -3963,7 +4054,12 @@ async function saveProf(id){
   }
 }
 
-async function toggleAtivo(id){
+async function toggleAtivo(id, btn){
+  const p = profissionais.find(x=>x.id===id);
+  if(!p) return;
+  return withBusy('prof:'+id, btn, p.active ? 'Desativando…' : 'Ativando…', () => toggleAtivoWork(id));
+}
+async function toggleAtivoWork(id){
   const p = profissionais.find(x=>x.id===id);
   if(!p) return;
   try{
@@ -3982,10 +4078,15 @@ async function toggleAtivo(id){
   }
 }
 
-async function removeProf(id){
+async function removeProf(id, btn){
   const p = profissionais.find(x=>x.id===id);
   if(!p) return;
   if(!confirm(`Remover ${p.name}? Isso também apaga o login. Não dá para desfazer.`)) return;
+  return withBusy('prof:'+id, btn, 'Removendo…', () => removeProfWork(id));
+}
+async function removeProfWork(id){
+  const p = profissionais.find(x=>x.id===id);
+  if(!p) return;
   try{
     const res = await apiFetch(`/api/professionals/${id}`, { method:'DELETE' });
     if(!res.ok && res.status!==204){ const d = await res.json().catch(()=>({})); showToast(`⚠ ${d.error||'Erro ao remover.'}`, 7000); return; }
