@@ -469,6 +469,12 @@ label.field-label{display:block}
 .wa-adm-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
 .wa-adm-reply{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.5;white-space:pre-wrap;margin-top:8px}
 
+/* Lista de profissionais: nome com piso de largura; etiquetas sem quebrar e descendo para linha própria só quando faltar espaço */
+.prof-row{flex-wrap:wrap;min-height:44px}
+.prof-row-main{flex:1 1 140px !important;min-width:0;overflow-wrap:break-word}
+.prof-row-badges{flex-wrap:wrap;margin-left:auto}
+.prof-row-badges>span,.client-row-badges>span{white-space:nowrap}
+
 @media(max-width:900px){
   .apu-result-val{font-size:22px}
   .grid-4{grid-template-columns:repeat(2,1fr)}
@@ -500,6 +506,7 @@ label.field-label{display:block}
   .client-row{flex-wrap:wrap}
   .client-row-main{flex:1 1 100% !important}
   .client-row-badges{flex:1 1 100%;flex-wrap:wrap}
+  .prof-row{padding-left:14px !important;padding-right:14px !important}
   .comercial-grid{grid-template-columns:1fr !important}
   .tabs{flex-direction:column;flex-wrap:nowrap}
   .tab{display:flex;align-items:center;justify-content:flex-start;gap:10px;min-height:40px;padding:8px 12px;text-align:left;overflow-wrap:normal;word-break:normal}
@@ -3558,16 +3565,16 @@ function renderProfList(){
   }
 
   list.innerHTML = profissionais.map(p=>`
-    <div onclick="selectProf('${p.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 22px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s"
+    <div class="prof-row" onclick="selectProf('${p.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 22px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s"
       onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
       <div style="width:40px;height:40px;border-radius:50%;background:${p.role==='admin'?'var(--accent)':'#10B981'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex-shrink:0">
         ${p.name.split(' ').slice(0,2).map(n=>n[0]).join('')}
       </div>
-      <div style="flex:1;min-width:0">
+      <div class="prof-row-main" style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--ink)">${p.name}${p.role==='admin'?' 👑':''}</div>
         <div style="font-size:12px;color:var(--muted);margin-top:2px">${p.role==='colaborador' ? 'Colaborador' : `${p.especialidade||'—'} · ${agendaDiasDe(p).map(d=>diasLabels[d]).join(', ')}`}${isAdmin ? priceListTag(p) : ''}</div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
+      <div class="prof-row-badges" style="display:flex;align-items:center;gap:8px">
         ${p.role==='colaborador' ? `<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--bg);color:var(--muted);border:1px solid var(--border)">🤝 Colaborador</span>` : ''}
         ${p.role==='profissional' && !p.profile_completed ? `<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--amber-l);color:#92400E">⏳ Cadastro pendente</span>` : ''}
         <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:${p.active?'var(--green-l)':'var(--bg)'};color:${p.active?'var(--green)':'var(--muted)'}">${p.active?'Ativo':'Inativo'}</span>
