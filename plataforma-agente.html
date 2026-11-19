@@ -476,6 +476,7 @@ label.field-label{display:block}
 .prof-row-badges>span,.client-row-badges>span{white-space:nowrap}
 
 @media(max-width:900px){
+  .prof-act .btn{min-height:44px}
   .apu-result-val{font-size:22px}
   .grid-4{grid-template-columns:repeat(2,1fr)}
   .kb-layout,.cfg-grid,.overview-layout,.prof-layout{grid-template-columns:1fr}
@@ -3621,25 +3622,32 @@ function selectProf(id){
   const isAdmin = currentUser.role === 'admin';
   const canEditThis = podeEditarProf(id); // admin edita qualquer um; profissional só a si mesmo (regra única, usada também ao repintar a agenda)
 
-  // Ação de redução de franquia — só admin, só profissional ativo não-admin.
+  // Ação de redução de franquia — só admin, só quem atende pela agenda e está ativo
+  // (profissional ou administrador; colaborador não conta na franquia).
   // `franchiseRequestPending` (reconciliado com o servidor) bloqueia enquanto
   // houver pedido em análise. Backend recusa se o profissional tiver agenda
   // futura; a mensagem cai no toast, sem checagem aqui.
   let reduceFranchiseBlock = '';
-  if(isAdmin && p.role === 'profissional' && p.active){
+  if(isAdmin && (p.role === 'profissional' || p.role === 'admin') && p.active){
     if(franchiseRequestPending){
       reduceFranchiseBlock = `<div style="padding-top:10px;margin-top:6px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.5">Já há um pedido de mudança do limite de profissionais contratados em análise — você será avisado quando for decidido.</div>`;
     }else if(profContractedLimit != null && profContractedLimit > 1){
-      reduceFranchiseBlock = `<div style="padding-top:10px;margin-top:6px;border-top:1px solid var(--border)">
+      reduceFranchiseBlock = `<div class="prof-act" style="padding-top:10px;margin-top:6px;border-top:1px solid var(--border)">
         <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="requestFranchiseDecrease('${id}')">Desativar e reduzir o limite</button>
         <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5">Abre um pedido de redução (${profContractedLimit} → ${profContractedLimit - 1}). Precisa de aprovação da plataforma; enquanto isso, ${p.name} para de receber novos agendamentos.</div>
       </div>`;
     }
   }
 
+  // Estado em texto (nunca só cor): administrador inativo não atende pelo agente, mas mantém o acesso ao painel.
+  const inactiveAdminNote = (p.role === 'admin' && !p.active)
+    ? `<div role="status" style="background:var(--bg);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.5"><strong style="color:var(--ink)">Inativo</strong> — não aparece no agente nem na agenda. ${id === currentUser.id ? 'Você continua' : 'Continua'} com acesso ao painel.</div>`
+    : '';
+
   document.getElementById('prof-detail-title').textContent = p.name;
   document.getElementById('prof-detail-body').innerHTML = `
     <div style="display:flex;flex-direction:column;gap:16px">
+      ${inactiveAdminNote}
       <div>
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Especialidade</div>
         ${canEditThis
@@ -3670,10 +3678,10 @@ function selectProf(id){
         </select>
         ${p.role==='admin'?'<div style="font-size:11px;color:var(--muted);margin-top:6px">Administrador sempre vê e assume qualquer transferência</div>':''}
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:4px">
+      <div class="prof-act" style="display:flex;flex-wrap:wrap;gap:8px;padding-top:4px">
         <button class="btn btn-accent btn-sm" onclick="saveProf('${id}',this)">Salvar alterações</button>
-        ${p.role!=='admin'?`<button class="btn btn-ghost btn-sm" onclick="toggleAtivo('${id}',this)">${p.active?'Desativar':'Ativar'}</button>
-        <button class="btn btn-ghost btn-sm" onclick="removeProf('${id}',this)" style="color:var(--red)">Remover</button>`:''}
+        <button class="btn btn-ghost btn-sm" onclick="toggleAtivo('${id}',this)">${p.active?'Desativar':'Ativar'}</button>
+        ${p.role!=='admin'?`<button class="btn btn-ghost btn-sm" onclick="removeProf('${id}',this)" style="color:var(--red)">Remover</button>`:''}
       </div>
       ${reduceFranchiseBlock}` : canEditThis ? `
       <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:4px">
@@ -4157,6 +4165,13 @@ async function saveProfWork(id){
 async function toggleAtivo(id, btn){
   const p = profissionais.find(x=>x.id===id);
   if(!p) return;
+  // Desativar administrador: ele continua com acesso ao painel, mas deixa de atender pelo agente e pela agenda.
+  if(p.role === 'admin' && p.active){
+    const aviso = id === currentUser.id
+      ? 'Você deixa de ser oferecido pelo agente e na agenda. Continua com acesso ao painel.'
+      : `${p.name} deixa de ser oferecido pelo agente e na agenda. Continua com acesso ao painel.`;
+    if(!confirm(`${aviso}\n\nDesativar mesmo assim?`)) return;
+  }
   return withBusy('prof:'+id, btn, p.active ? 'Desativando…' : 'Ativando…', () => toggleAtivoWork(id));
 }
 async function toggleAtivoWork(id){
@@ -4168,7 +4183,15 @@ async function toggleAtivoWork(id){
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ active: !p.active })
     });
-    if(!res.ok){ const d = await res.json(); showToast(`⚠ ${d.error||'Erro ao atualizar.'}`, 7000); return; }
+    if(!res.ok){
+      // O backend devolve { error } em português (409: agendamentos futuros; limite de profissionais ao ativar). Sem texto, mensagem própria.
+      const d = await res.json().catch(() => ({}));
+      const txt = d.error || (res.status === 409
+        ? 'Não foi possível alterar agora: há agendamentos futuros ou o limite de profissionais contratados foi atingido. Nada foi alterado.'
+        : 'Erro ao atualizar. Nada foi alterado.');
+      showToast(`⚠ ${txt}`, 7000);
+      return;
+    }
     await loadProfessionalsFromServer();
     selectProf(id);
     showToast(`${!p.active?'✓ Profissional ativado':'⚠ Profissional desativado'}`);
