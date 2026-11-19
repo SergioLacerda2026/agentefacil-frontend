@@ -455,6 +455,13 @@ textarea.field{resize:vertical;min-height:80px}
 .wa-details summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--accent);padding:8px 0}
 .wa-details p{font-size:12px;color:var(--muted);line-height:1.55;margin:4px 0 8px}
 .wa-sim-banner{font-weight:600}
+.wa-btn-link{display:inline-flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-height:44px;box-sizing:border-box}
+.wa-meta-btn[aria-disabled="true"]{opacity:.6;cursor:not-allowed}
+.wa-copy-box{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;-webkit-user-select:all;user-select:all;margin:8px 0}
+.wa-copy-btn{min-height:44px}
+.wa-steps{margin:6px 0 8px 20px;padding:0;font-size:13px;line-height:1.6;color:var(--ink2)}
+.wa-steps li{margin:2px 0}
+.wa-who-body{margin-top:12px}
 .wa-banner-bad{background:var(--red-l);border-color:#FCA5A5;color:#991B1B}
 label.field-label{display:block}
 .form-alert.info{background:var(--amber-l);color:#92400E}
@@ -1130,7 +1137,7 @@ label.field-label{display:block}
 
       <!-- Passo a passo: só aparece enquanto não há conexão -->
       <div id="wa-setup" style="display:none">
-        <div class="card" style="margin-bottom:16px">
+        <div class="card" id="wa-card-chk" style="margin-bottom:16px">
           <div class="cfg-section">
             <div class="cfg-title">1 · Antes de começar</div>
             <label class="wa-check" for="wa-chk-1"><input type="checkbox" id="wa-chk-1" onchange="waValidate()"><span>O chip é <b>novo</b> e vai ser usado <b>só pelo agente</b>.</span></label>
@@ -1144,6 +1151,8 @@ label.field-label{display:block}
           </div>
         </div>
 
+        <!-- Fluxo SIMULADO (teste): passos 2 e 3 abaixo; some quando o fluxo é o real -->
+        <div id="wa-setup-sim">
         <div class="card" style="margin-bottom:16px">
           <div class="cfg-section">
             <div class="cfg-title">2 · Número e nome</div>
@@ -1183,6 +1192,25 @@ label.field-label{display:block}
             </div>
             <button type="button" class="btn btn-accent wa-btn-tall" id="wa-btn-simulate" style="width:100%" disabled onclick="waSimulate()">Simular conexão (teste)</button>
             <div class="field-hint" id="wa-sim-hint" style="margin-top:8px">Marque os 4 itens e preencha número e nome para continuar.</div>
+          </div>
+        </div>
+        </div>
+
+        <!-- Fluxo REAL (Meta): passos 2 e 3; o conteúdo é desenhado por renderWaWho / renderWaConnectMeta -->
+        <div id="wa-setup-meta" style="display:none">
+          <div class="card" id="wa-card-who" style="margin-bottom:16px">
+            <div class="cfg-section">
+              <div class="cfg-title">2 · Cartão na Meta</div>
+              <div class="wa-note" style="margin-top:0">O cartão de pagamento do WhatsApp é cadastrado por você mesmo na Meta, em Cobrança e pagamentos, fora deste painel.</div>
+              <div id="wa-who-body" style="margin-top:12px"></div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="cfg-section">
+              <div class="cfg-title">3 · Conectar</div>
+              <div id="wa-meta-alert" class="form-alert" style="display:none" role="alert"></div>
+              <div id="wa-meta-connect"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -1320,7 +1348,7 @@ label.field-label{display:block}
               <option value="">Todos</option>
               <option value="sem">Não conectado</option>
               <option value="iniciando">Iniciando</option>
-              <option value="registrando">Em análise</option>
+              <option value="registrando">Registrando</option>
               <option value="online">Conectado</option>
               <option value="offline">Fora do ar</option>
               <option value="falhou">Falhou</option>
@@ -9035,18 +9063,39 @@ function showToast(msg, duration){
 }
 
 // ── WHATSAPP: conexão do número do cliente ──
-// Fase 1 (modo simulado): não há popup da Meta nem SDK do Facebook. Com
-// config.enabled=false ou mode "real", a aba só mostra "ainda não disponível".
+// Dois fluxos, escolhidos só por waComputeFlow() a partir do GET /config e nunca misturados:
+//  · 'simulado' (teste): sem popup e sem SDK do Facebook; usa a rota antiga POST /api/whatsapp-connection.
+//  · 'meta' (real, Embedded Signup): só com config.meta.enabled === true; carrega o SDK, abre o popup e usa as rotas /meta/*.
+// Com config.meta.enabled falso a tela mostra o botão "Conectar WhatsApp" desabilitado + o motivo em texto ('meta-off')
+// e NÃO carrega o SDK do Facebook.
 // Tudo que vem da API é escapado (apuEsc) antes de ir pro innerHTML.
+// O ícone (✓ ⚠ ⏳ ○) acompanha o rótulo: o estado nunca depende só de cor.
 const WA_STATUS_UI = {
-  iniciando:    { cls:'wa-b-warn', label:'Iniciando',    text:'Recebemos seus dados e estamos iniciando a conexão…' },
-  registrando:  { cls:'wa-b-warn', label:'Em análise',   text:'Seu número está em análise pela Meta. Esta tela atualiza sozinha enquanto estiver aberta.' },
-  online:       { cls:'wa-b-ok',   label:'Conectado',    text:'Conectado! Seu agente já atende por este número.' },
-  offline:      { cls:'wa-b-bad',  label:'Fora do ar',      text:'O número saiu do ar e o agente não está recebendo mensagens.' },
-  falhou:       { cls:'wa-b-bad',  label:'Falhou',       text:'Não conseguimos concluir a conexão.' },
-  desconectado: { cls:'wa-b-off',  label:'Desconectado', text:'Este número foi desconectado do agente.' },
+  aguardando_popup:       { cls:'wa-b-warn', icon:'⏳', label:'Abrindo a Meta',          text:'Estamos abrindo a janela da Meta. Conclua o cadastro nela e não feche esta página.' },
+  aguardando_confirmacao: { cls:'wa-b-warn', icon:'⏳', label:'Aguardando confirmação',  text:'Recebemos a sua autorização. Estamos confirmando com a Meta; esta tela atualiza sozinha.' },
+  iniciando:    { cls:'wa-b-warn', icon:'⏳', label:'Iniciando',    text:'Recebemos seus dados e estamos iniciando a conexão…' },
+  registrando:  { cls:'wa-b-warn', icon:'⏳', label:'Registrando',  text:'Estamos registrando o seu número no WhatsApp. Esta tela atualiza sozinha enquanto estiver aberta.' },
+  online:       { cls:'wa-b-ok',   icon:'✓',  label:'Conectado',    text:'Conectado! Seu agente já atende por este número.' },
+  offline:      { cls:'wa-b-bad',  icon:'⚠',  label:'Fora do ar',      text:'O número saiu do ar e o agente não está recebendo mensagens.' },
+  falhou:       { cls:'wa-b-bad',  icon:'⚠',  label:'Falhou',       text:'Não conseguimos concluir a conexão.' },
+  desconectado: { cls:'wa-b-off',  icon:'○',  label:'Desconectado', text:'Este número foi desconectado do agente.' },
+  desconectado_pela_meta: { cls:'wa-b-bad', icon:'⚠', label:'Desconectado pela Meta', text:'A Meta desconectou este número do nosso sistema.' },
 };
 const WA_FAIL_TEXT = {
+  // Meta (Embedded Signup): mesmos textos do catálogo do backend
+  codigo_expirado:         'A autorização da Meta expirou antes de concluir. Abra a conexão de novo e conclua o passo a passo sem demora.',
+  troca_codigo_falhou:     'Não foi possível concluir a autorização com a Meta. Tente novamente.',
+  permissao_negada:        'A Meta não liberou todas as permissões necessárias. Conecte de novo e aceite todas as permissões pedidas.',
+  verificacao_falhou:      'Não conseguimos confirmar o seu número na Meta. Confira se concluiu todos os passos e tente novamente.',
+  assinatura_falhou:       'Não foi possível ligar a sua conta de WhatsApp ao nosso sistema. Tente novamente em instantes.',
+  registro_numero_falhou:  'A Meta não concluiu o registro do número. Tente novamente; se persistir, fale com o suporte.',
+  meta_indisponivel:       'A Meta está indisponível no momento. Tente novamente em alguns minutos.',
+  desconectado_pela_meta:  'A Meta desconectou este número do nosso sistema. Conecte de novo; se persistir, fale com o suporte.',
+  pin_divergente:          'A Meta pediu o PIN de verificação em duas etapas deste número e o PIN que temos não confere. Redefina esse PIN no WhatsApp Manager da Meta (Configurações do número, Verificação em duas etapas) e fale com o nosso suporte para concluir a conexão. Não adianta tentar de novo antes disso.',
+  pin_aguarde:             'A Meta bloqueou temporariamente novas tentativas de PIN deste número (foram muitas tentativas, ou rápidas demais). Aguarde e tente de novo mais tarde. Se o problema continuar, fale com o suporte.',
+  registro_bloqueado:      'O registro deste número no WhatsApp está temporariamente bloqueado para proteger a sua conta: a Meta limita as tentativas.',
+  registro_bloqueado_meta: 'A Meta bloqueou novas tentativas de registro deste número por 72 horas.',
+  // Twilio / simulado
   subconta_falhou:    'Não conseguimos preparar sua conta de WhatsApp. Tente de novo.',
   sender_falhou:      'O registro deste número foi recusado. Confira se o número é novo e sem WhatsApp instalado e tente de novo.',
   twilio_indisponivel:'O serviço de WhatsApp está instável agora. Tente de novo em instantes.',
@@ -9067,12 +9116,19 @@ const WA_ERR_TEXT = {
   simulacao_sem_resposta:           'A simulação não respondeu a tempo. Tente de novo.',
   erro_interno:                     'Erro interno. Tente de novo; se persistir, fale com o suporte.',
   nao_suportado_neste_modo:         'Esta ação só existe no modo de simulação.',
+  conexao_ja_online:                'O WhatsApp já está conectado. Atualize a página para ver o status.',
+  dados_invalidos:                  'Não recebemos os dados da Meta. Refaça o passo 3.',
 };
 
 let waConfig = null;       // config do GET /config
 let waConn = null;         // View da conexão (ou null)
 let waMode = null;         // 'simulado' | 'real' (do GET da conexão)
-let waAvailable = false;   // enabled && mode === 'simulado'
+let waAvailable = false;   // fluxo SIMULADO ativo: enabled && mode === 'simulado' (não vale para o fluxo real)
+let waFlowKind = 'none';   // none | simulado | meta | meta-off (ver waComputeFlow)
+let waWho;                 // escolha de quem cadastra o cartão na Meta: undefined = ainda não lida; null = sem escolha; '1' | '2' | '3'
+let waSdk = { state:'idle', inited:false };  // state: idle | loading | ready | error | noconfig
+let waSdkPromise = null, waWakeAt = 0;
+let waSess = null;         // sessão do popup da Meta: { code, ids, codeAt, done, timer }
 let waState = 'idle';      // idle | loading | error | ready
 let waLoadError = '';
 let waBusy = false;        // alguma ação (POST) em andamento
@@ -9124,6 +9180,12 @@ function waFmtPhone(e164){
   return m ? `+55 (${m[1]}) ${m[2]}-${m[3]}` : (e164 || '—');
 }
 
+// Contato de apoio: meta.support.whatsapp_e164 vem só com dígitos ("5521982244976", sem "+"). Mostra "(21) 98224-4976".
+function waFmtSupportPhone(digits){
+  const m = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(String(digits || '').replace(/\D/g, ''));
+  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : String(digits || '—');
+}
+
 function waFmtDate(iso){
   if(!iso) return '—';
   const d = new Date(iso);
@@ -9135,9 +9197,15 @@ function waViewActive(){
   return !!(authToken && v && v.classList.contains('active'));
 }
 
-function waBadgeHtml(status, simulated){
-  const ui = WA_STATUS_UI[status] || { cls:'wa-b-off', label:String(status || '—') };
-  return `<span class="wa-badge ${ui.cls}">${apuEsc(ui.label)}${simulated ? ' (simulado)' : ''}</span>`;
+// aguardando_popup SEM popup aberto (o cliente fechou a janela ou recarregou a página): a Meta não está mais "abrindo".
+// Selo neutro com texto e ícone; "Tentar de novo" reabre o popup. Só no fluxo real.
+const WA_POPUP_IDLE_UI = { cls:'wa-b-off', icon:'○', label:'Não concluído',
+  text:'A janela da Meta foi fechada antes de terminar. Use “Tentar de novo” para abrir de novo.' };
+function waPopupIdle(c){ return waFlowKind === 'meta' && !!c && c.status === 'aguardando_popup' && !waSess; }
+
+function waBadgeHtml(status, simulated, forced){
+  const ui = forced || WA_STATUS_UI[status] || { cls:'wa-b-off', label:String(status || '—') };
+  return `<span class="wa-badge ${ui.cls}">${ui.icon ? ui.icon + ' ' : ''}${apuEsc(ui.label)}${simulated ? ' (simulado)' : ''}</span>`;
 }
 
 const waKv = (label, valueHtml) => `<div class="wa-kv"><span>${label}</span><span>${valueHtml}</span></div>`;
@@ -9146,6 +9214,9 @@ const waKv = (label, valueHtml) => `<div class="wa-kv"><span>${label}</span><spa
 function waReset(){
   waStopPolling();
   waSeq++;
+  waSessClose(true);
+  waFlowKind = 'none'; waWho = undefined;
+  setFormAlert('wa-meta-alert', '', '');
   waConfig = null; waConn = null; waMode = null; waAvailable = false;
   waState = 'idle'; waLoadError = ''; waBusy = false; waStatusMsg = null;
   waPhoneTouched = false; waBannerFetchedAt = 0;
@@ -9172,12 +9243,15 @@ async function loadWhatsappFromServer(){
   const cfg = await waRequest('GET', '/api/whatsapp-connection/config');
   if(seq !== waSeq) return;
   if(!cfg.ok && cfg.code === 'integracao_nao_configurada'){
-    waAvailable = false; waConn = null; waState = 'ready'; renderWaAll(); return;
+    waConfig = null; waFlowKind = 'meta-off'; waAvailable = false; waConn = null; waState = 'ready'; renderWaAll(); return;
   }
   if(!cfg.ok){ waState = 'error'; waLoadError = waErrorText(cfg); renderWaAll(); return; }
   waConfig = (cfg.data && cfg.data.config) || null;
-  waAvailable = !!(waConfig && waConfig.enabled === true && waConfig.mode === 'simulado');
-  if(!waAvailable){ waConn = null; waState = 'ready'; renderWaAll(); return; }
+  waFlowKind = waComputeFlow();
+  waAvailable = waFlowKind === 'simulado';
+  // Só o fluxo real habilitado acorda o servidor e carrega o SDK (em segundo plano; não segura a tela).
+  if(waFlowKind === 'meta') waPrepare();
+  if(waFlowKind === 'meta-off'){ waConn = null; waState = 'ready'; renderWaAll(); return; }
   const con = await waRequest('GET', '/api/whatsapp-connection');
   if(seq !== waSeq) return;
   if(!con.ok){ waState = 'error'; waLoadError = waErrorText(con); renderWaAll(); return; }
@@ -9214,8 +9288,10 @@ function renderWaStatus(){
       <div class="wa-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="loadWhatsappFromServer()">Tentar de novo</button></div>`;
     return;
   }
-  if(!waAvailable){
-    el.innerHTML = '<div class="wa-status-text">A conexão de WhatsApp ainda não está disponível para sua conta.</div>';
+  if(waFlowKind === 'meta-off' || waFlowKind === 'none'){
+    // O motivo (meta.disabled_reason) aparece em texto junto do botão "Conectar WhatsApp" (passo 3).
+    el.innerHTML = `<div class="wa-status-head"><span class="wa-badge wa-b-off">○ Não conectado</span></div>
+      <div class="wa-status-text">Seu agente ainda não está conectado a um número de WhatsApp.</div>`;
     return;
   }
   const msg = waStatusMsg
@@ -9226,18 +9302,22 @@ function renderWaStatus(){
     return;
   }
   const c = waConn;
-  const ui = WA_STATUS_UI[c.status] || { text:'' };
-  let html = `<div class="wa-status-head">${waBadgeHtml(c.status, waMode === 'simulado')}</div>
+  const idle = waPopupIdle(c);
+  const ui = idle ? WA_POPUP_IDLE_UI : (WA_STATUS_UI[c.status] || { text:'' });
+  let html = `<div class="wa-status-head">${waBadgeHtml(c.status, waMode === 'simulado', idle ? WA_POPUP_IDLE_UI : null)}</div>
     <div class="wa-status-text">${apuEsc(ui.text)}</div>`;
   if(c.failure){
     html += `<div class="wa-note"><b>${c.status === 'registrando' ? 'Aviso' : 'Motivo'}:</b> ${apuEsc(waFailureText(c.failure))}</div>`;
+  }
+  if(waFlowKind === 'meta' && c.retry_action === 'aguardar'){
+    html += `<div class="wa-note">Aguarde e use “Atualizar” mais tarde. Quando o bloqueio terminar, aparece o botão “Tentar de novo”.</div>`;
   }
   html += `<div style="margin-top:12px">` +
     waKv('Número', apuEsc(waFmtPhone(c.phone_e164))) +
     waKv('Nome de exibição', apuEsc(c.display_name || '—')) +
     (c.connected_at ? waKv('Conectado em', apuEsc(waFmtDate(c.connected_at))) : '') +
     waKv('Atualizado em', apuEsc(waFmtDate(c.updated_at))) + `</div>`;
-  if(waPollPaused && (c.status === 'iniciando' || c.status === 'registrando')){
+  if(waPollPaused && waIsLive(c.status)){
     html += `<div class="wa-note">A atualização automática foi pausada. Use “Atualizar” para ver o status mais recente.</div>`;
   }
   html += msg;
@@ -9252,7 +9332,16 @@ function renderWaStatus(){
 function renderWaSetup(){
   const el = document.getElementById('wa-setup');
   if(!el) return;
-  el.style.display = (waState === 'ready' && waAvailable && !waConn) ? 'block' : 'none';
+  const meta = waFlowKind === 'meta' || waFlowKind === 'meta-off';
+  el.style.display = (waState === 'ready' && !waConn && (waFlowKind === 'simulado' || meta)) ? 'block' : 'none';
+  // Cada fluxo tem o seu bloco; nunca aparecem juntos.
+  const simBox = document.getElementById('wa-setup-sim'), metaBox = document.getElementById('wa-setup-meta');
+  if(simBox) simBox.style.display = waFlowKind === 'simulado' ? 'block' : 'none';
+  if(metaBox) metaBox.style.display = meta ? 'block' : 'none';
+  // Cliente que usa o número da própria empresa não conecta outro: só o botão desabilitado + motivo.
+  const own = waFlowKind === 'meta-off' && !!waMeta() && waMeta().disabled_code === 'numero_da_empresa';
+  ['wa-card-chk','wa-card-who'].forEach(id => { const c = document.getElementById(id); if(c) c.style.display = own ? 'none' : ''; });
+  if(meta && !own) renderWaWho();
   waValidate();
 }
 
@@ -9283,7 +9372,7 @@ function renderWaRechargeBanners(){
   if(visao){ visao.innerHTML = html; visao.style.display = html ? 'flex' : 'none'; }
   const tab = document.getElementById('wa-recharge-banner');
   if(tab){
-    const show = html && waState === 'ready' && waAvailable;
+    const show = html && waState === 'ready' && (waAvailable || waFlowKind === 'meta');
     tab.innerHTML = show ? html : '';
     tab.style.display = show ? 'flex' : 'none';
   }
@@ -9333,7 +9422,7 @@ function waSchedulePoll(){
   clearTimeout(waPollTimer); waPollTimer = null;
   if(!waViewActive() || !waConn) return;
   const st = waConn.status;
-  if(st !== 'iniciando' && st !== 'registrando'){ waPollPaused = false; return; }
+  if(!waIsLive(st) || waPopupIdle(waConn)){ waPollPaused = false; return; }   // sem popup aberto não há o que acompanhar
   if(waPollStatus !== st){
     waPollStatus = st; waPollStart = Date.now(); waPollBackoff = 1; waPollFails = 0; waPollPaused = false;
   }
@@ -9376,7 +9465,7 @@ async function waPollTick(){
 
 document.addEventListener('visibilitychange', () => {
   if(document.hidden || !waViewActive() || waPollTimer || waPollInFlight || waPollPaused || !waConn) return;
-  if(waConn.status === 'iniciando' || waConn.status === 'registrando') waPollTick();
+  if(waIsLive(waConn.status) && !waPopupIdle(waConn)) waPollTick();
 });
 
 async function waRefreshNow(){
@@ -9398,10 +9487,18 @@ async function waRefreshNow(){
 
 async function waRetry(){
   if(waBusy) return;
+  // Conexão da Meta: o que o botão faz vem do retry_action do backend. Simulado: rota antiga, como sempre.
+  let retryPath = '/api/whatsapp-connection/retry';
+  if(waFlowKind === 'meta'){
+    const act = waConn && waConn.retry_action;
+    if(act === 'reabrir_popup'){ waMetaConnect(true); return; }   // chamado direto do clique: o popup abre sem await antes
+    if(act !== 'retomar') return;                                 // redefinir_pin / aguardar / null: sem "tentar de novo"
+    retryPath = '/api/whatsapp-connection/meta/retry';
+  }
   const before = waConn ? { status: waConn.status, code: (waConn.failure && waConn.failure.code) || null } : null;
   waBusy = true; waStatusMsg = null; renderWaStatus();
   const seq = waSeq;
-  const r = await waRequest('POST', '/api/whatsapp-connection/retry');
+  const r = await waRequest('POST', retryPath);
   if(seq !== waSeq) return;
   waBusy = false;
   if(r.ok){
@@ -9472,6 +9569,7 @@ function waFormValid(){
 }
 
 function waValidate(){
+  if(waFlowKind === 'meta' || waFlowKind === 'meta-off'){ renderWaConnectMeta(); return; }
   const btn = document.getElementById('wa-btn-simulate');
   const hint = document.getElementById('wa-sim-hint');
   const ok = waFormValid();
@@ -9501,19 +9599,28 @@ async function waSimulate(){
   await waHandleSignupEvent(ev);
 }
 
+// Ponto de encaixe dos eventos do popup. Simulado: o resultado vai para a rota antiga. Real (waFlowKind 'meta'): o listener
+// do postMessage da Meta chama esta mesma função; o FINISH só guarda os IDs (o `code` chega à parte, pelo FB.login).
 async function waHandleSignupEvent(ev){
-  setFormAlert('wa-form-alert', '', '');
+  const meta = waFlowKind === 'meta';
+  const say = (text, kind) => { if(meta) waMetaNotify(text, kind); else setFormAlert('wa-form-alert', text, kind); };
+  say('', '');
   const d = ev.data || {};
   if(ev.event === 'FINISH'){
     if(!/^\d{5,30}$/.test(String(d.waba_id || '')) || !/^\d{5,30}$/.test(String(d.phone_number_id || ''))){
-      setFormAlert('wa-form-alert', 'Não recebemos os dados da Meta. Refaça o passo 3.', 'error');
+      if(meta) waSessClose();
+      say('Não recebemos os dados da Meta. Refaça o passo 3.', 'error');
       return;
     }
+    if(meta){ waMetaGotIds(String(d.waba_id), String(d.phone_number_id)); return; }
     await waSubmitConnection(String(d.waba_id), String(d.phone_number_id));
   }else if(ev.event === 'ERROR' || (ev.event === 'CANCEL' && d.error_message)){
-    setFormAlert('wa-form-alert', `A Meta informou um problema: ${String(d.error_message || 'erro não informado').replace(/[.\s]+$/, '')}. Você pode tentar de novo.`, 'error');
+    if(meta) waSessClose();
+    say(`A Meta informou um problema: ${String(d.error_message || 'erro não informado').replace(/[.\s]+$/, '')}. Você pode tentar de novo.`, 'error');
   }else if(ev.event === 'CANCEL'){
-    setFormAlert('wa-form-alert', 'Você fechou a janela antes de terminar. Nada foi cadastrado. Quando quiser, é só tentar de novo.', 'info');
+    if(meta) waSessClose();
+    // Com conexão já criada (aguardando_popup) o cartão de status já diz isso (selo "Não concluído"): sem aviso repetido.
+    if(!(meta && waConn)) say('Você fechou a janela antes de terminar. Nada foi cadastrado. Quando quiser, é só tentar de novo.', 'info');
   }
 }
 
@@ -9553,6 +9660,375 @@ async function waSubmitConnection(wabaId, phoneNumberId){
     return;
   }
   setFormAlert('wa-form-alert', waErrorText(r), 'error');
+}
+
+// ── Conexão REAL pela Meta (Embedded Signup) ──
+// Nada aqui roda com meta.enabled falso: o SDK do Facebook só é carregado em waPrepare(), que só é chamado no fluxo 'meta'.
+// Textos de apoio e contatos NÃO ficam no HTML: vêm de config.meta (business_name, support).
+const WA_WHO_OPTS = {
+  '1': 'Eu mesmo',
+  '2': 'O gestor de tráfego que já trabalha comigo',
+  '3': 'A Letícia ou outra pessoa',
+};
+const WA_WHO2_TEXT = 'Preciso que você adicione uma forma de pagamento na minha conta de mensagens do WhatsApp, na Meta (em Cobrança e pagamentos), para o meu agente de atendimento da Convert IA poder funcionar.';
+const WA_META_ORIGINS = ['https://www.facebook.com', 'https://web.facebook.com'];
+const WA_OFF_FALLBACK = 'A conexão de WhatsApp ainda não está liberada para sua conta. Fale com o suporte.';
+const WA_COMPLETE_GAPS = [0, 5000, 12000];   // tentativas do /meta/complete, contadas a partir da chegada do `code` (vale ~30 s)
+const WA_CODE_WINDOW_MS = 25000;
+
+const waIsLive = st => st === 'iniciando' || st === 'registrando' || st === 'aguardando_popup' || st === 'aguardando_confirmacao';
+const waSleep = ms => new Promise(r => setTimeout(r, ms));
+function waMeta(){ return (waConfig && waConfig.meta) || null; }
+
+// Única decisão de fluxo, sempre a partir do GET /config: 'meta' (real habilitado) | 'simulado' (teste) | 'meta-off' (botão desabilitado + motivo).
+function waComputeFlow(){
+  const m = waMeta();
+  if(m && m.enabled === true) return 'meta';
+  if(waConfig && waConfig.enabled === true && waConfig.mode === 'simulado') return 'simulado';
+  return 'meta-off';
+}
+
+// Acorda o servidor (Render dorme ~50 s). /health é registrado antes do CORS no backend: sem 'no-cors' a resposta seria
+// bloqueada pelo navegador; com ele a promessa resolve assim que o servidor responde, o que basta para acordá-lo.
+async function waWake(){
+  const t0 = Date.now();
+  while(Date.now() - t0 < 70000){
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 15000);
+    try{
+      await fetch(`${BACKEND_URL}/health`, { mode:'no-cors', cache:'no-store', signal: ctrl.signal });
+      clearTimeout(to);
+      waWakeAt = Date.now();
+      return true;
+    }catch(e){
+      clearTimeout(to);
+      await waSleep(3000);
+    }
+  }
+  return false;
+}
+
+function waLoadSdk(){
+  if(window.FB) return Promise.resolve();
+  if(waSdkPromise) return waSdkPromise;
+  waSdkPromise = new Promise((ok, fail) => {
+    window.fbAsyncInit = ok;
+    const s = document.createElement('script');
+    s.src = 'https://connect.facebook.net/pt_BR/sdk.js';
+    s.async = true; s.defer = true;
+    s.onerror = () => { waSdkPromise = null; fail(new Error('sdk')); };
+    document.head.appendChild(s);
+  });
+  return waSdkPromise;
+}
+
+// Acorda o servidor e prepara o SDK ANTES do clique: o FB.login precisa rodar dentro do clique, sem await antes (senão o
+// navegador do celular bloqueia o popup). app_id, config_id e versão vêm do GET /config.
+async function waPrepare(retry){
+  const cfg = waConfig, seq = waSeq;
+  if(waFlowKind !== 'meta' || !cfg) return;
+  if(waSdk.state === 'ready' || (waSdk.state === 'loading' && !retry)) return;
+  waSdk.state = 'loading'; renderWaConnectMeta();
+  waWake();
+  try{
+    if(!cfg.meta_app_id || !cfg.config_id || !cfg.graph_api_version){ waSdk.state = 'noconfig'; }
+    else{
+      await waLoadSdk();
+      if(!waSdk.inited){
+        window.FB.init({ appId: cfg.meta_app_id, autoLogAppEvents:false, xfbml:false, version: cfg.graph_api_version });
+        waSdk.inited = true;
+      }
+      waSdk.state = 'ready';
+    }
+  }catch(e){ waSdk.state = 'error'; }
+  if(seq === waSeq) renderWaConnectMeta();
+}
+
+function waMetaChecksOk(){
+  return ['wa-chk-1','wa-chk-2','wa-chk-3','wa-chk-4'].every(id => { const el = document.getElementById(id); return el && el.checked; });
+}
+
+// Estado do botão "Conectar WhatsApp": sempre com o motivo em TEXTO quando desabilitado.
+function waMetaBtnState(){
+  const m = waMeta();
+  const base = { enabled:false, label:'Conectar WhatsApp', reason:'', kind:'hint' };
+  if(waFlowKind !== 'meta') return { ...base, kind:'info', reason:'⚠ ' + ((m && m.disabled_reason) || WA_OFF_FALLBACK) };
+  if(waSess || waBusy) return { ...base, label:'Aguardando a janela da Meta…', busy:true, reason:'Conclua o cadastro na janela da Meta e não feche esta página.' };
+  if(waSdk.state === 'idle' || waSdk.state === 'loading') return { ...base, label:'Preparando…', busy:true, reason:'Preparando a conexão com a Meta. Aguarde alguns segundos.' };
+  if(waSdk.state === 'noconfig') return { ...base, kind:'info', reason:'⚠ A conexão do WhatsApp está temporariamente indisponível. Fale com o nosso suporte.' };
+  if(waSdk.state === 'error') return { ...base, kind:'info', retry:true, reason:'⚠ Não foi possível carregar a janela da Meta. Desative bloqueadores de anúncio nesta página e tente de novo.' };
+  if(!waMetaChecksOk()) return { ...base, reason:'Marque os 4 itens do passo 1 para continuar.' };
+  return { ...base, enabled:true, reason:'' };
+}
+
+function renderWaConnectMeta(){
+  const el = document.getElementById('wa-meta-connect');
+  if(!el) return;
+  const st = waMetaBtnState();
+  el.innerHTML =
+    `<button type="button" class="btn btn-accent wa-btn-tall wa-meta-btn" id="wa-meta-btn" style="width:100%"${st.enabled ? '' : ' aria-disabled="true"'}${st.reason ? ' aria-describedby="wa-meta-reason"' : ''} onclick="waMetaConnect()">${st.busy ? '<span class="busy-spin" aria-hidden="true"></span>' : ''}${apuEsc(st.label)}</button>` +
+    (st.reason ? `<div id="wa-meta-reason" class="${st.kind === 'info' ? 'form-alert info' : 'field-hint'}" role="status" style="margin-top:10px">${apuEsc(st.reason)}</div>` : '') +
+    (st.retry ? `<div class="wa-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="waPrepare(true)">Tentar de novo</button></div>` : '');
+}
+
+// Mensagem do fluxo real: no cartão de status se já há conexão, senão no aviso do passo 3.
+function waMetaNotify(text, kind){
+  setFormAlert('wa-meta-alert', waConn ? '' : text, kind);
+  waStatusMsg = (waConn && text) ? { text, kind } : null;
+  renderWaStatus();
+}
+
+// ── Passo 2: quem cadastra o cartão na Meta (escolha só na tela + localStorage por usuário; não vai ao backend) ──
+function waWhoKey(){ return 'wa-card-who:' + ((currentUser && currentUser.id) || ''); }
+function waWhoGet(){
+  if(waWho === undefined){
+    waWho = null;
+    try{ const v = localStorage.getItem(waWhoKey()); if(v && WA_WHO_OPTS[v]) waWho = v; }catch(e){}
+  }
+  return waWho;
+}
+function waWhoPick(v){
+  if(!WA_WHO_OPTS[v]) return;
+  waWho = v;
+  try{ localStorage.setItem(waWhoKey(), v); }catch(e){}
+  renderWaWho();
+  const el = document.getElementById('wa-who-' + v); if(el) el.focus();
+}
+
+function waSupportMsg(){
+  const m = waMeta(), s = m && m.support;
+  if(!s || !s.name) return '';
+  const who = String((currentUser && currentUser.name) || '').trim();
+  const biz = String((m && m.business_name) || '').trim();
+  let first = `Olá, ${s.name}!`;
+  if(who) first += ` Aqui é ${who}${biz ? `, da ${biz}` : ''}.`;
+  return `${first} Estou entrando em contato por recomendação da Convert IA, para a configuração da minha conta na Meta. Aguardo o seu contato.\nObrigado!`;
+}
+
+function waWho3Html(){
+  const m = waMeta(), s = m && m.support;
+  let h = `<div class="wa-who-body"><div style="font-size:13px;font-weight:600;color:var(--ink)">Como convidar quem vai ajudar você na Meta:</div>
+    <ol class="wa-steps">
+      <li>Entre no Meta Business Suite (business.facebook.com) e escolha a sua empresa.</li>
+      <li>Abra Configurações &gt; Usuários &gt; Pessoas.</li>
+      <li>Clique em 'Convidar pessoas' e digite o e-mail de quem vai ajudar você.</li>
+      <li>Clique em 'Avançar' até o fim e envie o convite.</li>
+    </ol>
+    <div class="wa-status-text">Pronto. A pessoa recebe o convite por e-mail. Avise-a: ela combina com você o restante.</div>`;
+  if(s && s.name){
+    const digits = String(s.whatsapp_e164 || '').replace(/\D/g, '');
+    const msg = waSupportMsg();
+    h += `<div class="wa-adm-box" style="margin-top:14px">
+      ${waKv('Contato', apuEsc(s.name))}
+      ${s.email ? waKv('E-mail', `<a href="mailto:${apuEsc(s.email)}" style="color:var(--accent);font-weight:600">${apuEsc(s.email)}</a>`) : ''}
+      ${digits ? waKv('Celular', apuEsc(waFmtSupportPhone(s.whatsapp_e164))) : ''}`;
+    if(digits){
+      h += `<a class="btn btn-accent wa-btn-link" style="width:100%;margin-top:10px" href="${apuEsc('https://wa.me/' + digits + '?text=' + encodeURIComponent(msg))}" target="_blank" rel="noopener noreferrer">Falar com ${apuEsc(s.name)} no WhatsApp</a>`;
+    }
+    h += `<div class="wa-copy-box" id="wa-copy-msg">${apuEsc(msg)}</div>
+      <button type="button" class="btn btn-ghost wa-copy-btn" onclick="waCopy('msg',this)">Copiar</button>
+      <div class="wa-note" id="wa-copy-live" role="status"></div></div>`;
+  }else{
+    h += `<div class="wa-note" style="margin-top:14px">O contato de apoio não está disponível agora. Fale com o suporte da Convert IA.</div>`;
+  }
+  return h + '</div>';
+}
+
+function renderWaWho(){
+  const el = document.getElementById('wa-who-body');
+  if(!el) return;
+  const sel = waWhoGet();
+  let h = `<div class="field-label" id="wa-who-title">Quem fará essa parte?</div><div role="radiogroup" aria-labelledby="wa-who-title">`;
+  Object.keys(WA_WHO_OPTS).forEach(k => {
+    h += `<div class="hc-opt${sel === k ? ' on' : ''}"><label class="hc-opt-label" style="min-height:44px"><input type="radio" id="wa-who-${k}" name="wa-who" value="${k}"${sel === k ? ' checked' : ''} onchange="waWhoPick('${k}')"><span><b>${apuEsc(WA_WHO_OPTS[k])}</b>${sel === k ? '<span class="pc-tag">✔ Escolhido</span>' : ''}</span></label></div>`;
+  });
+  h += '</div>';
+  if(sel === '1') h += `<div class="form-alert success wa-who-body" role="status">✓ Anotado: você mesmo vai cadastrar o cartão na Meta.</div>`;
+  else if(sel === '2') h += `<div class="wa-who-body"><div class="wa-copy-box" id="wa-copy-who2">${apuEsc(WA_WHO2_TEXT)}</div>
+    <button type="button" class="btn btn-ghost wa-copy-btn" onclick="waCopy('who2',this)">Copiar</button>
+    <div class="wa-note" id="wa-copy-live" role="status"></div></div>`;
+  else if(sel === '3') h += waWho3Html();
+  el.innerHTML = h;
+}
+
+// Copiar: clipboard moderno; se falhar (celular antigo), textarea + execCommand; se nada copiar, o texto já está selecionável.
+async function waCopy(kind, btn){
+  const text = kind === 'msg' ? waSupportMsg() : WA_WHO2_TEXT;
+  if(!text) return;
+  let ok = false;
+  try{ if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); ok = true; } }catch(e){}
+  if(!ok){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0';
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+      ok = document.execCommand('copy');
+      ta.remove();
+    }catch(e){}
+  }
+  const live = document.getElementById('wa-copy-live');
+  if(live) live.textContent = ok ? '✓ Copiado.' : 'Não foi possível copiar. Toque no texto, segure e escolha Copiar.';
+  if(ok && btn){
+    btn.textContent = '✓ Copiado';
+    setTimeout(() => { if(btn.isConnected) btn.textContent = 'Copiar'; }, 2000);
+  }
+}
+
+// ── Popup: um clique abre o FB.login (síncrono) e, em paralelo, avisa o backend (POST /meta/start) ──
+function waSessOpen(){
+  waSessClose(true);
+  waSess = { code:null, ids:null, codeAt:0, done:false, timer:null };
+  window.addEventListener('message', waOnFbMessage);   // o listener só existe enquanto há uma sessão aberta
+  waBusy = true;
+  waStartPolling();   // popup aberto: o acompanhamento volta ao normal (zera tempo e pausa)
+  renderWaAll();
+}
+
+function waSessClose(quiet){
+  if(waSess){ clearTimeout(waSess.timer); waSess = null; }
+  window.removeEventListener('message', waOnFbMessage);
+  if(waBusy && waFlowKind === 'meta'){
+    waBusy = false;
+    if(!quiet){ waSchedulePoll(); renderWaAll(); }   // sem popup em aguardando_popup, waSchedulePoll não agenda nada
+  }
+}
+
+function waMetaConnect(fromRetry){
+  if(waFlowKind !== 'meta' || waSess) return;
+  if(fromRetry !== true && !waMetaBtnState().enabled) return;
+  if(waSdk.state !== 'ready' || !window.FB){
+    waMetaNotify('A janela da Meta ainda não está pronta. Aguarde alguns segundos e tente de novo.', 'info');
+    return;
+  }
+  waMetaNotify('', '');
+  waSessOpen();
+  waMetaStartCall();   // sem await: não pode atrasar o popup
+  try{
+    window.FB.login(waOnLogin, { config_id: waConfig.config_id, response_type:'code', override_default_response_type:true,
+      extras:{ setup:{}, featureType:'', sessionInfoVersion:'3' } });
+  }catch(e){
+    waSessClose();
+    waMetaNotify('Não foi possível abrir a janela da Meta. Tente de novo.', 'error');
+  }
+}
+
+async function waMetaStartCall(){
+  const seq = waSeq, s = waSess;
+  if(Date.now() - waWakeAt > 240000) waWake();   // servidor pode ter dormido com a aba aberta
+  const r = await waRequest('POST', '/api/whatsapp-connection/meta/start');
+  if(seq !== waSeq || waSess !== s) return;
+  if(r.ok){
+    const d = r.data || {};
+    if(d.connection) waApplyConnection(d.connection);
+    if(!d.config){   // em espera vigente ou PIN divergente: o popup não deve ser concluído
+      waSessClose();
+      renderWaAll();
+      waMetaNotify('A conexão está em espera. Veja o motivo abaixo e feche a janela da Meta.', 'info');
+      return;
+    }
+    renderWaAll();
+    waStartPolling();
+    return;
+  }
+  // Falha de rede/servidor aqui não impede o fluxo: o /meta/complete cria o rascunho se faltar. Só param erros definitivos.
+  if(['conexao_ja_online','conexao_existente_outro_numero','integracao_nao_configurada','somente_admin','em_andamento'].includes(r.code)){
+    waSessClose();
+    waMetaNotify(waErrorText(r), 'error');
+  }
+}
+
+function waOnLogin(resp){
+  const s = waSess;
+  if(!s || s.done) return;
+  const code = resp && resp.authResponse && resp.authResponse.code;
+  if(code){
+    s.code = String(code); s.codeAt = Date.now();
+    waSessWatch(s);
+    waTryComplete();
+  }else{
+    // Fechou ou negou: dá 1,5 s para um CANCEL/ERROR com detalhes chegar por postMessage.
+    setTimeout(() => {
+      if(waSess === s && !s.done && !s.code && !s.ids){
+        waHandleSignupEvent({ event:'CANCEL', data:{} });
+      }
+    }, 1500);
+  }
+}
+
+// Só aceita mensagens da Meta (origem exata) e do tipo do Embedded Signup. Nada do conteúdo vai para o console.
+function waOnFbMessage(ev){
+  if(!waSess || waSess.done) return;
+  if(WA_META_ORIGINS.indexOf(ev.origin) === -1) return;
+  let d = ev.data;
+  if(typeof d === 'string'){ try{ d = JSON.parse(d); }catch(e){ return; } }
+  if(!d || typeof d !== 'object' || d.type !== 'WA_EMBEDDED_SIGNUP') return;
+  if(d.event !== 'FINISH' && d.event !== 'CANCEL' && d.event !== 'ERROR') return;
+  waHandleSignupEvent({ event:d.event, data:(d.data && typeof d.data === 'object') ? d.data : {} });
+}
+
+function waMetaGotIds(wabaId, phoneNumberId){
+  const s = waSess;
+  if(!s || s.done) return;
+  s.ids = { waba_id:wabaId, phone_number_id:phoneNumberId };
+  waSessWatch(s);
+  waTryComplete();
+}
+
+// O code e os IDs chegam em eventos separados, em qualquer ordem: só segue quando os dois estão em mãos.
+function waSessWatch(s){
+  clearTimeout(s.timer);
+  if(s.code && s.ids) return;
+  s.timer = setTimeout(() => {
+    if(waSess !== s || s.done) return;
+    waSessClose();
+    waMetaNotify(s.code ? 'A Meta não enviou os dados do número. Tente de novo.' : 'A autorização da Meta não foi concluída. Tente de novo.', 'error');
+  }, 10000);
+}
+
+function waTryComplete(){
+  const s = waSess;
+  if(!s || s.done || !s.code || !s.ids) return;
+  s.done = true;
+  clearTimeout(s.timer);
+  waMetaComplete(s);
+}
+
+function waTransient(r){
+  return !r.ok && !r.aborted && (r.status === 0 || ((r.status === 502 || r.status === 503 || r.status === 504) && !r.code) || r.code === 'meta_indisponivel');
+}
+
+// POST /meta/complete em 0, 5 e 12 s depois da chegada do code (vale ~30 s); só repete falha transitória. O backend é idempotente.
+async function waMetaComplete(s){
+  const seq = waSeq;
+  waMetaNotify('', '');
+  let r = null;
+  for(let i = 0; i < WA_COMPLETE_GAPS.length; i++){
+    const wait = s.codeAt + WA_COMPLETE_GAPS[i] - Date.now();
+    if(wait > 0) await waSleep(wait);
+    if(seq !== waSeq || waSess !== s) return;
+    if(i > 0 && Date.now() - s.codeAt > WA_CODE_WINDOW_MS) break;
+    r = await waRequest('POST', '/api/whatsapp-connection/meta/complete', { code:s.code, waba_id:s.ids.waba_id, phone_number_id:s.ids.phone_number_id });
+    if(seq !== waSeq || waSess !== s) return;
+    if(!waTransient(r)) break;
+  }
+  if(r && r.ok){
+    waApplyConnection(r.data && r.data.connection);
+    waSessClose();
+    renderWaAll();
+    waStartPolling();
+  }else if(r && r.code === 'em_andamento'){
+    const g = await waRequest('GET', '/api/whatsapp-connection');
+    if(seq !== waSeq) return;
+    if(g.ok) waApplyConnection(g.data && g.data.connection);
+    waSessClose();
+    renderWaAll();
+    waMetaNotify(waErrorText(r), 'info');
+    waStartPolling();
+  }else{
+    waSessClose();
+    waMetaNotify(r && waTransient(r) ? 'Não conseguimos falar com o servidor a tempo. Tente de novo.' : waErrorText(r || { status:0 }), 'error');
+  }
 }
 
 // ── Plataforma: estado da conexão de cada cliente (aba "Clientes da Plataforma") ──
