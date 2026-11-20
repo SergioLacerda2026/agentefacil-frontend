@@ -36,6 +36,29 @@ Sempre escreva o nome e o código juntos (por exemplo, "Azul-marinho profundo #1
 4. **Pequena e sóbria.** O Laranja quente #F28C28 é só para a ação principal da tela (botões). Não use laranja para decorar, para fundos, para títulos nem para ícones sem função.
 5. **Não inventar cores.** Se uma tela nova precisar de uma cor fora desta paleta, não improvise: proponha a cor ao proprietário (nome, código e uso). Se for aprovada, acrescente à tabela desta skill no mesmo commit que usa a cor.
 
+## Exceções de cor
+
+Exceção 1: botão do WhatsApp. É a única exceção à regra do botão laranja.
+
+- Cor: Verde WhatsApp #25D366, com letra em Azul-marinho profundo #152542. Contraste 7,7. Com letra branca o contraste cai para 2,0, e isso é proibido.
+- Sempre com o ícone do WhatsApp e o texto escrito (por exemplo, "Conversar no WhatsApp"). O proprietário é daltônico, então a cor nunca é a única informação.
+- Animação: pulso suave em volta do botão, para chamar atenção. A animação DEVE parar quando o aparelho estiver com "reduzir movimento" ativado (`prefers-reduced-motion: reduce`).
+- Os demais botões de ação principal continuam em Laranja quente #F28C28.
+
+Exemplo da animação:
+
+```css
+.btn-whatsapp { background:#25D366; color:#152542; animation:pulso-whatsapp 2s ease-out infinite; }
+@keyframes pulso-whatsapp {
+  0%   { box-shadow:0 0 0 0 rgba(37,211,102,.5); }
+  70%  { box-shadow:0 0 0 12px rgba(37,211,102,0); }
+  100% { box-shadow:0 0 0 0 rgba(37,211,102,0); }
+}
+@media (prefers-reduced-motion: reduce) { .btn-whatsapp { animation:none; } }
+```
+
+Quando surgir outra exceção de cor, proponha ao proprietário antes e registre aqui, neste mesmo commit.
+
 ## Aviso sobre o painel atual
 
 O painel atual (`plataforma-agente.html`) ainda usa outro azul (`--accent: #1D3557`) e NÃO deve ser repintado agora. Esta skill vale para o que for criado ou alterado de agora em diante. Trocar as cores do painel é uma decisão separada, que só o proprietário toma.
